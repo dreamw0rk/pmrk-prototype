@@ -127,15 +127,17 @@ export function CounterpartyProfile() {
 
             {/* Панель документов (ФТ-1.16…1.19) — сеткой 2×2 в правой колонке шапки,
                 рядом с «Подписаться»: действия над карточкой собраны в одном месте,
-                а не растянуты строкой во всю ширину под бейджами. Слово «Скачать»
-                в подписи каждой кнопки — кнопка формирует файл, а не открывает
-                раздел; вид secondary акцентнее ghost, но тише заливного CTA. */}
-            <div style={{ width: 420, maxWidth: '100%' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
-                <Button size="s" width="full" view="secondary" label="Скачать выписку ЕГРЮЛ" iconLeft={IconFileDocument as never} title="Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)" onClick={() => navigate(`/report/${c.uid}/egrul`)} />
-                <Button size="s" width="full" view="secondary" label="Скачать профиль (PDF)" iconLeft={IconFilePDF as never} title="Сформировать и скачать отчет «Профиль контрагента» (ФТ-1.17)" onClick={() => navigate(`/report/${c.uid}`)} />
-                <Button size="s" width="full" view="secondary" label="Скачать СПАРК-Профиль" iconLeft={IconDocExport as never} title="Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)" onClick={() => navigate(`/report/${c.uid}/spark`)} />
-                <Button size="s" width="full" view="secondary" label="Скачать СПАРК-Риски" iconLeft={IconAlert as never} title="Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)" onClick={() => navigate(`/report/${c.uid}/spark-risks`)} />
+                а не растянуты строкой во всю ширину под бейджами. Заливной primary
+                и размер m — формирование отчёта здесь основной сценарий, кнопки
+                должны читаться первыми. Подписи короткие («Скачать {отчёт}», без
+                уточнений в скобках) — иначе текст не помещается в ячейку сетки;
+                полное название отчёта с номером ФТ остаётся в подсказке. */}
+            <div style={{ width: 480, maxWidth: '100%' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                <Button size="m" width="full" view="primary" label="Скачать ЕГРЮЛ" iconLeft={IconFileDocument as never} title="Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)" onClick={() => navigate(`/report/${c.uid}/egrul`)} />
+                <Button size="m" width="full" view="primary" label="Скачать профиль" iconLeft={IconFilePDF as never} title="Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)" onClick={() => navigate(`/report/${c.uid}`)} />
+                <Button size="m" width="full" view="primary" label="Скачать СПАРК-Профиль" iconLeft={IconDocExport as never} title="Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)" onClick={() => navigate(`/report/${c.uid}/spark`)} />
+                <Button size="m" width="full" view="primary" label="Скачать СПАРК-Риски" iconLeft={IconAlert as never} title="Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)" onClick={() => navigate(`/report/${c.uid}/spark-risks`)} />
               </div>
             </div>
           </div>
