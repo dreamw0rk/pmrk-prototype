@@ -90,7 +90,9 @@ export function CounterpartyProfile() {
             <a onClick={() => navigate('/registry')} style={{ cursor: 'pointer' }}>Реестр контрагентов</a> / {c.shortName}
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 4 }}>
+        {/* flexWrap: на узком экране панель отчётов переносится под реквизиты,
+            а не сжимает заголовок с бейджами до нечитаемого столбца. */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 4, flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }}>
             {skin !== 'sfk' && (
               <h1 style={{ margin: '2px 0 6px', fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>
@@ -112,7 +114,7 @@ export function CounterpartyProfile() {
               <StatusBadge status={c.status} />
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
             <div style={{ display: 'flex', gap: 6 }}>
               <Button size="s" view={fav ? 'primary' : 'ghost'} onlyIcon iconLeft={(fav ? IconFavoriteFilled : IconFavoriteStroked) as never} onClick={() => setFav((v) => !v)} title="В избранное" />
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -122,21 +124,21 @@ export function CounterpartyProfile() {
                 <Button size="s" view={subscribed ? 'primary' : 'secondary'} label={subscribed ? 'Вы подписаны' : 'Подписаться'} iconLeft={IconRing as never} onClick={() => setSubscribed((v) => !v)} />
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Панель документов (ФТ-1.16…1.19): ряд на всю ширину под бейджами —
-            акцентный secondary-вид с брендовой рамкой, но тише заливного CTA «Подписаться»;
-            подпись «Скачать отчёт (PDF)» явно обозначает, что кнопки формируют файл. */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--color-typo-secondary)' }}>
-            <IconDownload size="s" />
-            Скачать отчёт (PDF):
-          </span>
-          <Button size="s" view="secondary" label="Выписка ЕГРЮЛ" iconLeft={IconFileDocument as never} title="Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)" onClick={() => navigate(`/report/${c.uid}/egrul`)} />
-          <Button size="s" view="secondary" label="Профиль (PDF)" iconLeft={IconFilePDF as never} title="Сформировать и скачать отчет «Профиль контрагента» (ФТ-1.17)" onClick={() => navigate(`/report/${c.uid}`)} />
-          <Button size="s" view="secondary" label="СПАРК-Профиль" iconLeft={IconDocExport as never} title="Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)" onClick={() => navigate(`/report/${c.uid}/spark`)} />
-          <Button size="s" view="secondary" label="СПАРК-Риски" iconLeft={IconAlert as never} title="Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)" onClick={() => navigate(`/report/${c.uid}/spark-risks`)} />
+            {/* Панель документов (ФТ-1.16…1.19) — сеткой 2×2 в правой колонке шапки,
+                рядом с «Подписаться»: действия над карточкой собраны в одном месте,
+                а не растянуты строкой во всю ширину под бейджами. Слово «Скачать»
+                в подписи каждой кнопки — кнопка формирует файл, а не открывает
+                раздел; вид secondary акцентнее ghost, но тише заливного CTA. */}
+            <div style={{ width: 420, maxWidth: '100%' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+                <Button size="s" width="full" view="secondary" label="Скачать выписку ЕГРЮЛ" iconLeft={IconFileDocument as never} title="Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)" onClick={() => navigate(`/report/${c.uid}/egrul`)} />
+                <Button size="s" width="full" view="secondary" label="Скачать профиль (PDF)" iconLeft={IconFilePDF as never} title="Сформировать и скачать отчет «Профиль контрагента» (ФТ-1.17)" onClick={() => navigate(`/report/${c.uid}`)} />
+                <Button size="s" width="full" view="secondary" label="Скачать СПАРК-Профиль" iconLeft={IconDocExport as never} title="Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)" onClick={() => navigate(`/report/${c.uid}/spark`)} />
+                <Button size="s" width="full" view="secondary" label="Скачать СПАРК-Риски" iconLeft={IconAlert as never} title="Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)" onClick={() => navigate(`/report/${c.uid}/spark-risks`)} />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Вкладки — sticky навигация */}
@@ -196,6 +198,42 @@ function TabContent({ c, tab }: { c: Counterparty; tab: string }) {
     case 'protocols': return <ProfileProtocolsTab c={c} />;
     default: return null;
   }
+}
+
+/** Группа блока ГК в составе «Работает с ДО» — сворачиваемая: заголовок с
+    шевроном и кодом блока (БЛПС, БРД …), под ним строки его ДО со сдвигом
+    вправо. Без шеврона и сдвига строки блоков сливались в одну простыню и
+    принадлежность ДО к блоку читалась плохо. */
+function DoBlockGroup({ block, name, items }: { block: string; name?: string; items: DoLink[] }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <>
+      <div
+        className="pmrk-clickable"
+        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-bg-border)', cursor: 'pointer' }}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'var(--color-typo-secondary)', width: 12, display: 'inline-block' }}>▸</span>
+        <span className="pmrk-chip" style={{ background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)', border: '1px solid var(--color-bg-border)', fontSize: 11.5, fontWeight: 700 }}>{block}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600 }}>{name ?? 'Блок не определён'}</span>
+        <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{items.length} ДО</span>
+      </div>
+      {open && items.map((link) => (
+        <div key={link.subsidiary} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+          {/* левая полоса + отступ: строка визуально принадлежит блоку выше */}
+          <div className="pmrk-td" style={{ flex: 1.8, fontWeight: 600, whiteSpace: 'normal', paddingLeft: 32, borderLeft: '3px solid var(--color-bg-border)' }}>
+            {link.subsidiary}
+            {/* основное ДО карточки — то самое значение поля «Работает с ДО» */}
+            {link.primary && (
+              <span className="pmrk-chip" style={{ marginLeft: 8, background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11, fontWeight: 500 }}>основное</span>
+            )}
+          </div>
+          <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{link.inn}</div>
+          <div className="pmrk-td" style={{ flex: 1.3, whiteSpace: 'normal' }}>{link.segment}</div>
+        </div>
+      ))}
+    </>
+  );
 }
 
 function GeneralTab({ c }: { c: Counterparty }) {
@@ -264,33 +302,14 @@ function GeneralTab({ c }: { c: Counterparty }) {
 
         <div className="pmrk-table">
           <div className="pmrk-table__head">
-            <div className="pmrk-th" style={{ flex: 1.8 }}>Наименование ДО</div>
+            {/* +3px к отступу — на ширину левой полосы у строк ДО, чтобы шапка и данные
+                были выровнены по одной вертикали */}
+            <div className="pmrk-th" style={{ flex: 1.8, paddingLeft: 35 }}>Наименование ДО</div>
             <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
             <div className="pmrk-th" style={{ flex: 1.3 }}>Направление работы</div>
           </div>
           {doGroups.map((g) => (
-            <Fragment key={g.block}>
-              {/* Строка-подзаголовок блока: код (БЛПС, БРД …) — то, чем блок
-                  называют в отчётности, полное наименование — рядом, тише. */}
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '10px 12px 6px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-bg-border)' }}>
-                <span style={{ fontWeight: 700, fontSize: 12.5 }}>{g.block}</span>
-                <span className="pmrk-muted" style={{ fontSize: 12 }}>{g.name ?? 'Блок не определён'}</span>
-                <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{g.items.length}</span>
-              </div>
-              {g.items.map((link) => (
-                <div key={link.subsidiary} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-                  <div className="pmrk-td" style={{ flex: 1.8, fontWeight: 600, whiteSpace: 'normal' }}>
-                    {link.subsidiary}
-                    {/* основное ДО карточки — то самое значение поля «Работает с ДО» */}
-                    {link.primary && (
-                      <span className="pmrk-chip" style={{ marginLeft: 8, background: 'var(--color-bg-default)', color: 'var(--color-typo-secondary)', fontSize: 11, fontWeight: 500, border: '1px solid var(--color-bg-border)' }}>основное</span>
-                    )}
-                  </div>
-                  <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{link.inn}</div>
-                  <div className="pmrk-td" style={{ flex: 1.3, whiteSpace: 'normal' }}>{link.segment}</div>
-                </div>
-              ))}
-            </Fragment>
+            <DoBlockGroup key={g.block} block={g.block} name={g.name} items={g.items} />
           ))}
         </div>
       </SectionCard>
