@@ -21,12 +21,13 @@ import {
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
 import { LineChart, Gauge } from '@/shared/ui/MiniChart';
 import { AffiliationDiagram, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
-import { BY_UID, GRAPHS, groupLabel, NOW } from '@/shared/mock/data';
+import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
 import { useMockQuery } from '@/shared/mock/useMockQuery';
 import { buildExternal, rbSignal, type Indicator } from '@/shared/mock/external';
 import { buildLegal } from '@/shared/mock/legal';
-import { buildCreditLimitsByDo, isDoLimitActive, activeCreditLimit, type DoLimitRow } from '@/shared/mock/creditLimits';
+import { buildCreditLimitsByDo, isDoLimitActive, activeCreditLimit } from '@/shared/mock/creditLimits';
+import { buildDoLinks, type DoLink } from '@/shared/mock/subsidiaries';
 import type { Counterparty, AffiliationLinkType } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
 
@@ -197,64 +198,31 @@ function TabContent({ c, tab }: { c: Counterparty; tab: string }) {
   }
 }
 
-/** Строка состава «Работает с ДО»: дочернее общество ГК ГПН и — если по нему
-    открывался кредитный лимит — соответствующая запись реестра КЛ с условиями
-    работы. Без лимита (row отсутствует) остаётся сам факт связи. */
-interface DoEntry { subsidiary: string; inn: string; row?: DoLimitRow }
-
 function GeneralTab({ c }: { c: Counterparty }) {
-  const navigate = useNavigate();
-  const { role } = useApp();
-  // Список ДО — та же выборка, что и в «Кредитном лимите» (buildCreditLimitsByDo),
-  // здесь просто показывает состав и условия работы, без агрегатов лимита.
-  // На карточке нет отдельного справочника ДО, поэтому переиспользуем уже
-  // посчитанную связь контрагент↔ДО.
-  const doLimits = useMemo(() => buildCreditLimitsByDo(c), [c.uid]);
-  const doList = useMemo<DoEntry[]>(() => {
-    const seen = new Map<string, DoEntry>();
-    doLimits.forEach((row) => {
-      if (!seen.has(row.subsidiary)) seen.set(row.subsidiary, { subsidiary: row.subsidiary, inn: row.subsidiaryInn, row });
+  // Состав ДО, работающих с контрагентом (ФТ-19.1). Контрагент почти всегда
+  // работает с несколькими ДО, а управленчески они сворачиваются до блока —
+  // БЛПС, БРД и т.д., поэтому список сгруппирован по блокам. Условия работы
+  // (кредитный лимит, отсрочка, орган утверждения) здесь не выводятся: это
+  // предмет вкладки «Кредитный лимит», дублировать их в общих сведениях незачем.
+  const doLinks = useMemo(() => buildDoLinks(c), [c.uid]);
+  const doGroups = useMemo(() => {
+    const byBlock = new Map<string, DoLink[]>();
+    doLinks.forEach((link) => {
+      const key = link.block ?? '—';
+      if (!byBlock.has(key)) byBlock.set(key, []);
+      byBlock.get(key)!.push(link);
     });
-    // Связь «работает с ДО» (ФТ-19.1) существует независимо от кредитного лимита:
-    // если КЛ не открывался, основное ДО контрагента всё равно должно быть в составе —
-    // иначе блок пустует там, где сведения есть.
-    if (!seen.has(c.subsidiary)) seen.set(c.subsidiary, { subsidiary: c.subsidiary, inn: '—' });
-    return [...seen.values()];
-  }, [doLimits, c.subsidiary]);
-  const [doDetail, setDoDetail] = useState<{ title: string; items: { k: string; v: React.ReactNode }[] } | null>(null);
-
-  // Суммы и условия КЛ видны только ролям, у которых открыт раздел «Кредитный
-  // лимит» (табл. 13 ЕДТ): для остальных блок остаётся составом ДО без цифр.
-  const showLimits = can(role, 'viewLimitSection');
-  const activeLimit = useMemo(() => activeCreditLimit(doLimits), [doLimits]);
-  // Совокупный КЛ считаем так же, как на вкладке «Кредитный лимит» — суммой по
-  // тем же строкам реестра, а не полем карточки: иначе две вкладки показывали бы
-  // разные числа для одного и того же показателя.
-  const groupLimit = useMemo(() => doLimits.reduce((sum, row) => sum + row.amountRub, 0), [doLimits]);
-  const activeDoCount = doLimits.filter(isDoLimitActive).length;
-
-  const openDo = (entry: DoEntry) => {
-    const row = entry.row;
-    setDoDetail({
-      title: entry.subsidiary,
-      items: [
-        { k: 'Наименование ДО', v: entry.subsidiary },
-        { k: 'ИНН', v: entry.inn },
-        ...(row && showLimits
-          ? [
-              { k: 'Сегмент', v: row.segment },
-              { k: 'Лимит', v: moneyCompact(row.amountRub) },
-              { k: 'Отсрочка платежа', v: `${row.deferralDays} дн.` },
-              { k: 'Коллегиальный орган', v: row.approvalBody },
-              { k: 'Реквизиты документа', v: row.documentRef },
-              { k: 'Действительность', v: isDoLimitActive(row) ? 'Да' : 'Нет' },
-              { k: 'Действует', v: `${dateRu(row.startDate)} – ${dateRu(row.endDate)}` },
-              { k: 'Обеспечение', v: row.collateral },
-            ]
-          : [{ k: 'Кредитный лимит', v: row ? 'Скрыт для текущей роли' : 'Не открывался' }]),
-      ],
-    });
-  };
+    // Порядок групп — как в справочнике блоков (управленческий, не алфавитный);
+    // ДО без блока (головная компания ГК в роли «ДО» у самой себя) — в конце.
+    const order = Object.keys(BLOCKS);
+    return [...byBlock.entries()]
+      .sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))
+      .map(([block, items]) => ({
+        block,
+        name: BLOCKS[block as BlockCode] as string | undefined,
+        items: [...items].sort((x, y) => Number(y.primary) - Number(x.primary) || x.subsidiary.localeCompare(y.subsidiary, 'ru')),
+      }));
+  }, [doLinks]);
 
   return (
     <>
@@ -275,99 +243,57 @@ function GeneralTab({ c }: { c: Counterparty }) {
       </SectionCard>
 
       {/* «Работает с ДО» (ФТ-19.1) — отдельный сворачиваемый блок, а не девятое
-          поле карточки: у связи контрагент↔ДО в ЕДТ заведён собственный набор
-          аналитик (реестр «Кредитные лимиты», ФТ-1.7 — сегмент, утверждённый КЛ,
-          отсрочка платежа, коллегиальный орган, реквизиты документа, срок
-          действия, обеспечение), а ДО у контрагента бывает несколько. Одним
-          полем это не выражается, но и раскрытым нужно не всем — отсюда
-          сворачивание. Полные условия по каждому ДО — в модалке по клику. */}
+          поле карточки: ДО у контрагента несколько, и важно не только «с кем», но
+          и «в каком блоке ГК» — по блокам сводится управленческая отчётность
+          (ФТ-22.3 «Блок → ДО → итог»). Раскрытым нужен не всем, отсюда сворачивание. */}
       <SectionCard
         collapsible
         title={
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             Работает с ДО
-            <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11 }}>{doList.length}</span>
+            <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11 }}>
+              {doLinks.length} ДО · {doGroups.length} {doGroups.length === 1 ? 'блок' : doGroups.length < 5 ? 'блока' : 'блоков'}
+            </span>
           </span>
         }
-        extra={<DateActuality date={c.asOf['credit-limit'] ?? c.asOf.general} source="реестр «Кредитные лимиты» · АРМ КК" />}
+        extra={<DateActuality date={c.asOf.general} source="справочник ДО ГК ГПН" />}
       >
         <div className="pmrk-muted" style={{ fontSize: 13, marginBottom: 12 }}>
-          Дочерние общества ГК «Газпром нефть», работающие с контрагентом
-          {showLimits ? ', и условия этой работы из реестра КЛ. Клик по строке — полная карточка ДО.' : '. Клик по строке — карточка ДО.'}
+          Дочерние общества ГК «Газпром нефть», работающие с контрагентом, — по блокам. Условия работы по каждому ДО (кредитный лимит, отсрочка, обеспечение) — на вкладке «Кредитный лимит».
         </div>
-
-        {showLimits && doLimits.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 14 }}>
-            <Stat label="ДО с действующим КЛ" value={`${activeDoCount} из ${doLimits.length}`} sub="утверждённые лимиты со сроком действия" />
-            <Stat label="Действующий КЛ по ДО" value={<MoneyValue amount={activeLimit} />} asOf={c.asOf['credit-limit']} calcLabel="обновлено" calcSource="сумма непросроченных лимитов ДО" />
-            <Stat label="Совокупный КЛ группы" value={<MoneyValue amount={groupLimit} />} asOf={c.asOf['credit-limit']} calcSource="сумма утверждённых лимитов ДО" />
-          </div>
-        )}
 
         <div className="pmrk-table">
           <div className="pmrk-table__head">
-            <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование ДО</div>
+            <div className="pmrk-th" style={{ flex: 1.8 }}>Наименование ДО</div>
             <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-            <div className="pmrk-th" style={{ flex: 1.2 }}>Сегмент</div>
-            {showLimits && <div className="pmrk-th" style={{ flex: 0.8, justifyContent: 'flex-end' }}>Лимит</div>}
-            {showLimits && <div className="pmrk-th" style={{ flex: 0.7, justifyContent: 'flex-end' }}>Отсрочка</div>}
-            {showLimits && <div className="pmrk-th" style={{ flex: 1.1 }}>Действительность</div>}
-            <div className="pmrk-th" style={{ flex: 0.2 }} />
+            <div className="pmrk-th" style={{ flex: 1.3 }}>Направление работы</div>
           </div>
-          {doList.map((entry, i) => {
-            const row = entry.row;
-            const active = row ? isDoLimitActive(row) : false;
-            return (
-              <div key={i} className="pmrk-tr" style={{ alignItems: 'flex-start' }} onClick={() => openDo(entry)}>
-                <div className="pmrk-td" style={{ flex: 1.6, fontWeight: 600, whiteSpace: 'normal' }}>
-                  {entry.subsidiary}
-                  {/* основное ДО карточки — то самое значение поля «Работает с ДО» */}
-                  {entry.subsidiary === c.subsidiary && (
-                    <span className="pmrk-chip" style={{ marginLeft: 8, background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11, fontWeight: 500 }}>основное</span>
-                  )}
-                </div>
-                <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{entry.inn}</div>
-                <div className="pmrk-td" style={{ flex: 1.2, whiteSpace: 'normal' }}>{row?.segment ?? '—'}</div>
-                {showLimits && <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8, justifyContent: 'flex-end', display: 'flex' }}>{row ? moneyCompact(row.amountRub) : '—'}</div>}
-                {showLimits && <div className="pmrk-td pmrk-tnum" style={{ flex: 0.7, justifyContent: 'flex-end', display: 'flex' }}>{row ? `${row.deferralDays} дн.` : '—'}</div>}
-                {showLimits && (
-                  <div className="pmrk-td" style={{ flex: 1.1, whiteSpace: 'normal' }}>
-                    {row ? (
-                      <>
-                        <span style={{ color: active ? 'var(--pmrk-risk-1)' : 'var(--pmrk-risk-4)', fontWeight: 600, fontSize: 12 }}>{active ? 'Да' : 'Нет'}</span>
-                        <div className="pmrk-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{dateRu(row.startDate)} – {dateRu(row.endDate)}</div>
-                      </>
-                    ) : (
-                      <span className="pmrk-muted" style={{ fontSize: 12 }}>КЛ не открывался</span>
+          {doGroups.map((g) => (
+            <Fragment key={g.block}>
+              {/* Строка-подзаголовок блока: код (БЛПС, БРД …) — то, чем блок
+                  называют в отчётности, полное наименование — рядом, тише. */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '10px 12px 6px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-bg-border)' }}>
+                <span style={{ fontWeight: 700, fontSize: 12.5 }}>{g.block}</span>
+                <span className="pmrk-muted" style={{ fontSize: 12 }}>{g.name ?? 'Блок не определён'}</span>
+                <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{g.items.length}</span>
+              </div>
+              {g.items.map((link) => (
+                <div key={link.subsidiary} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+                  <div className="pmrk-td" style={{ flex: 1.8, fontWeight: 600, whiteSpace: 'normal' }}>
+                    {link.subsidiary}
+                    {/* основное ДО карточки — то самое значение поля «Работает с ДО» */}
+                    {link.primary && (
+                      <span className="pmrk-chip" style={{ marginLeft: 8, background: 'var(--color-bg-default)', color: 'var(--color-typo-secondary)', fontSize: 11, fontWeight: 500, border: '1px solid var(--color-bg-border)' }}>основное</span>
                     )}
                   </div>
-                )}
-                <div className="pmrk-td pmrk-muted" style={{ flex: 0.2, justifyContent: 'flex-end', display: 'flex' }}>→</div>
-              </div>
-            );
-          })}
+                  <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{link.inn}</div>
+                  <div className="pmrk-td" style={{ flex: 1.3, whiteSpace: 'normal' }}>{link.segment}</div>
+                </div>
+              ))}
+            </Fragment>
+          ))}
         </div>
-
-        {showLimits && (
-          <div style={{ marginTop: 10 }}>
-            <Button size="xs" view="ghost" label="Все лимиты по ДО — вкладка «Кредитный лимит» →" onClick={() => navigate(`/counterparties/${c.uid}/credit-limit`)} />
-          </div>
-        )}
       </SectionCard>
-
-      {/* Доп. информация по ДО — тот же паттерн, что и карточки претензий/дел
-          в «Претензионно-исковой работе»: клик по строке → Modal с KeyValue. */}
-      <Modal isOpen={!!doDetail} onClickOutside={() => setDoDetail(null)} onEsc={() => setDoDetail(null)}>
-        {doDetail && (
-          <div style={{ padding: 20, width: 480, maxWidth: '92vw' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 16 }}>{doDetail.title}</h3>
-              <Button size="xs" view="clear" label="✕" onClick={() => setDoDetail(null)} />
-            </div>
-            <KeyValue cols={1} items={doDetail.items} />
-          </div>
-        )}
-      </Modal>
     </>
   );
 }

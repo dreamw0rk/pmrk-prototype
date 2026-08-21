@@ -7,7 +7,7 @@ import { IconSettingsStroked } from '@consta/icons/IconSettingsStroked';
 import { useApp } from '@/app/AppContext';
 import { PageHeader, SectionCard, GroupBadge, EmptyState, severityColor, SEVERITY_LABEL, Segmented } from '@/shared/ui/kit';
 import { TaskRow } from '@/shared/ui/TaskRow';
-import { SIGNALS, TASKS, BY_UID, REGISTRY, SUBS } from '@/shared/mock/data';
+import { SIGNALS, TASKS, BY_UID, REGISTRY, SUBS, BLOCK_NAMES } from '@/shared/mock/data';
 import type { SignalSeverity } from '@/shared/mock/types';
 import { ago, moneyCompact } from '@/shared/format';
 
@@ -144,17 +144,9 @@ const CATEGORIES = [
 type ScopeKind = 'Блок / БЕ' | 'ДО' | 'Контрагент';
 type ScopeItem = { id: string; label: string; sub?: string };
 
-const BLOCKS = [
-  'Блок разведки и добычи',
-  'Блок логистики, переработки и сбыта',
-  'Блок экономики и финансов',
-  'Блок цифровой трансформации',
-  'Аппарат управления',
-];
-
 /** Список для выпадашки скоупа правила. Контрагент — демо-срез реестра (первые 60). */
 function scopeItems(kind: ScopeKind): ScopeItem[] {
-  if (kind === 'Блок / БЕ') return BLOCKS.map((b) => ({ id: b, label: b }));
+  if (kind === 'Блок / БЕ') return BLOCK_NAMES.map((b) => ({ id: b, label: b }));
   if (kind === 'ДО') return SUBS.map((s) => ({ id: s, label: s }));
   return REGISTRY.slice(0, 60).map((c) => ({ id: c.uid, label: c.name, sub: `ИНН ${c.inn} · ${c.region}` }));
 }

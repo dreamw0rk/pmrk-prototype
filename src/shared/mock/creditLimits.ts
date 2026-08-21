@@ -1,5 +1,5 @@
 import type { Counterparty } from './types';
-import { SUBS, NOW } from './data';
+import { SUBS, NOW, doInn as subsidiaryInn } from './data';
 
 /* Распределение кредитного лимита по ДО ГК ГПН (реестр «Кредитные лимиты», выгрузка
    АРМ КК) — источник структуры и состава колонок: экспорт из системы (Название,
@@ -43,15 +43,13 @@ function docRef(seed: number): string {
   return `ПТ-${330 + (seed % 40)}.00${20 + (seed % 9)}/000${(seed * 137) % 9000}`;
 }
 
-/** ИНН ДО — своих реквизитов в модели нет (SUBS — просто список названий),
-    поэтому для юрлица ДО генерируем стабильный правдоподобный ИНН (детерминированно
-    от названия, префикс 77 — Москва, где зарегистрировано большинство ДО ГК ГПН).
-    Исключение — когда «ДО» это сам контрагент (головная компания ГК, см. cp-gpn):
-    тогда это один и тот же субъект, берём его настоящий ИНН из карточки. */
+/** ИНН ДО берём из общего справочника (data.doInn) — тот же номер, что и на
+    других экранах. Исключение — когда «ДО» это сам контрагент (головная компания
+    ГК, см. cp-gpn): тогда это один и тот же субъект, и в ход идёт его настоящий
+    ИНН из карточки. */
 function doInn(subsidiary: string, cp: Counterparty): string {
   if (subsidiary === cp.subsidiary && !SUBS.includes(subsidiary)) return cp.inn;
-  const h = seedOf(subsidiary) * 9301 + 49297;
-  return `77${String(h % 100_000_000).padStart(8, '0')}`;
+  return subsidiaryInn(subsidiary);
 }
 
 export function buildCreditLimitsByDo(cp: Counterparty): DoLimitRow[] {
