@@ -95,8 +95,9 @@ function VerdictPill({ tone, label }: { tone: Tone; label: string }) {
   );
 }
 
-/** Строка компании. Роль «Пользователь» получает вердикт словами, остальные — группу с баллом. */
-function CompanyRow({ c, simple, onClick }: { c: Counterparty; simple: boolean; onClick: () => void }) {
+/** Строка компании. Роль «Пользователь» получает вердикт словами, остальные — группу с баллом.
+    В компактных списках (например, «Недавние контрагенты») тег группы/вердикта можно скрыть. */
+function CompanyRow({ c, simple, onClick, hideBadge }: { c: Counterparty; simple: boolean; onClick: () => void; hideBadge?: boolean }) {
   const v = userVerdict(c);
   return (
     <button
@@ -106,9 +107,9 @@ function CompanyRow({ c, simple, onClick }: { c: Counterparty; simple: boolean; 
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 15, fontWeight: 600 }} className="pmrk-truncate">{c.name}</div>
-        <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>ИНН {c.inn} · {c.region}</div>
+        <div className="pmrk-muted pmrk-truncate" style={{ fontSize: 12.5, marginTop: 2 }}>ИНН {c.inn} · {c.region}</div>
       </div>
-      {simple ? <VerdictPill tone={v.tone} label={v.label} /> : <GroupBadge group={c.group} withScore={c.score} />}
+      {!hideBadge && (simple ? <VerdictPill tone={v.tone} label={v.label} /> : <GroupBadge group={c.group} withScore={c.score} />)}
       <IconForward size="s" className="pmrk-muted" />
     </button>
   );
@@ -208,13 +209,18 @@ export function Home() {
 
       {/* Поиск ещё не начат — недавние контрагенты, действия и дашборды в один ряд */}
       {!searched && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1.1fr) minmax(430px, 1.3fr) minmax(280px, 0.9fr)', gap: 16, alignItems: 'stretch' }}>
-          <SectionCard title="Недавние контрагенты">
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(355px, 0.95fr) minmax(430px, 1.45fr) minmax(280px, 0.9fr)', gap: 16, alignItems: 'stretch' }}>
+          <SectionCard title="Недавние контрагенты" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="pmrk-stack" style={{ gap: 8 }}>
               {FAVORITES.map((uid) => {
                 const c = BY_UID.get(uid);
-                return c ? <CompanyRow key={uid} c={c} simple={simple} onClick={() => open(uid)} /> : null;
+                return c ? <CompanyRow key={uid} c={c} simple={simple} onClick={() => open(uid)} hideBadge /> : null;
               })}
+            </div>
+            {/* marginTop: auto — кнопка всегда прижата к низу карточки, даже когда
+                колонка растянута по высоте соседей (grid alignItems: 'stretch'). */}
+            <div style={{ marginTop: 'auto', paddingTop: 10 }}>
+              <Button size="s" view="ghost" label="Обучение работе на Платформе" iconLeft={IconBook as never} onClick={() => navigate('/help')} />
             </div>
           </SectionCard>
 
@@ -246,8 +252,7 @@ export function Home() {
             </div>
           </SectionCard>
 
-          {/* Дашборды (ФТ-8.1…8.4) — карточки внешних BI (в прототипе не подключены);
-              обучение (ФТ-9.4) — тихой кнопкой под ними. */}
+          {/* Дашборды (ФТ-8.1…8.4) — карточки внешних BI (в прототипе не подключены). */}
           <SectionCard title="Дашборды">
             <div className="pmrk-stack" style={{ gap: 8 }}>
               {EDT_DASHBOARDS.map((d) => {
@@ -269,9 +274,6 @@ export function Home() {
                   </a>
                 );
               })}
-            </div>
-            <div style={{ marginTop: 10 }}>
-              <Button size="s" view="ghost" label="Обучение работе на Платформе" iconLeft={IconBook as never} onClick={() => navigate('/help')} />
             </div>
           </SectionCard>
         </div>

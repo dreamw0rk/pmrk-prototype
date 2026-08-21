@@ -62,6 +62,12 @@
   border: 1px solid var(--color-bg-border);
   border-radius: var(--pmrk-radius);
   padding: 12px 14px;
+  /* flex-колонка нужна только когда карточки растянуты по высоте соседей
+     (grid alignItems: 'stretch') — тогда сноска даты (pmrk-stat__stamp,
+     margin-top: auto) прижимается к нижней границе, а не «висит» сразу под
+     значением. Без растяжения высота = высоте контента, разницы не видно. */
+  display: flex;
+  flex-direction: column;
 }
 .pmrk-stat__label {
   font-size: 12px;
@@ -73,6 +79,13 @@
   font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
+  /* flex:1 + центрирование — тоже проявляется только при растянутой карточке
+     (см. .pmrk-stat): значение занимает всё место между подписью и сноской и
+     центрируется в нём по вертикали, а не жмётся сразу под подписью. Без
+     растяжения flex:1 не даёт лишнего места — эффекта нет. */
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 .pmrk-stat__sub {
   font-size: 12px;
@@ -97,7 +110,8 @@
   font-size: 11px;
 }
 .pmrk-stat__stamp {
-  margin-top: 3px;
+  margin-top: auto;
+  padding-top: 3px;
 }
 
 /* --- Цветовые индикаторы риска (ФТ-12.8) --- */
