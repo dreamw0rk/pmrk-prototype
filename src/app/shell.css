@@ -11,70 +11,84 @@
 }
 
 /* --- Сайдбар --- */
+/* Левая панель повторяет ПМРК2 (скин СФК, .sfk-sidebar): белый лист с линией и
+   мягкой тенью, внутренние поля вместо прижатых к краю пунктов, блок бренда
+   отбит снизу линией. Вес меню держится на полях и ритме, а не на заливке. */
 .pmrk-sidebar {
   background: var(--color-bg-default);
   border-right: 1px solid var(--color-bg-border);
+  box-shadow: var(--pmrk-shadow-1);
   display: flex;
   flex-direction: column;
+  padding: 16px 14px;
   overflow: hidden;
 }
 .pmrk-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: var(--pmrk-topbar-h);
-  padding: 0 16px;
+  padding: 2px 8px 14px;
+  margin-bottom: 6px;
   border-bottom: 1px solid var(--color-bg-border);
   flex: none;
 }
 .pmrk-brand__mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, var(--color-bg-brand), #00345e);
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--color-bg-brand);
   color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   font-weight: 800;
-  font-size: 14px;
+  font-size: 13px;
   flex: none;
 }
 .pmrk-brand__name {
   font-weight: 700;
   font-size: 15px;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 .pmrk-brand__sub {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--color-typo-secondary);
 }
 .pmrk-nav {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 .pmrk-nav__group {
-  font-size: 10.5px;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--color-typo-ghost);
-  padding: 12px 12px 4px;
+  padding: 18px 12px 6px;
+}
+.pmrk-nav__group:first-child {
+  padding-top: 8px;
 }
 .pmrk-nav__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
-  border-radius: 8px;
-  color: var(--color-typo-primary);
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  /* неактивные пункты — вторичным цветом, как в ПМРК2: активный выделяется не
+     только заливкой, но и весом текста */
+  color: var(--color-typo-secondary);
   text-decoration: none;
   font-size: 13.5px;
   cursor: pointer;
   position: relative;
+  transition: background 0.13s, color 0.13s;
 }
 .pmrk-nav__item:hover {
   background: var(--color-bg-secondary);
+  color: var(--color-typo-primary);
 }
 .pmrk-nav__item--active {
   background: var(--color-bg-brand);
@@ -84,19 +98,21 @@
 .pmrk-nav__item--active:hover {
   background: var(--color-bg-brand);
 }
+/* счётчик — мягкий чип, как в ПМРК2: заливка тоном риска вместо сплошного
+   красного кружка, на активном пункте — светлая подложка */
 .pmrk-nav__badge {
   margin-left: auto;
-  background: var(--pmrk-risk-4);
-  color: #fff;
-  border-radius: 10px;
-  font-size: 11px;
-  padding: 0 6px;
-  line-height: 17px;
-  min-width: 18px;
+  background: var(--pmrk-risk-4-bg);
+  color: var(--pmrk-risk-4);
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
   text-align: center;
 }
 .pmrk-nav__item--active .pmrk-nav__badge {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
 }
 
 /* --- Основная колонка --- */
