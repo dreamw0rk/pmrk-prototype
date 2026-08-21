@@ -58,10 +58,10 @@ const monthLabels = (n = 12) =>
 /** Отчёты по контрагенту (ФТ-1.16…1.19) — плитки в шапке профиля. Путь строится
     как `/report/{uid}{to}`, поэтому у «Профиля контрагента» to пустой. */
 const REPORT_TILES = [
-  { to: '/egrul', label: 'Выписка ЕГРЮЛ', icon: IconFileDocument, title: 'Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)' },
-  { to: '', label: 'Профиль контрагента', icon: IconFilePDF, title: 'Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)' },
-  { to: '/spark', label: 'СПАРК-Профиль', icon: IconDocExport, title: 'Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)' },
-  { to: '/spark-risks', label: 'СПАРК-Риски', icon: IconAlert, title: 'Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)' },
+  { to: '/egrul', label: 'Скачать ЕГРЮЛ', icon: IconFileDocument, title: 'Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)' },
+  { to: '', label: 'Скачать профиль', icon: IconFilePDF, title: 'Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)' },
+  { to: '/spark', label: 'Скачать СПАРК-Профиль', icon: IconDocExport, title: 'Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)' },
+  { to: '/spark-risks', label: 'Скачать СПАРК-Риски', icon: IconAlert, title: 'Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)' },
 ];
 
 export function CounterpartyProfile() {
@@ -142,15 +142,17 @@ export function CounterpartyProfile() {
               {skin === 'sfk' && <div style={{ marginLeft: 'auto' }}>{cardActions}</div>}
             </div>
           </div>
-          {/* Панель документов (ФТ-1.16…1.19) — сеткой 2×2 в правой колонке шапки.
-              Оформление — плитки того же вида, что «Действия» и «Дашборды» на
-              главной (рамка, радиус 12, брендовая иконка слева, подпись снизу):
-              четыре заливные кнопки в шапке выбивались из языка интерфейса и
-              перебивали CTA «Подписаться», а плитки читаются как часть карточки.
-              Подпись «PDF · скачать» под названием отчёта — кнопка формирует файл,
-              а не открывает раздел; полное название с номером ФТ — в подсказке. */}
-          <div style={{ width: 400, maxWidth: '100%' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+          {/* Панель документов (ФТ-1.16…1.19) — четыре плитки в один ряд в правой
+              колонке шапки. Оформление то же, что у «Действий» и «Дашбордов» на
+              главной (рамка, радиус, брендовая иконка, подпись снизу): заливные
+              кнопки здесь выбивались из языка интерфейса и перебивали CTA
+              «Подписаться». Иконка слева, название в две строки справа — плитка
+              остаётся низкой, и высота панели держится вровень с левой колонкой
+              шапки, не растягивая её. Слово «Скачать» в названии — кнопка формирует
+              файл, а не открывает раздел; полное название отчёта с форматом и
+              номером ФТ — в подсказке. */}
+          <div style={{ flex: 1, minWidth: 460, maxWidth: 620 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
               {REPORT_TILES.map((r) => {
                 const TileIcon = r.icon;
                 return (
@@ -159,13 +161,10 @@ export function CounterpartyProfile() {
                     onClick={() => navigate(`/report/${c.uid}${r.to}`)}
                     title={r.title}
                     className="pmrk-clickable"
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '7px 10px', border: '1px solid var(--color-bg-border)', borderRadius: 10, background: 'var(--color-bg-default)', cursor: 'pointer' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', cursor: 'pointer' }}
                   >
-                    <TileIcon size="s" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2 }} className="pmrk-truncate">{r.label}</div>
-                      <div className="pmrk-muted" style={{ fontSize: 10.5, lineHeight: 1.25 }}>PDF · скачать</div>
-                    </div>
+                    <TileIcon size="m" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
+                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, overflowWrap: 'anywhere' }}>{r.label}</div>
                   </button>
                 );
               })}
@@ -378,7 +377,7 @@ function RingArc({ r, c, from, sweep, color, width, round = true }: { r: number;
 
 /** Числовая шкала (ИДО, ИПД): разомкнутое снизу кольцо на 270°, заполнение — доля
     значения от максимума шкалы, число крупно в центре, диапазон подписью снизу. */
-function SparkGauge({ value, max, color, size = 88 }: { value: number; max: number; color: string; size?: number }) {
+function SparkGauge({ value, max, color, size = 66 }: { value: number; max: number; color: string; size?: number }) {
   const c = 50;
   const r = 40;
   const frac = Math.max(0, Math.min(1, value / max));
@@ -396,7 +395,7 @@ function SparkGauge({ value, max, color, size = 88 }: { value: number; max: numb
     высокий; активный залит цветом уровня. Порядок сегментов по часовой стрелке
     от левого нижнего, как ступени светофора: сегмент активного уровня подсказывает
     не только «какой риск», но и «насколько далеко до соседних». */
-function SparkLevelRing({ level, color, size = 88 }: { level: 'low' | 'medium' | 'high'; color: string; size?: number }) {
+function SparkLevelRing({ level, color, size = 66 }: { level: 'low' | 'medium' | 'high'; color: string; size?: number }) {
   const c = 50;
   const r = 40;
   const active = level === 'low' ? 0 : level === 'medium' ? 1 : 2;
@@ -474,7 +473,7 @@ function SparkIndicatorCard({ ind }: { ind: Indicator }) {
   const level = (ind.level ?? 'low') as 'low' | 'medium' | 'high';
   const numeric = Number(ind.value.split(' ')[0].replace(',', '.'));
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 14, background: 'var(--color-bg-default)', minWidth: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '9px 10px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', minWidth: 0 }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-typo-secondary)', textAlign: 'center' }}>
         {SHORT_LABEL[ind.label] ?? ind.label}
         {ind.tip && <span title={ind.tip} style={{ marginLeft: 4, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 11 }}>ⓘ</span>}
@@ -505,7 +504,7 @@ function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
   const cards = indicators.filter((ind) => SPARK_SCALES[ind.label]);
   if (cards.length === 0) return null;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))`, gap: 10, padding: '10px 0 16px', marginBottom: 12, borderBottom: '1px solid var(--color-bg-border)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))`, gap: 8, padding: '8px 0 12px', marginBottom: 10, borderBottom: '1px solid var(--color-bg-border)' }}>
       {cards.map((ind, i) => <SparkIndicatorCard key={i} ind={ind} />)}
     </div>
   );
