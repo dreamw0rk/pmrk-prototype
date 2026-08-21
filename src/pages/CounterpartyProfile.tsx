@@ -1,4 +1,4 @@
-import { Fragment, useId, useMemo, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@consta/uikit/Button';
 import { Modal } from '@consta/uikit/Modal';
@@ -71,6 +71,18 @@ export function CounterpartyProfile() {
   const c = BY_UID.get(uid);
   const [fav, setFav] = useState(['cp-balt', 'cp-sibur', 'cp-rnsnab'].includes(uid));
   const [subscribed, setSubscribed] = useState(false);
+  // Тень у «липкой» шапки появляется только когда под неё уезжает контент:
+  // в верхнем положении она была бы декоративной, а при скролле показывает,
+  // что карточки проходят под панелью, а не обрываются.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const scroller = document.querySelector('.pmrk-content');
+    if (!scroller) return;
+    const onScroll = () => setScrolled(scroller.scrollTop > 4);
+    onScroll();
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => scroller.removeEventListener('scroll', onScroll);
+  }, [uid]);
 
   // В скине СФК большой заголовок профиля уезжает в топбар оболочки (топология 1:1).
   useSetPageMeta({
@@ -104,9 +116,23 @@ export function CounterpartyProfile() {
   );
 
   return (
-    <div className="pmrk-page" style={{ paddingTop: 0 }}>
-      {/* Шапка профиля (sticky) */}
-      <div style={{ position: 'sticky', top: 0, background: 'var(--color-bg-secondary)', paddingTop: 16, margin: '0 -24px', padding: '16px 24px 0' }}>
+    <>
+      {/* Шапка профиля — «липкая» панель во всю ширину рабочей области: она
+          вынесена из .pmrk-page, потому что страница центрирована с max-width и
+          внутри неё full-bleed не получить (прежние отрицательные поля давали
+          белые «уши» по краям). Панель прилегает к топбару, а содержимое внутри
+          выравнивается по той же сетке, что и контент. Тень включается при
+          скролле — когда карточки уезжают под панель. */}
+      <div
+        style={{
+          position: 'sticky', top: 0, zIndex: 3,
+          background: 'var(--color-bg-default)',
+          borderBottom: '1px solid var(--color-bg-border)',
+          boxShadow: scrolled ? 'var(--pmrk-shadow-2)' : 'none',
+          transition: 'box-shadow .15s',
+        }}
+      >
+      <div style={{ maxWidth: 'var(--pmrk-content-max)', margin: '0 auto', padding: '14px 14px 0' }}>
         {skin !== 'sfk' && (
           <div className="pmrk-breadcrumbs">
             <a onClick={() => navigate('/registry')} style={{ cursor: 'pointer' }}>Реестр контрагентов</a> / {c.shortName}
@@ -118,18 +144,18 @@ export function CounterpartyProfile() {
           <div style={{ flex: 1 }}>
             {skin !== 'sfk' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '2px 0 6px' }}>
-                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>
+                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>
                   {c.name}
                   {c.underSanctions && <span style={{ color: 'var(--pmrk-risk-4)', fontSize: 15, fontWeight: 600 }}> (Находится под санкциями)</span>}
                 </h1>
                 {cardActions}
               </div>
             )}
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--color-typo-secondary)' }}>
-              <span>ИНН {fmtInn(c.inn)}</span>
-              <span>КПП {c.kpp}</span>
-              <span>ОГРН {c.ogrn}</span>
-              <span>Статус по СПАРК: {c.status}</span>
+            {/* реквизиты — одной строкой через точки-разделители: три блока
+                почти одинакового веса делали шапку рыхлой, теперь это одна
+                тихая подпись под названием */}
+            <div style={{ fontSize: 12.5, color: 'var(--color-typo-secondary)', lineHeight: 1.5 }}>
+              ИНН {fmtInn(c.inn)} · КПП {c.kpp} · ОГРН {c.ogrn} · Статус по СПАРК: {c.status}
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <GroupBadge group={c.group} withScore={c.score} />
@@ -190,8 +216,10 @@ export function CounterpartyProfile() {
           ))}
         </div>
       </div>
+      </div>
 
-      <div style={{ paddingTop: 16 }}>
+      {/* контент вкладок — на общей сетке страницы, под «липкой» панелью */}
+      <div className="pmrk-page">
         {/* AI-резюме сверху профиля (AI-2) — над содержимым вкладок (со скелетоном генерации) */}
         {aiOn && summary && <ProfileAiSummary uid={uid} summary={summary} />}
 
@@ -199,7 +227,7 @@ export function CounterpartyProfile() {
 
         <AuditFooter createdBy="SYSTEM" createdAt="2025-03-12" modifiedBy="Соколова Е.В." modifiedAt={c.asOf.general ?? '2026-06-14'} />
       </div>
-    </div>
+    </>
   );
 }
 
