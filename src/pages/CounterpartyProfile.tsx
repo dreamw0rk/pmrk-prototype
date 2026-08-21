@@ -124,12 +124,17 @@ export function CounterpartyProfile() {
         </div>
 
         {/* Панель документов (ФТ-1.16…1.19): ряд на всю ширину под бейджами —
-            подписи и различимые иконки сохраняют явность, но тише CTA «Подписаться». */}
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
-          <Button size="s" view="ghost" label="Выписка ЕГРЮЛ" iconLeft={IconFileDocument as never} title="Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)" onClick={() => navigate(`/report/${c.uid}/egrul`)} />
-          <Button size="s" view="ghost" label="Профиль (PDF)" iconLeft={IconFilePDF as never} title="Сформировать и скачать отчет «Профиль контрагента» (ФТ-1.17)" onClick={() => navigate(`/report/${c.uid}`)} />
-          <Button size="s" view="ghost" label="СПАРК-Профиль" iconLeft={IconDocExport as never} title="Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)" onClick={() => navigate(`/report/${c.uid}/spark`)} />
-          <Button size="s" view="ghost" label="СПАРК-Риски" iconLeft={IconAlert as never} title="Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)" onClick={() => navigate(`/report/${c.uid}/spark-risks`)} />
+            акцентный secondary-вид с брендовой рамкой, но тише заливного CTA «Подписаться»;
+            подпись «Скачать отчёт (PDF)» явно обозначает, что кнопки формируют файл. */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--color-typo-secondary)' }}>
+            <IconDownload size="s" />
+            Скачать отчёт (PDF):
+          </span>
+          <Button size="s" view="secondary" label="Выписка ЕГРЮЛ" iconLeft={IconFileDocument as never} title="Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)" onClick={() => navigate(`/report/${c.uid}/egrul`)} />
+          <Button size="s" view="secondary" label="Профиль (PDF)" iconLeft={IconFilePDF as never} title="Сформировать и скачать отчет «Профиль контрагента» (ФТ-1.17)" onClick={() => navigate(`/report/${c.uid}`)} />
+          <Button size="s" view="secondary" label="СПАРК-Профиль" iconLeft={IconDocExport as never} title="Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)" onClick={() => navigate(`/report/${c.uid}/spark`)} />
+          <Button size="s" view="secondary" label="СПАРК-Риски" iconLeft={IconAlert as never} title="Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)" onClick={() => navigate(`/report/${c.uid}/spark-risks`)} />
         </div>
 
         {/* Вкладки — sticky навигация */}
