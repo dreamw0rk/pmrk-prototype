@@ -48,16 +48,34 @@ export function SectionCard(props: {
   children: React.ReactNode;
   pad?: boolean;
   style?: React.CSSProperties;
+  /** заголовок сворачивает содержимое карточки по клику — шеврон слева от
+      названия, тот же приём, что у аккордеонов «Внешней информации». Нужен
+      второстепенным разделам страницы, которые не всем и не всегда нужны. */
+  collapsible?: boolean;
+  /** начальное состояние сворачиваемой карточки (по умолчанию — раскрыта) */
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = React.useState(props.defaultOpen ?? true);
+  const isOpen = !props.collapsible || open;
   return (
     <section className={`pmrk-card ${props.pad === false ? '' : 'pmrk-card--pad'}`} style={{ marginBottom: 16, ...props.style }}>
       {(props.title || props.extra) && (
-        <div className="pmrk-card__head">
-          <div className="pmrk-card__title">{props.title}</div>
-          {props.extra}
+        <div
+          className={`pmrk-card__head${props.collapsible ? ' pmrk-clickable' : ''}`}
+          style={props.collapsible ? { cursor: 'pointer', marginBottom: isOpen ? 12 : 0 } : undefined}
+          onClick={props.collapsible ? () => setOpen((v) => !v) : undefined}
+        >
+          <div className="pmrk-card__title" style={props.collapsible ? { display: 'flex', alignItems: 'center', gap: 8 } : undefined}>
+            {props.collapsible && (
+              <span style={{ transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'var(--color-typo-secondary)', display: 'inline-block' }}>▸</span>
+            )}
+            {props.title}
+          </div>
+          {/* клик по содержимому extra (даты, кнопки) не должен сворачивать карточку */}
+          {props.extra && (props.collapsible ? <div onClick={(e) => e.stopPropagation()}>{props.extra}</div> : props.extra)}
         </div>
       )}
-      {props.children}
+      {isOpen && props.children}
     </section>
   );
 }
