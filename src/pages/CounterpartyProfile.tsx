@@ -55,6 +55,15 @@ const monthLabels = (n = 12) =>
     return d.toLocaleDateString('ru-RU', { month: 'short' });
   });
 
+/** Отчёты по контрагенту (ФТ-1.16…1.19) — плитки в шапке профиля. Путь строится
+    как `/report/{uid}{to}`, поэтому у «Профиля контрагента» to пустой. */
+const REPORT_TILES = [
+  { to: '/egrul', label: 'Выписка ЕГРЮЛ', icon: IconFileDocument, title: 'Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)' },
+  { to: '', label: 'Профиль контрагента', icon: IconFilePDF, title: 'Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)' },
+  { to: '/spark', label: 'СПАРК-Профиль', icon: IconDocExport, title: 'Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)' },
+  { to: '/spark-risks', label: 'СПАРК-Риски', icon: IconAlert, title: 'Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)' },
+];
+
 export function CounterpartyProfile() {
   const { uid = '', tab = 'general' } = useParams();
   const navigate = useNavigate();
@@ -81,6 +90,19 @@ export function CounterpartyProfile() {
 
   const summary = AI_SUMMARY[uid];
 
+  /* Кнопки самой карточки — рядом с названием контрагента: это действия над
+     контрагентом, а не над разделом, и у заголовка они не растягивают шапку по
+     высоте (в правой колонке они стояли над панелью отчётов и разводили колонки). */
+  const cardActions = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 'none' }}>
+      <Button size="s" view={fav ? 'primary' : 'ghost'} onlyIcon iconLeft={(fav ? IconFavoriteFilled : IconFavoriteStroked) as never} onClick={() => setFav((v) => !v)} title="В избранное" />
+      {subscribed && (
+        <span title='Ранее Вы уже подписались на уведомления по всем контрагентам Блока/БЕ или ДО. Изменить/отменить подписку по контрагентам можно в разделе «Мои оповещения»' style={{ color: 'var(--color-typo-secondary)', cursor: 'help', fontSize: 14 }}>ⓘ</span>
+      )}
+      <Button size="s" view={subscribed ? 'primary' : 'secondary'} label={subscribed ? 'Вы подписаны' : 'Подписаться'} iconLeft={IconRing as never} onClick={() => setSubscribed((v) => !v)} />
+    </div>
+  );
+
   return (
     <div className="pmrk-page" style={{ paddingTop: 0 }}>
       {/* Шапка профиля (sticky) */}
@@ -95,10 +117,13 @@ export function CounterpartyProfile() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 4, flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }}>
             {skin !== 'sfk' && (
-              <h1 style={{ margin: '2px 0 6px', fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>
-                {c.name}
-                {c.underSanctions && <span style={{ color: 'var(--pmrk-risk-4)', fontSize: 15, fontWeight: 600 }}> (Находится под санкциями)</span>}
-              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '2px 0 6px' }}>
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>
+                  {c.name}
+                  {c.underSanctions && <span style={{ color: 'var(--pmrk-risk-4)', fontSize: 15, fontWeight: 600 }}> (Находится под санкциями)</span>}
+                </h1>
+                {cardActions}
+              </div>
             )}
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--color-typo-secondary)' }}>
               <span>ИНН {fmtInn(c.inn)}</span>
@@ -106,39 +131,44 @@ export function CounterpartyProfile() {
               <span>ОГРН {c.ogrn}</span>
               <span>Статус по СПАРК: {c.status}</span>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <GroupBadge group={c.group} withScore={c.score} />
               <RbIndicator value={c.rbIndex} />
               {c.underSanctions && <SanctionBadge />}
               {c.specialControl && <StatusBadge status="Особый контроль" />}
               <StatusBadge status={c.status} />
+              {/* в скине СФК заголовка на странице нет (он в топбаре оболочки),
+                  поэтому кнопки карточки остаются в строке бейджей */}
+              {skin === 'sfk' && <div style={{ marginLeft: 'auto' }}>{cardActions}</div>}
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <Button size="s" view={fav ? 'primary' : 'ghost'} onlyIcon iconLeft={(fav ? IconFavoriteFilled : IconFavoriteStroked) as never} onClick={() => setFav((v) => !v)} title="В избранное" />
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {subscribed && (
-                  <span title='Ранее Вы уже подписались на уведомления по всем контрагентам Блока/БЕ или ДО. Изменить/отменить подписку по контрагентам можно в разделе «Мои оповещения»' style={{ color: 'var(--color-typo-secondary)', cursor: 'help', fontSize: 14 }}>ⓘ</span>
-                )}
-                <Button size="s" view={subscribed ? 'primary' : 'secondary'} label={subscribed ? 'Вы подписаны' : 'Подписаться'} iconLeft={IconRing as never} onClick={() => setSubscribed((v) => !v)} />
-              </div>
-            </div>
-
-            {/* Панель документов (ФТ-1.16…1.19) — сеткой 2×2 в правой колонке шапки,
-                рядом с «Подписаться»: действия над карточкой собраны в одном месте,
-                а не растянуты строкой во всю ширину под бейджами. Заливной primary
-                и размер m — формирование отчёта здесь основной сценарий, кнопки
-                должны читаться первыми. Подписи короткие («Скачать {отчёт}», без
-                уточнений в скобках) — иначе текст не помещается в ячейку сетки;
-                полное название отчёта с номером ФТ остаётся в подсказке. */}
-            <div style={{ width: 480, maxWidth: '100%' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-                <Button size="m" width="full" view="primary" label="Скачать ЕГРЮЛ" iconLeft={IconFileDocument as never} title="Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)" onClick={() => navigate(`/report/${c.uid}/egrul`)} />
-                <Button size="m" width="full" view="primary" label="Скачать профиль" iconLeft={IconFilePDF as never} title="Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)" onClick={() => navigate(`/report/${c.uid}`)} />
-                <Button size="m" width="full" view="primary" label="Скачать СПАРК-Профиль" iconLeft={IconDocExport as never} title="Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)" onClick={() => navigate(`/report/${c.uid}/spark`)} />
-                <Button size="m" width="full" view="primary" label="Скачать СПАРК-Риски" iconLeft={IconAlert as never} title="Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)" onClick={() => navigate(`/report/${c.uid}/spark-risks`)} />
-              </div>
+          {/* Панель документов (ФТ-1.16…1.19) — сеткой 2×2 в правой колонке шапки.
+              Оформление — плитки того же вида, что «Действия» и «Дашборды» на
+              главной (рамка, радиус 12, брендовая иконка слева, подпись снизу):
+              четыре заливные кнопки в шапке выбивались из языка интерфейса и
+              перебивали CTA «Подписаться», а плитки читаются как часть карточки.
+              Подпись «PDF · скачать» под названием отчёта — кнопка формирует файл,
+              а не открывает раздел; полное название с номером ФТ — в подсказке. */}
+          <div style={{ width: 400, maxWidth: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+              {REPORT_TILES.map((r) => {
+                const TileIcon = r.icon;
+                return (
+                  <button
+                    key={r.to}
+                    onClick={() => navigate(`/report/${c.uid}${r.to}`)}
+                    title={r.title}
+                    className="pmrk-clickable"
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '7px 10px', border: '1px solid var(--color-bg-border)', borderRadius: 10, background: 'var(--color-bg-default)', cursor: 'pointer' }}
+                  >
+                    <TileIcon size="s" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2 }} className="pmrk-truncate">{r.label}</div>
+                      <div className="pmrk-muted" style={{ fontSize: 10.5, lineHeight: 1.25 }}>PDF · скачать</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -222,8 +252,10 @@ function DoBlockGroup({ block, name, items }: { block: string; name?: string; it
       </div>
       {open && items.map((link) => (
         <div key={link.subsidiary} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-          {/* левая полоса + отступ: строка визуально принадлежит блоку выше */}
-          <div className="pmrk-td" style={{ flex: 1.8, fontWeight: 600, whiteSpace: 'normal', paddingLeft: 32, borderLeft: '3px solid var(--color-bg-border)' }}>
+          {/* отступ и тонкая направляющая слева: строка визуально принадлежит
+              блоку выше. Направляющая в 1px — вложенность держится на отступе,
+              полоса лишь поддерживает её, не превращаясь в цветной ярлык */}
+          <div className="pmrk-td" style={{ flex: 1.8, fontWeight: 600, whiteSpace: 'normal', paddingLeft: 32, borderLeft: '1px solid var(--color-bg-border)' }}>
             {link.subsidiary}
             {/* основное ДО карточки — то самое значение поля «Работает с ДО» */}
             {link.primary && (
@@ -304,9 +336,9 @@ function GeneralTab({ c }: { c: Counterparty }) {
 
         <div className="pmrk-table">
           <div className="pmrk-table__head">
-            {/* +3px к отступу — на ширину левой полосы у строк ДО, чтобы шапка и данные
-                были выровнены по одной вертикали */}
-            <div className="pmrk-th" style={{ flex: 1.8, paddingLeft: 35 }}>Наименование ДО</div>
+            {/* +1px к отступу — на ширину направляющей у строк ДО, чтобы шапка и
+                данные были выровнены по одной вертикали */}
+            <div className="pmrk-th" style={{ flex: 1.8, paddingLeft: 33 }}>Наименование ДО</div>
             <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
             <div className="pmrk-th" style={{ flex: 1.3 }}>Направление работы</div>
           </div>
@@ -321,106 +353,89 @@ function GeneralTab({ c }: { c: Counterparty }) {
 
 const extLevelColor = (l?: string) => (l === 'high' ? 'var(--pmrk-risk-4)' : l === 'medium' ? 'var(--pmrk-risk-3)' : l === 'low' ? 'var(--pmrk-risk-1)' : 'var(--color-typo-primary)');
 
-/** Плоская иконка «сводного риска» — кольцо (пончик), разрезанное строго вертикально
-    на 2 половины (левую и правую) прямым разрезом фиксированной ширины 2px.
-    Авторский холст (viewBox) 256×256, в интерфейсе выводится через проп size.
-    Разрез вырезан прямоугольной SVG-маской, а не угловым зазором (strokeDasharray):
-    угловой зазор на широком кольце превращается в клин — шире у внешнего края,
-    у́же у отверстия, — а маска-прямоугольник даёт одинаковую ширину разреза на
-    любом радиусе. Ширина задана как реальные 2px на экране, а не доля холста:
-    при масштабировании 2px от 256 стали бы долями пикселя и пропали бы — поэтому
-    пересчитывается от size, чтобы на экране всегда было ровно 2px. Цвет — по
-    уровню риска, тот же токен, что и у текстового значения строки. */
-function RiskDonutIcon({ color, size = 48 }: { color: string; size?: number }) {
-  const maskId = useId();
-  const outerR = 114; // внешний край кольца — не меняется
-  const innerR = 50; // внутреннее отверстие — немного увеличено (было 35)
-  const r = (outerR + innerR) / 2; // радиус для отрисовки stroke — середина кольца
-  const strokeWidth = outerR - innerR; // толщина кольца подстраивается под отверстие
-  const cutOnScreenPx = 2;
-  const cut = (cutOnScreenPx * 256) / size; // 2 реальных px, переведённые в единицы холста 256
+/* Иконки индикаторов СПАРК. Стилистика источника: показатель — круговая шкала,
+   значение крупной цифрой в центре, дуга заполнения поверх тонкой серой дорожки,
+   цвет — по зоне риска (зелёная / жёлтая / красная). Уровневые показатели
+   (значение «Низкий / Средний / Высокий», а не число) в СПАРК рисуются светофором,
+   поэтому кольцо у них разбито на три равных сегмента: активный залит цветом
+   уровня, соседние остаются серыми — видно и текущий уровень, и шкалу целиком. */
+
+/** Дуга кольца через strokeDasharray: circle начинается в 3 часа и идёт по часовой,
+    поэтому положение задаётся поворотом, а длина — долей окружности. Так дуга
+    рисуется одним примитивом, без ручного расчёта путей. */
+function RingArc({ r, c, from, sweep, color, width, round = true }: { r: number; c: number; from: number; sweep: number; color: string; width: number; round?: boolean }) {
+  const len = 2 * Math.PI * r;
+  const arc = (len * sweep) / 360;
   return (
-    <svg width={size} height={size} viewBox="0 0 256 256" style={{ flex: 'none' }} aria-hidden>
-      {/* maskUnits/x/y/width/height явно на весь холст: по умолчанию область маски
-          считается от геометрического bbox круга (радиус r, без учёта толщины
-          обводки) — при таком толстом кольце это обрезало внешний край квадратной
-          рамкой, и кольцо визуально превращалось в восьмиугольник. */}
-      <mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={256} height={256}>
-        <rect x={0} y={0} width={256} height={256} fill="#fff" />
-        {/* вертикальная полоса фиксированной ширины cut — прямой разрез сверху донизу */}
-        <rect x={128 - cut / 2} y={0} width={cut} height={256} fill="#000" />
-      </mask>
-      <circle cx={128} cy={128} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} mask={`url(#${maskId})`} />
+    <circle
+      cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={width}
+      strokeLinecap={round ? 'round' : 'butt'}
+      strokeDasharray={`${arc} ${len - arc}`}
+      transform={`rotate(${from} ${c} ${c})`}
+    />
+  );
+}
+
+/** Числовая шкала (ИДО, ИПД): разомкнутое снизу кольцо на 270°, заполнение — доля
+    значения от максимума шкалы, число крупно в центре, диапазон подписью снизу. */
+function SparkGauge({ value, max, color, size = 88 }: { value: number; max: number; color: string; size?: number }) {
+  const c = 50;
+  const r = 40;
+  const frac = Math.max(0, Math.min(1, value / max));
+  const digits = String(value).length;
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ flex: 'none' }} aria-hidden>
+      <RingArc r={r} c={c} from={135} sweep={270} color="var(--color-bg-border)" width={9} />
+      {frac > 0 && <RingArc r={r} c={c} from={135} sweep={270 * frac} color={color} width={9} />}
+      <text x={c} y={c} textAnchor="middle" dominantBaseline="central" fontSize={digits > 2 ? 26 : 30} fontWeight={700} fill={color}>{value}</text>
     </svg>
   );
 }
 
-/** Индикаторы, для которых вместо цветной точки выводится кольцевая иконка
-    (RiskDonutIcon) — итоговые вердикты риска, где визуальный акцент важнее
-    остальных строк списка. */
-const DONUT_INDICATOR_LABELS = new Set(['Сводный риск', 'Индекс финансового риска (ИФР)']);
-
-/** Индикаторы со значением, вписанным в геометрическую фигуру (RiskShapeIcon):
-    форма — часть кодирования уровня риска, в дополнение к цвету. */
-const SHAPE_INDICATOR_LABELS = new Set(['Индекс должной осмотрительности (ИДО)', 'Индекс платёжной дисциплины (ИПД)']);
-
-/** Иконка «Индекс должной осмотрительности» / «Индекс платёжной дисциплины» —
-    фигура со значением внутри. Форма зависит от уровня риска (та же градация,
-    что и цвет текста в остальных строках): круг — низкий/зелёный, квадрат —
-    средний/жёлтый, шестигранник — высокий/красный. Обводка толстая (16 из 256
-    холста, ≈3px на реальном размере), чтобы форма чётко читалась. Число внутри —
-    крупным жирным кеглем; у ИПД исходное значение вида «99 / 100» — постоянный
-    знаменатель на каждой иконке не несёт информации и не поместился бы читаемо,
-    поэтому внутрь идёт только числитель (при 3 цифрах кегль уменьшается, чтобы
-    не тесно). Авторский холст и размер на экране те же, что и у RiskDonutIcon. */
-function RiskShapeIcon({ value, level, color, size = 48 }: { value: string; level: 'low' | 'medium' | 'high'; color: string; size?: number }) {
-  const strokeWidth = 16;
-  const cx = 128;
-  const cy = 128;
-  const displayValue = value.split(' / ')[0];
-  const fontSize = displayValue.length >= 3 ? 74 : 92;
-
-  let shape: React.ReactNode;
-  if (level === 'low') {
-    shape = <circle cx={cx} cy={cy} r={100} fill="none" stroke={color} strokeWidth={strokeWidth} />;
-  } else if (level === 'medium') {
-    const half = 98;
-    shape = <rect x={cx - half} y={cy - half} width={half * 2} height={half * 2} rx={20} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />;
-  } else {
-    const r = 108;
-    const points = Array.from({ length: 6 }, (_, i) => {
-      const a = (Math.PI / 180) * (-90 + i * 60);
-      return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
-    }).join(' ');
-    shape = <polygon points={points} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />;
-  }
-
+/** Уровневая шкала (сводный риск, ИФР): три сегмента кольца — низкий, средний,
+    высокий; активный залит цветом уровня. Порядок сегментов по часовой стрелке
+    от левого нижнего, как ступени светофора: сегмент активного уровня подсказывает
+    не только «какой риск», но и «насколько далеко до соседних». */
+function SparkLevelRing({ level, color, size = 88 }: { level: 'low' | 'medium' | 'high'; color: string; size?: number }) {
+  const c = 50;
+  const r = 40;
+  const active = level === 'low' ? 0 : level === 'medium' ? 1 : 2;
   return (
-    <svg width={size} height={size} viewBox="0 0 256 256" style={{ flex: 'none' }} aria-hidden>
-      {shape}
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={fontSize} fontWeight={700} fill={color}>{displayValue}</text>
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ flex: 'none' }} aria-hidden>
+      {/* сегменты от 153° по часовой: разрыв приходится ровно на низ кольца.
+          Активный сегмент чуть толще соседних — уровень читается и без цвета */}
+      {[0, 1, 2].map((i) => (
+        <RingArc
+          key={i}
+          r={r} c={c}
+          from={153 + i * 84}
+          sweep={66}
+          color={i === active ? color : 'var(--color-bg-border)'}
+          width={i === active ? 11 : 8}
+        />
+      ))}
+      {/* «лампа» в центре — цвет активного уровня; словами уровень подписан под
+          иконкой, поэтому внутрь кольца текст не дублируем */}
+      <circle cx={c} cy={c} r={17} fill={color} opacity={0.14} />
+      <circle cx={c} cy={c} r={10} fill={color} />
     </svg>
   );
 }
 
-/** Визуальное представление значения индикатора — donut / фигура-с-числом / точка
-    с текстом, в зависимости от лейбла. Общая часть для строки списка (IndRow)
-    и для карточки в горизонтальной сводке (SummaryItem) — сводка показывает
-    «ту же иконку и значения», что и основной список, одним и тем же кодом. */
+/** Шкалы индикаторов раздела «1. Финансовые индикаторы риска СПАРК»: числовые
+    показатели — с максимумом шкалы и её расшифровкой, уровневые — светофором.
+    Индикаторы, которых здесь нет, выводятся обычной строкой с цветной точкой. */
+const SPARK_SCALES: Record<string, { kind: 'level' } | { kind: 'gauge'; max: number; scale: string }> = {
+  'Сводный риск': { kind: 'level' },
+  'Индекс финансового риска (ИФР)': { kind: 'level' },
+  'Индекс должной осмотрительности (ИДО)': { kind: 'gauge', max: 99, scale: '1–99 · выше — рискованнее' },
+  'Индекс платёжной дисциплины (ИПД)': { kind: 'gauge', max: 100, scale: 'Paydex 0–100 · выше — лучше' },
+};
+
+/** Визуальное представление значения индикатора в строке списка — цветная точка
+    и значение. Крупные шкалы вынесены в сводку раздела (SparkIndicatorCard):
+    в списке они дублировали бы её и растягивали строки. */
 function IndicatorVisual({ ind }: { ind: Indicator }) {
-  const useDonut = DONUT_INDICATOR_LABELS.has(ind.label);
-  const useShape = SHAPE_INDICATOR_LABELS.has(ind.label);
-  if (useDonut && ind.level) {
-    return (
-      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-        <RiskDonutIcon color={extLevelColor(ind.level)} />
-        <span style={{ fontWeight: 600, color: extLevelColor(ind.level), textAlign: 'center' }}>{ind.value}</span>
-      </span>
-    );
-  }
-  if (useShape && ind.level) {
-    return <RiskShapeIcon value={ind.value} level={ind.level as 'low' | 'medium' | 'high'} color={extLevelColor(ind.level)} />;
-  }
   return (
     <span style={{ fontWeight: 600, color: extLevelColor(ind.level), textAlign: 'right' }}>
       {ind.level && <span className="pmrk-dot" style={{ background: extLevelColor(ind.level), marginRight: 6 }} />}
@@ -441,34 +456,57 @@ function IndRow({ ind }: { ind: Indicator }) {
   );
 }
 
-/** Короткие подписи для горизонтальной сводки — полные названия там не нужны. */
+/** Короткие подписи для сводки — полные названия там не нужны. */
 const SHORT_LABEL: Record<string, string> = {
-  'Сводный риск': 'Риск',
+  'Сводный риск': 'Сводный риск',
   'Индекс должной осмотрительности (ИДО)': 'ИДО',
   'Индекс финансового риска (ИФР)': 'ИФР',
   'Индекс платёжной дисциплины (ИПД)': 'ИПД',
 };
 
-/** Горизонтальная сводка индикаторов раздела «1. Финансовые индикаторы риска
-    СПАРК» — те же 4 значения из основного списка ниже, но компактно в ряд:
-    короткая подпись (с той же подсказкой ⓘ, что и в списке) сверху, иконка
-    и значение снизу. Отделена от списка собственной рамкой снизу — визуально
-    самостоятельный блок в границах того же раздела. */
-function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
+/** Карточка одного индикатора в сводке: подпись, круговая шкала СПАРК, значение
+    словами и расшифровка шкалы. У ИПД значение приходит как «{N} / 100» — в
+    кольцо идёт только числитель, постоянный знаменатель на каждой шкале ничего
+    не сообщает и не поместился бы читаемо. */
+function SparkIndicatorCard({ ind }: { ind: Indicator }) {
+  const scale = SPARK_SCALES[ind.label];
+  const color = extLevelColor(ind.level);
+  const level = (ind.level ?? 'low') as 'low' | 'medium' | 'high';
+  const numeric = Number(ind.value.split(' ')[0].replace(',', '.'));
   return (
-    // Группа занимает ровно половину ширины раздела (width: '50%'), показатели
-    // распределены по этой половине через justifyContent: 'space-between' —
-    // расстояние между ними задаётся шириной группы, а не фиксированным gap.
-    <div style={{ display: 'flex', justifyContent: 'space-between', width: '50%', padding: '4px 4px 20px', marginBottom: 16, borderBottom: '1px solid var(--color-bg-border)' }}>
-      {indicators.map((ind, i) => (
-        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-typo-secondary)' }}>
-            {SHORT_LABEL[ind.label] ?? ind.label}
-            {ind.tip && <span title={ind.tip} style={{ marginLeft: 4, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 11 }}>ⓘ</span>}
-          </span>
-          <IndicatorVisual ind={ind} />
-        </div>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 14, background: 'var(--color-bg-default)', minWidth: 0 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-typo-secondary)', textAlign: 'center' }}>
+        {SHORT_LABEL[ind.label] ?? ind.label}
+        {ind.tip && <span title={ind.tip} style={{ marginLeft: 4, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 11 }}>ⓘ</span>}
+      </span>
+      {scale && scale.kind === 'gauge' && Number.isFinite(numeric) ? (
+        <>
+          <SparkGauge value={numeric} max={scale.max} color={color} />
+          {/* число уже в центре шкалы — под ней только диапазон и направление шкалы */}
+          <span className="pmrk-muted" style={{ marginTop: 'auto', fontSize: 11, textAlign: 'center', lineHeight: 1.3 }}>{scale.scale}</span>
+        </>
+      ) : (
+        <>
+          <SparkLevelRing level={level} color={color} />
+          {/* marginTop: auto — подписи всех карточек ряда стоят на одной линии,
+              независимо от того, в сколько строк уложилась расшифровка шкалы */}
+          <span style={{ marginTop: 'auto', fontSize: 13, fontWeight: 600, color, textAlign: 'center' }}>{ind.value}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Сводка раздела «1. Финансовые индикаторы риска СПАРК» — четыре ключевых
+    показателя карточками со шкалами в стилистике источника, над списком
+    остальных значений раздела. Значения те же, что в списке ниже; карточки
+    дают быстрый ответ «как дела», список — полную расшифровку. */
+function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
+  const cards = indicators.filter((ind) => SPARK_SCALES[ind.label]);
+  if (cards.length === 0) return null;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))`, gap: 10, padding: '10px 0 16px', marginBottom: 12, borderBottom: '1px solid var(--color-bg-border)' }}>
+      {cards.map((ind, i) => <SparkIndicatorCard key={i} ind={ind} />)}
     </div>
   );
 }

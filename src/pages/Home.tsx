@@ -207,9 +207,15 @@ export function Home() {
         </SectionCard>
       )}
 
-      {/* Поиск ещё не начат — недавние контрагенты, действия и дашборды в один ряд */}
+      {/* Поиск ещё не начат — недавние контрагенты, действия и дашборды в один ряд.
+          Пропорции: «Действия» — главный блок стартового экрана (12 плиток в три
+          колонки), ему отдана половина ширины; «Недавние контрагенты» — узкий
+          список из пяти строк, хватает четверти. Доля «Дашбордов» сохранена, чтобы
+          ряд не перекосило: «Действия» выросли ровно на то, что уступили «Недавние».
+          Минимумы minmax подобраны так, чтобы ряд помещался без горизонтальной
+          прокрутки на рабочем разрешении. */}
       {!searched && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(355px, 0.95fr) minmax(430px, 1.45fr) minmax(280px, 0.9fr)', gap: 16, alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.75fr) minmax(480px, 1.65fr) minmax(260px, 0.9fr)', gap: 16, alignItems: 'stretch' }}>
           <SectionCard title="Недавние контрагенты" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="pmrk-stack" style={{ gap: 8 }}>
               {FAVORITES.map((uid) => {
