@@ -301,7 +301,8 @@
   box-shadow: var(--pmrk-shadow-1);
 }
 [data-skin='sfk'] .pmrk-card--pad { padding: 18px; }
-[data-skin='sfk'] .pmrk-card__head { margin-bottom: 14px; }
+/* у скина СФК паддинг карточки 18px — плашку шапки вытягиваем на его величину */
+[data-skin='sfk'] .pmrk-card--pad > .pmrk-card__head { margin: -18px -18px 14px; }
 [data-skin='sfk'] .pmrk-card__title { font-size: 14.5px; }
 
 /* ──────────────────────────── 7. Метрики / KPI ────────────────────────────── */

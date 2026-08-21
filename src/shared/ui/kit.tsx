@@ -58,7 +58,9 @@ export function SectionCard(props: {
   const [open, setOpen] = React.useState(props.defaultOpen ?? true);
   const isOpen = !props.collapsible || open;
   return (
-    <section className={`pmrk-card ${props.pad === false ? '' : 'pmrk-card--pad'}`} style={{ marginBottom: 16, ...props.style }}>
+    // overflow: hidden — у свёрнутой карточки плашка шапки становится её нижним
+    // краем, и без обрезки её прямые углы вылезали бы за скругление карточки
+    <section className={`pmrk-card ${props.pad === false ? '' : 'pmrk-card--pad'}`} style={{ marginBottom: 16, overflow: 'hidden', ...props.style }}>
       {(props.title || props.extra) && (
         <div
           className={`pmrk-card__head${props.collapsible ? ' pmrk-clickable' : ''}`}
@@ -66,8 +68,10 @@ export function SectionCard(props: {
           onClick={props.collapsible ? () => setOpen((v) => !v) : undefined}
         >
           <div className="pmrk-card__title" style={props.collapsible ? { display: 'flex', alignItems: 'center', gap: 8 } : undefined}>
+            {/* шеврон берёт currentColor — в шапке с брендовой заливкой он
+                наследует её белый текст, а не собственный серый */}
             {props.collapsible && (
-              <span style={{ transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'var(--color-typo-secondary)', display: 'inline-block' }}>▸</span>
+              <span style={{ transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'currentColor', opacity: 0.8, display: 'inline-block' }}>▸</span>
             )}
             {props.title}
           </div>

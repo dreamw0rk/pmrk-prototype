@@ -10,15 +10,48 @@
 .pmrk-card--pad {
   padding: 16px 18px;
 }
+/* Шапка карточки — брендовая плашка: заголовок раздела виден на длинной странице
+   с десятком карточек и не спорит со ссылками (синий текст здесь только в шапке,
+   где ссылок нет). Фон — брендовый цвет с прозрачностью через color-mix: работает
+   в светлой и тёмной теме без отдельного токена. Отрицательные поля вытягивают
+   плашку за паддинги карточки на всю её ширину, скругления повторяют верхние
+   углы карточки. */
 .pmrk-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  padding: 10px 18px;
+  background: var(--color-bg-brand);
+  color: #fff;
+  border-radius: var(--pmrk-radius-lg) var(--pmrk-radius-lg) 0 0;
+}
+/* Отрицательные поля — только у карточек с внутренним паддингом: в карточке без
+   него (pad={false}, таблицы во всю ширину) шапка и так лежит по краям. */
+.pmrk-card--pad > .pmrk-card__head {
+  margin: -16px -18px 14px;
 }
 .pmrk-card__title {
   font-weight: 600;
+  color: #fff;
+}
+/* Содержимое шапки (даты актуальности, кнопки разделов) на брендовой заливке —
+   белое: собственные цвета Consta и .pmrk-muted рассчитаны на светлый фон. */
+.pmrk-card__head .pmrk-muted {
+  color: rgba(255, 255, 255, 0.82);
+}
+.pmrk-card__head .Button {
+  --color-control-typo-secondary: #fff;
+  --color-control-typo-secondary-hover: #fff;
+  --color-control-bg-border-secondary: rgba(255, 255, 255, 0.65);
+  --color-control-bg-border-secondary-hover: #fff;
+  --color-control-typo-ghost: #fff;
+  --color-control-typo-ghost-hover: #fff;
+  --color-control-bg-ghost: rgba(255, 255, 255, 0.16);
+  --color-control-bg-ghost-hover: rgba(255, 255, 255, 0.24);
+  --color-control-typo-clear: #fff;
+  --color-control-typo-clear-hover: #fff;
 }
 
 /* --- Заголовок страницы --- */

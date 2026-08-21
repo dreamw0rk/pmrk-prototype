@@ -515,13 +515,18 @@ function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, childr
   const risky = indicators?.filter((i) => i.level === 'high' || i.level === 'medium').length ?? 0;
   return (
     <div className="pmrk-card" style={{ marginBottom: 8, overflow: 'hidden' }}>
-      <div className="pmrk-clickable" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }} onClick={() => setOpen((v) => !v)}>
-        <span style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'var(--color-typo-secondary)' }}>▸</span>
-        <span style={{ fontWeight: 600, flex: 1 }}>{title}</span>
+      {/* заголовок раздела — те же классы, что и у шапки SectionCard: разделы
+          «Внешней информации» это такие же разделы, и брендовая плашка должна
+          быть у них общая, а не своя разметка со своими отступами */}
+      <div className="pmrk-card__head pmrk-clickable" style={{ marginBottom: 0, cursor: 'pointer' }} onClick={() => setOpen((v) => !v)}>
+        <div className="pmrk-card__title" style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+          <span style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'currentColor', opacity: 0.8 }}>▸</span>
+          {title}
+        </div>
         {risky > 0 && <span className="pmrk-chip" style={{ background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3)', fontSize: 11 }}>{risky} сигнал.</span>}
       </div>
       {open && (
-        <div style={{ borderTop: '1px solid var(--color-bg-border)', padding: '4px 16px 12px' }}>
+        <div style={{ padding: '10px 16px 12px' }}>
           {beforeIndicators}
           {indicators?.map((ind, i) => <IndRow key={i} ind={ind} />)}
           {children}
