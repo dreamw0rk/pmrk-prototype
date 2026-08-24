@@ -11,6 +11,7 @@ import { IconFilePDF } from '@consta/icons/IconFilePDF';
 import { IconDocExport } from '@consta/icons/IconDocExport';
 import { IconAlert } from '@consta/icons/IconAlert';
 import { IconConnection } from '@consta/icons/IconConnection';
+import { IconSearchStroked } from '@consta/icons/IconSearchStroked';
 import { useApp } from '@/app/AppContext';
 import { useSetPageMeta } from '@/app/PageMeta';
 import { can } from '@/shared/roles';
@@ -28,6 +29,8 @@ import { buildExternal, rbSignal, type Indicator } from '@/shared/mock/external'
 import { buildLegal } from '@/shared/mock/legal';
 import { buildCreditLimitsByDo, isDoLimitActive, activeCreditLimit } from '@/shared/mock/creditLimits';
 import { buildDoLinks, type DoLink } from '@/shared/mock/subsidiaries';
+import { buildAdditionalOkveds } from '@/shared/mock/okved';
+import { buildNameChanges } from '@/shared/mock/nameHistory';
 import type { Counterparty, AffiliationLinkType } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
 
@@ -297,6 +300,104 @@ function DoBlockGroup({ block, name, items }: { block: string; name?: string; it
   );
 }
 
+/** «Дополнительные виды деятельности» (ЕГРЮЛ) — список кроме основного ОКВЭД
+    (тот уже показан в «Общих сведениях»). Поиск — по частичному совпадению
+    и с кодом, и с наименованием: код ищут по цифрам, наименование — по словам. */
+function AdditionalOkvedsCard({ c }: { c: Counterparty }) {
+  const okveds = useMemo(() => buildAdditionalOkveds(c), [c.uid]);
+  const [q, setQ] = useState('');
+  const query = q.trim().toLowerCase();
+  const filtered = query
+    ? okveds.filter((o) => o.code.toLowerCase().includes(query) || o.name.toLowerCase().includes(query))
+    : okveds;
+
+  return (
+    <SectionCard
+      collapsible
+      defaultOpen={false}
+      title={
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          Дополнительные виды деятельности
+          <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11 }}>
+            {okveds.length}
+          </span>
+        </span>
+      }
+      extra={<DateActuality date={c.asOf.general} source="ЕГРЮЛ" />}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', marginBottom: 12, maxWidth: 420, border: '1px solid var(--color-bg-border)', borderRadius: 10, background: 'var(--color-bg-default)' }}>
+        <IconSearchStroked size="xs" className="pmrk-muted" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Код или наименование вида деятельности"
+          style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--color-typo-primary)' }}
+        />
+      </div>
+
+      <div className="pmrk-table">
+        <div className="pmrk-table__head">
+          <div className="pmrk-th" style={{ flex: 0.6 }}>Код ОКВЭД</div>
+          <div className="pmrk-th" style={{ flex: 2.4 }}>Вид деятельности</div>
+        </div>
+        {filtered.map((o) => (
+          <div key={o.code} className="pmrk-tr" style={{ cursor: 'default' }}>
+            <div className="pmrk-td pmrk-tnum" style={{ flex: 0.6 }}>{o.code}</div>
+            <div className="pmrk-td" style={{ flex: 2.4, whiteSpace: 'normal' }}>{o.name}</div>
+          </div>
+        ))}
+      </div>
+      {!filtered.length && <EmptyState text="Ничего не найдено по запросу." />}
+    </SectionCard>
+  );
+}
+
+/** «Изменения в наименовании и организационно-правовой форме» (ЕГРЮЛ) — история
+    переименований/смены ОПФ. У большинства карточек изменений не было, тогда
+    вместо таблицы — пояснение, а не пустой список. */
+function NameChangesCard({ c }: { c: Counterparty }) {
+  const changes = useMemo(() => buildNameChanges(c), [c.uid]);
+
+  return (
+    <SectionCard
+      collapsible
+      defaultOpen={false}
+      title={
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          Изменения в наименовании и организационно-правовой форме
+          <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11 }}>
+            {changes.length}
+          </span>
+        </span>
+      }
+      extra={<DateActuality date={c.asOf.general} source="ЕГРЮЛ" />}
+    >
+      {changes.length ? (
+        <div className="pmrk-table">
+          <div className="pmrk-table__head">
+            <div className="pmrk-th" style={{ flex: 0.7 }}>Дата изменений</div>
+            <div className="pmrk-th" style={{ flex: 2.4 }}>Название</div>
+            <div className="pmrk-th" style={{ flex: 0.8 }}>ИНН</div>
+            <div className="pmrk-th" style={{ flex: 0.9 }}>ОГРН</div>
+            <div className="pmrk-th" style={{ flex: 1.3 }}>Организационно-правовая форма (ОКОПФ)</div>
+          </div>
+          {changes.map((ch) => (
+            <div key={ch.date} className="pmrk-tr" style={{ cursor: 'default' }}>
+              <div className="pmrk-td pmrk-tnum" style={{ flex: 0.7 }}>{dateRu(ch.date)}</div>
+              <div className="pmrk-td" style={{ flex: 2.4, whiteSpace: 'normal' }}>{ch.name}</div>
+              <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8 }}>{ch.inn}</div>
+              <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{ch.ogrn}</div>
+              <div className="pmrk-td" style={{ flex: 1.3, whiteSpace: 'normal' }}>{ch.okopf}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState text="По данным ЕГРЮЛ наименование и организационно-правовая форма не менялись." />
+      )}
+    </SectionCard>
+  );
+}
+
 function GeneralTab({ c }: { c: Counterparty }) {
   // Состав ДО, работающих с контрагентом (ФТ-19.1). Контрагент почти всегда
   // работает с несколькими ДО, а управленчески они сворачиваются до блока —
@@ -340,6 +441,9 @@ function GeneralTab({ c }: { c: Counterparty }) {
           ]}
         />
       </SectionCard>
+
+      <AdditionalOkvedsCard c={c} />
+      <NameChangesCard c={c} />
 
       {/* «Работает с ДО» (ФТ-19.1) — отдельный сворачиваемый блок, а не девятое
           поле карточки: ДО у контрагента несколько, и важно не только «с кем», но
