@@ -1343,16 +1343,22 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
         ) : (
           <div className="pmrk-table">
             <div className="pmrk-table__head">
-              <div className="pmrk-th" style={{ flex: 1.5 }}>Название</div>
-              <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-              <div className="pmrk-th" style={{ flex: 1.2 }}>Сегмент</div>
-              <div className="pmrk-th" style={{ flex: 0.9, justifyContent: 'flex-end' }}>Лимит</div>
-              <div className="pmrk-th" style={{ flex: 0.7, justifyContent: 'flex-end' }}>Отсрочка</div>
-              <div className="pmrk-th" style={{ flex: 1.1 }}>Коллегиальный орган</div>
-              <div className="pmrk-th" style={{ flex: 1 }}>Реквизиты документа</div>
-              <div className="pmrk-th" style={{ flex: 1.1 }}>Действительность</div>
-              <div className="pmrk-th" style={{ flex: 0.9 }}>Обеспечение</div>
-              <div className="pmrk-th" style={{ flex: 1 }}>Комментарии по обеспечению</div>
+              {/* minWidth: 0 — без него длинные заголовки (особенно два новых про даты
+                  КЛ) распирают свою ячейку сверх flex-доли по min-content самого
+                  длинного слова, и шапка перестаёт совпадать по ширине колонок
+                  со строками данных. */}
+              <div className="pmrk-th" style={{ flex: 1.5, minWidth: 0 }}>Название</div>
+              <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0 }}>ИНН</div>
+              <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0 }}>Сегмент</div>
+              <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0 }}>Лимит</div>
+              <div className="pmrk-th" style={{ flex: 0.7, minWidth: 0, justifyContent: 'flex-end' }}>Отсрочка</div>
+              <div className="pmrk-th" style={{ flex: 1.1, minWidth: 0 }}>Коллегиальный орган</div>
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Реквизиты документа</div>
+              <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Действует</div>
+              <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, whiteSpace: 'normal' }}>Утверждённая дата начала действия КЛ</div>
+              <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, whiteSpace: 'normal' }}>Утверждённая дата окончания КЛ</div>
+              <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0 }}>Обеспечение</div>
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>Комментарии по обеспечению</div>
             </div>
             {doLimits.map((row, i) => {
               const active = isDoLimitActive(row);
@@ -1365,10 +1371,11 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
                   <div className="pmrk-td pmrk-tnum" style={{ flex: 0.7, justifyContent: 'flex-end', display: 'flex' }}>{row.deferralDays} дн.</div>
                   <div className="pmrk-td" style={{ flex: 1.1, whiteSpace: 'normal' }}>{row.approvalBody}</div>
                   <div className="pmrk-td" style={{ flex: 1, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{row.documentRef}</div>
-                  <div className="pmrk-td" style={{ flex: 1.1, whiteSpace: 'normal' }}>
+                  <div className="pmrk-td" style={{ flex: 0.8 }}>
                     <span style={{ color: active ? 'var(--pmrk-risk-1)' : 'var(--pmrk-risk-4)', fontWeight: 600, fontSize: 12 }}>{active ? 'Да' : 'Нет'}</span>
-                    <div className="pmrk-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{dateRu(row.startDate)} – {dateRu(row.endDate)}</div>
                   </div>
+                  <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{dateRu(row.startDate)}</div>
+                  <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{dateRu(row.endDate)}</div>
                   <div className="pmrk-td pmrk-muted" style={{ flex: 0.9, whiteSpace: 'normal' }}>{row.collateral}</div>
                   <div className="pmrk-td pmrk-muted" style={{ flex: 1, whiteSpace: 'normal' }}>—</div>
                 </div>
