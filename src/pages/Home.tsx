@@ -21,6 +21,10 @@ import { PageHeader, SectionCard, GroupBadge } from '@/shared/ui/kit';
 import { REGISTRY, FAVORITES, BY_UID } from '@/shared/mock/data';
 import type { Counterparty } from '@/shared/mock/types';
 
+/* Расширенный список для блока «Недавние контрагенты» на главной — не путать
+   с FAVORITES (используется и в «Командном центре», трогать его тут не нужно). */
+const RECENT_UIDS = [...FAVORITES, 'cp-yugtrans', 'cp-nevsky'];
+
 /* ============================================================================
    Главная. Одно действие — найти контрагента. Портфель, лента и задачи вынесены
    в «Командный центр» отдельным пунктом меню: главная не должна конкурировать
@@ -96,8 +100,9 @@ function VerdictPill({ tone, label }: { tone: Tone; label: string }) {
 }
 
 /** Строка компании. Роль «Пользователь» получает вердикт словами, остальные — группу с баллом.
-    В компактных списках (например, «Недавние контрагенты») тег группы/вердикта можно скрыть. */
-function CompanyRow({ c, simple, onClick, hideBadge }: { c: Counterparty; simple: boolean; onClick: () => void; hideBadge?: boolean }) {
+    В компактных списках (например, «Недавние контрагенты») тег группы/вердикта можно скрыть,
+    а шрифт — уменьшить до размера, как в «Дашбордах» (compact). */
+function CompanyRow({ c, simple, onClick, hideBadge, compact }: { c: Counterparty; simple: boolean; onClick: () => void; hideBadge?: boolean; compact?: boolean }) {
   const v = userVerdict(c);
   return (
     <button
@@ -106,8 +111,8 @@ function CompanyRow({ c, simple, onClick, hideBadge }: { c: Counterparty; simple
       style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', padding: '12px 14px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', cursor: 'pointer' }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }} className="pmrk-truncate">{c.name}</div>
-        <div className="pmrk-muted pmrk-truncate" style={{ fontSize: 12.5, marginTop: 2 }}>ИНН {c.inn} · {c.region}</div>
+        <div style={{ fontSize: compact ? 13 : 15, fontWeight: 600 }} className="pmrk-truncate">{c.name}</div>
+        <div className="pmrk-muted pmrk-truncate" style={{ fontSize: compact ? 11 : 12.5, marginTop: 2 }}>ИНН {c.inn} · {c.region}</div>
       </div>
       {!hideBadge && (simple ? <VerdictPill tone={v.tone} label={v.label} /> : <GroupBadge group={c.group} withScore={c.score} />)}
       <IconForward size="s" className="pmrk-muted" />
@@ -154,6 +159,7 @@ export function Home() {
             ? 'Узнайте, можно ли работать с компанией — введите её название или ИНН.'
             : 'Найдите контрагента по наименованию или ИНН. Портфель, сигналы и задачи — в командном центре.'
         }
+        actions={<Button size="s" view="ghost" label="Обучение работе на Платформе" iconLeft={IconBook as never} onClick={() => navigate('/help')} />}
       />
 
       {/* Поиск — единственное действие экрана */}
@@ -217,50 +223,47 @@ export function Home() {
       {!searched && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.75fr) minmax(480px, 1.65fr) minmax(260px, 0.9fr)', gap: 16, alignItems: 'stretch' }}>
           <SectionCard title="Недавние контрагенты" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="pmrk-stack" style={{ gap: 8 }}>
-              {FAVORITES.map((uid) => {
+            <div className="pmrk-stack" style={{ gap: 8, flex: 1, justifyContent: 'center' }}>
+              {RECENT_UIDS.map((uid) => {
                 const c = BY_UID.get(uid);
-                return c ? <CompanyRow key={uid} c={c} simple={simple} onClick={() => open(uid)} hideBadge /> : null;
+                return c ? <CompanyRow key={uid} c={c} simple={simple} onClick={() => open(uid)} hideBadge compact /> : null;
               })}
-            </div>
-            {/* marginTop: auto — кнопка всегда прижата к низу карточки, даже когда
-                колонка растянута по высоте соседей (grid alignItems: 'stretch'). */}
-            <div style={{ marginTop: 'auto', paddingTop: 10 }}>
-              <Button size="s" view="ghost" label="Обучение работе на Платформе" iconLeft={IconBook as never} onClick={() => navigate('/help')} />
             </div>
           </SectionCard>
 
           {/* Плитки действий из ЕОЛ: три смысловые колонки с иконками. */}
-          <SectionCard title="Действия">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-              {EDT_ACTION_GROUPS.map((g) => (
-                <div key={g.title} style={{ minWidth: 0 }}>
-                  <div className="pmrk-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>{g.title}</div>
-                  <div className="pmrk-stack" style={{ gap: 6 }}>
-                    {g.items.map((a) => {
-                      const TileIcon = a.icon;
-                      return (
-                        <button
-                          key={a.to}
-                          onClick={() => navigate(a.to)}
-                          className="pmrk-clickable"
-                          style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', cursor: 'pointer' }}
-                        >
-                          <TileIcon size="s" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
-                          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{a.label}</div>
-                          <div className="pmrk-muted" style={{ fontSize: 11, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{a.hint}</div>
-                        </button>
-                      );
-                    })}
+          <SectionCard title="Действия" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                {EDT_ACTION_GROUPS.map((g) => (
+                  <div key={g.title} style={{ minWidth: 0 }}>
+                    <div className="pmrk-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>{g.title}</div>
+                    <div className="pmrk-stack" style={{ gap: 6 }}>
+                      {g.items.map((a) => {
+                        const TileIcon = a.icon;
+                        return (
+                          <button
+                            key={a.to}
+                            onClick={() => navigate(a.to)}
+                            className="pmrk-clickable"
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: 6, width: '100%', height: 104, minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', cursor: 'pointer' }}
+                          >
+                            <TileIcon size="s" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
+                            <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{a.label}</div>
+                            <div className="pmrk-muted" style={{ fontSize: 12.5, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{a.hint}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </SectionCard>
 
           {/* Дашборды (ФТ-8.1…8.4) — карточки внешних BI (в прототипе не подключены). */}
-          <SectionCard title="Дашборды">
-            <div className="pmrk-stack" style={{ gap: 8 }}>
+          <SectionCard title="Дашборды" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="pmrk-stack" style={{ gap: 10, flex: 1, justifyContent: 'center' }}>
               {EDT_DASHBOARDS.map((d) => {
                 const CardIcon = d.icon;
                 return (
@@ -270,12 +273,12 @@ export function Home() {
                     onClick={(e) => e.preventDefault()}
                     title="Внешний BI-дашборд — в прототипе не подключён"
                     className="pmrk-clickable"
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', textDecoration: 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', textDecoration: 'none' }}
                   >
-                    <CardIcon size="m" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
+                    <CardIcon size="l" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-typo-primary)', lineHeight: 1.3 }} className="pmrk-truncate">{d.label}</div>
-                      <div className="pmrk-muted" style={{ fontSize: 11 }}>BI · внешняя ссылка ↗</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-typo-primary)', lineHeight: 1.3 }} className="pmrk-truncate">{d.label}</div>
+                      <div className="pmrk-muted" style={{ fontSize: 12, marginTop: 2 }}>BI · внешняя ссылка ↗</div>
                     </div>
                   </a>
                 );
