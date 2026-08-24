@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '@consta/uikit/Button';
+import { Modal } from '@consta/uikit/Modal';
+import { IconQuestion } from '@consta/icons/IconQuestion';
 import type { AffiliationGraph, AffiliationNode, AffiliationLinkType } from '@/shared/mock/types';
 
 /* Диаграмма связей (ФТ-4.2). SVG (не canvas): нужны клики, тултипы, доступность.
@@ -100,6 +102,7 @@ export function AffiliationDiagram(props: {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [hover, setHover] = useState<Placed | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const moved = useRef(false); // подавление клика после перетаскивания
 
@@ -152,12 +155,61 @@ export function AffiliationDiagram(props: {
       </div>
 
       {/* ЛЕГЕНДА — сверху над диаграммой */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 18px', marginBottom: 10, fontSize: 12, padding: '10px 14px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius)' }}>
-        <Legend swatch="#ffffff" border="#cfd6e0" label="Прямое владение (доля)" pill />
-        <Legend swatch="#fff3c4" border="#e6cf6a" label="Косвенное владение (доля)" pill />
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 18px', marginBottom: 10, fontSize: 12, padding: '10px 14px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius)' }}>
+        <Legend swatch="#ffffff" border="#cfd6e0" label="Владение (доля): прямое / косвенное" pill />
         <Legend swatch="#ffffff" border="#ff7a00" label="Есть в реестре — кликабельно" thick />
         <Legend swatch="#ffffff" border="var(--pmrk-risk-4)" label="Под санкциями" thick />
+        <Button
+          size="xs"
+          view="ghost"
+          onlyIcon
+          iconLeft={IconQuestion as never}
+          title="Что означают обозначения на диаграмме"
+          onClick={() => setHelpOpen(true)}
+        />
       </div>
+
+      {/* style.zIndex — без него окно оказывается ниже липкой шапки профиля
+          контрагента (position:sticky; z-index:3): у той z-index явно задан
+          и положительный, а у портала модалки — auto, и по правилам стекинга
+          он рисуется под позиционированными элементами с z-index > 0. */}
+      <Modal isOpen={helpOpen} onClickOutside={() => setHelpOpen(false)} onEsc={() => setHelpOpen(false)} style={{ zIndex: 1000 }}>
+        <div style={{ padding: 20, width: 460, maxWidth: '92vw' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Как читать диаграмму связей</h3>
+            <Button size="xs" view="clear" label="✕" onClick={() => setHelpOpen(false)} />
+          </div>
+          <div className="pmrk-stack" style={{ gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ width: 24, height: 14, borderRadius: 9, background: '#ffffff', border: '1px solid #cfd6e0', flex: 'none', marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>Владение (доля)</div>
+                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Пилюля с процентом в углу карточки — размер доли владения. Прямое — лицо владеет долей в анализируемой компании напрямую, без промежуточных звеньев. Косвенное — через одну или несколько промежуточных компаний; процент — эффективная (расчётная) доля по всей цепочке. На диаграмме отличаются цветом пилюли: прямое — белым, косвенное — жёлтым.</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '2px solid #ff7a00', flex: 'none', marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>Есть в реестре — кликабельно</div>
+                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>У этого лица есть собственная карточка в реестре ПМРК. Клик по карточке открывает его профиль.</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '2px solid var(--pmrk-risk-4)', flex: 'none', marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>Под санкциями</div>
+                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Лицо включено в один из санкционных списков (см. вкладку «Внешняя информация» его карточки).</div>
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Ярусы диаграммы</div>
+            <div className="pmrk-muted" style={{ fontSize: 12.5 }}>
+              Связанные лица сгруппированы по типу связи с анализируемой компанией — собственники и акционеры, конечный бенефициар, дочерние/зависимые общества, аффилированные лица. Оранжевая подсветка карточки — совпадение с поисковым запросом.
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       <div
         style={{ position: 'relative', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius-lg)', overflow: 'hidden', background: 'var(--color-bg-secondary)', height: H, cursor: drag.current ? 'grabbing' : 'grab' }}
