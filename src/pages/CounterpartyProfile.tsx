@@ -1025,6 +1025,13 @@ function DzKzDetailCard({
 }
 
 function StatementsTab({ c }: { c: Counterparty }) {
+  // Столбцы — по убыванию: текущий год и два предыдущих. Прошедший (завершённый)
+  // год подписан датой закрытия периода (31.12.YYYY), текущий, ещё не прошедший, —
+  // последней доступной датой отчётности контрагента (c.asOf.statements),
+  // а не годом: иначе непонятно, на какую дату фактически приведены цифры.
+  const periodYears = [NOW.getFullYear(), NOW.getFullYear() - 1, NOW.getFullYear() - 2];
+  const periodLabel = (year: number) => (year < NOW.getFullYear() ? dateRu(`${year}-12-31`) : dateRu(c.asOf.statements ?? NOW));
+
   return (
     <SectionCard title="Отчётность (Ф1–Ф4 за 3 периода)" extra={<DateActuality date={c.asOf.statements} source="СПАРК / ручной ввод" />}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -1032,13 +1039,17 @@ function StatementsTab({ c }: { c: Counterparty }) {
         <span className="pmrk-muted" style={{ fontSize: 12, alignSelf: 'center' }}>Стандарт: РСБУ · валюта ₽ · тыс. руб.</span>
       </div>
       <div className="pmrk-table" style={{ overflow: 'hidden' }}>
-        {/* Столбцы по годам — по убыванию (2025→2023), ширина как у ДЗ/ПДЗ/Авансы
-            в «Детализации» (flex 0.6 против 2.8 у «Показателя»). */}
-        <div className="pmrk-table__head"><div className="pmrk-th" style={{ flex: 2.8 }}>Показатель (Форма №1)</div><div className="pmrk-th" style={{ flex: 0.6, justifyContent: 'flex-end' }}>2025</div><div className="pmrk-th" style={{ flex: 0.6, justifyContent: 'flex-end' }}>2024</div><div className="pmrk-th" style={{ flex: 0.6, justifyContent: 'flex-end' }}>2023</div></div>
+        {/* Колонка показателя — резиновая (flex:1), суммовые — узкие и фиксированной
+            ширины (не растут на всю оставшуюся ширину карточки), поэтому стоят
+            вплотную друг к другу справа — так проще сверять числа взглядом. */}
+        <div className="pmrk-table__head">
+          <div className="pmrk-th" style={{ flex: 1 }}>Показатель (Форма №1)</div>
+          {periodYears.map((year) => <div key={year} className="pmrk-th" style={{ flex: '0 0 120px', justifyContent: 'flex-end' }}>{periodLabel(year)}</div>)}
+        </div>
         {[['Внеоборотные активы', 0.3], ['Оборотные активы', 0.7], ['БАЛАНС (актив)', 1], ['Капитал и резервы', 0.35], ['Долгосрочные обязательства', 0.2], ['Краткосрочные обязательства', 0.45], ['БАЛАНС (пассив)', 1]].map(([label, k]) => (
           <div key={label as string} className="pmrk-tr" style={{ cursor: 'default', fontWeight: (label as string).includes('БАЛАНС') ? 700 : 400 }}>
-            <div className="pmrk-td" style={{ flex: 2.8 }}>{label}</div>
-            {[1, 0.96, 0.9].map((y, i) => <div key={i} className="pmrk-td pmrk-tnum" style={{ flex: 0.6, justifyContent: 'flex-end', display: 'flex' }}>{money(Math.round((c.revenue * 0.4 * (k as number)) * y / 1000), { unit: '' })}</div>)}
+            <div className="pmrk-td" style={{ flex: 1 }}>{label}</div>
+            {[1, 0.96, 0.9].map((y, i) => <div key={i} className="pmrk-td pmrk-tnum" style={{ flex: '0 0 120px', justifyContent: 'flex-end', display: 'flex' }}>{money(Math.round((c.revenue * 0.4 * (k as number)) * y / 1000), { unit: '' })}</div>)}
           </div>
         ))}
       </div>
