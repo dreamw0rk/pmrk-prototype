@@ -31,6 +31,7 @@ import { buildCreditLimitsByDo, isDoLimitActive, activeCreditLimit } from '@/sha
 import { buildDoLinks, type DoLink } from '@/shared/mock/subsidiaries';
 import { buildAdditionalOkveds } from '@/shared/mock/okved';
 import { buildNameChanges } from '@/shared/mock/nameHistory';
+import { buildDzKzTable, exportDzKzToExcel, MONTH_NAMES, shortDoLabel } from '@/shared/mock/dzKzMatrix';
 import type { Counterparty, AffiliationLinkType } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
 
@@ -858,7 +859,9 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
 function DebtTab({ c }: { c: Counterparty }) {
   const debt = c.debt.length ? c.debt : synthDebt(c);
   const labels = monthLabels(debt.length);
-  const [detail, setDetail] = useState<string | null>(null);
+  const [month, setMonth] = useState(NOW.getMonth());
+  const [year, setYear] = useState(NOW.getFullYear());
+  const dzKz = useMemo(() => buildDzKzTable(c, month, year), [c.uid, month, year]);
   return (
     <>
       <SectionCard title="Данные по дебиторской и кредиторской задолженности" extra={<DateActuality date={c.asOf.debt} source="АРМ КК" />}>
@@ -904,47 +907,120 @@ function DebtTab({ c }: { c: Counterparty }) {
           </div>
         </div>
       </SectionCard>
-      <SectionCard title="Детализация (Блок → ДО → итог, 13 аналитик)">
-        <div className="pmrk-table">
-          <div className="pmrk-table__head">
-            <div className="pmrk-th" style={{ flex: 2.8 }}>Уровень</div>
-            <div className="pmrk-th" style={{ flex: 0.6, justifyContent: 'flex-end' }}>ДЗ</div>
-            <div className="pmrk-th" style={{ flex: 0.6, justifyContent: 'flex-end' }}>ПДЗ</div>
-            <div className="pmrk-th" style={{ flex: 0.6, justifyContent: 'flex-end' }}>Авансы</div>
-          </div>
-          {[
-            { lvl: 'Блок (совокупно)', dz: debt[debt.length - 1].dz, pdz: debt[debt.length - 1].pdz, adv: debt[debt.length - 1].advance },
-            { lvl: c.subsidiary.replace('ООО «', '').replace('»', ''), dz: Math.round(debt[debt.length - 1].dz * 0.7), pdz: Math.round(debt[debt.length - 1].pdz * 0.7), adv: Math.round(debt[debt.length - 1].advance * 0.6) },
-          ].map((r, i) => (
-            <div key={i} className="pmrk-tr pmrk-clickable" onClick={() => setDetail(r.lvl)}>
-              <div className="pmrk-td" style={{ flex: 2.8, fontWeight: i === 0 ? 700 : 400 }}>{r.lvl}</div>
-              <div className="pmrk-td pmrk-tnum" style={{ flex: 0.6, justifyContent: 'flex-end', display: 'flex' }}>{moneyCompact(r.dz)}</div>
-              <div className="pmrk-td pmrk-tnum" style={{ flex: 0.6, justifyContent: 'flex-end', display: 'flex', color: 'var(--pmrk-risk-4)' }}>{moneyCompact(r.pdz)}</div>
-              <div className="pmrk-td pmrk-tnum" style={{ flex: 0.6, justifyContent: 'flex-end', display: 'flex' }}>{moneyCompact(r.adv)}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-          <span className="pmrk-muted" style={{ fontSize: 12 }}>Клик по строке → детализация до договора (4 раздела). Доля ПДЗ на последнюю дату: <b style={{ color: 'var(--pmrk-risk-4)' }}>{pct((debt[debt.length - 1].pdz / debt[debt.length - 1].dz) * 100)}</b>.</span>
-          <CalcStamp date={c.asOf.debt} source="АРМ КК" />
-        </div>
-      </SectionCard>
-
-      <Modal isOpen={!!detail} onClickOutside={() => setDetail(null)} onEsc={() => setDetail(null)}>
-        <div style={{ padding: 20, width: 560, maxWidth: '90vw' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 17 }}>Детализация задолженности · {detail}</h3>
-            <Button size="xs" view="clear" label="✕" onClick={() => setDetail(null)} />
-          </div>
-          {['Дебиторская задолженность по договорам', 'Просроченная задолженность (по срокам)', 'Выданные авансы', 'Обеспечения и гарантии'].map((sec) => (
-            <div key={sec} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-bg-border)' }}>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{sec}</div>
-              <div className="pmrk-muted" style={{ fontSize: 12, marginTop: 2 }}>Договор № 2024/{Math.floor(Math.random() * 900 + 100)} · до 30 дней / 31–90 / свыше 90 · с переходом к карточке договора (АРМ КК).</div>
-            </div>
-          ))}
-        </div>
-      </Modal>
+      <DzKzDetailCard c={c} dzKz={dzKz} month={month} year={year} onMonth={setMonth} onYear={setYear} />
     </>
+  );
+}
+
+/** «Детализация (Блок → ДО → итог, 13 аналитик)» — сводная таблица по ДО,
+    сгруппированным по блокам ГК, плюс колонка «Итого». Ширина зависит от
+    количества связанных ДО (buildDoLinks) — от 3–4 до пары десятков у крупных
+    внутригрупповых контрагентов, поэтому таблица скроллится по горизонтали,
+    а не сжимается и не переносится. Первая колонка (аналитика) — липкая. */
+function DzKzDetailCard({
+  c, dzKz, month, year, onMonth, onYear,
+}: {
+  c: Counterparty;
+  dzKz: ReturnType<typeof buildDzKzTable>;
+  month: number;
+  year: number;
+  onMonth: (m: number) => void;
+  onYear: (y: number) => void;
+}) {
+  const years = [NOW.getFullYear(), NOW.getFullYear() - 1, NOW.getFullYear() - 2];
+  const allCols = dzKz.groups.flatMap((g) => g.columns);
+  const fmtCell = (v: number | undefined) => (v ? money(v, { unit: '' }) : '—');
+  const selectStyle: React.CSSProperties = { height: 32, border: '1px solid var(--color-bg-border)', borderRadius: 8, padding: '0 10px', background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)', fontSize: 13 };
+  const stickyCol: React.CSSProperties = { position: 'sticky', left: 0, background: 'var(--color-bg-default)', zIndex: 1 };
+
+  return (
+    <SectionCard title={`Детализация (Блок → ДО → итог, ${dzKz.rows.length} аналитик)`}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+          <span className="pmrk-muted">Месяц</span>
+          <select value={month} onChange={(e) => onMonth(Number(e.target.value))} style={selectStyle}>
+            {MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}
+          </select>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+          <span className="pmrk-muted">Год</span>
+          <select value={year} onChange={(e) => onYear(Number(e.target.value))} style={selectStyle}>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </label>
+        <span style={{ flex: 1 }} />
+        {allCols.length > 0 && (
+          <Button size="xs" view="secondary" label="Выгрузить в Excel" iconLeft={IconDownload as never} onClick={() => exportDzKzToExcel(c, dzKz, month, year)} />
+        )}
+        <CalcStamp date={c.asOf.debt} source="АРМ КК" />
+      </div>
+
+      {allCols.length ? (
+        <div style={{ overflowX: 'auto', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius-lg)' }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%', minWidth: 'max-content' }}>
+            <thead>
+              <tr>
+                <th rowSpan={2} style={{ ...stickyCol, minWidth: 280, textAlign: 'left', padding: '9px 12px', borderBottom: '1px solid var(--color-bg-border)', borderRight: '1px solid var(--color-bg-border)', color: 'var(--color-typo-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.02em', zIndex: 2 }}>
+                  Аналитика / подразделение
+                </th>
+                {dzKz.groups.map((g) => (
+                  <th key={g.key} colSpan={g.columns.length} style={{ padding: '8px 10px', background: 'var(--color-bg-brand)', color: '#fff', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em', textAlign: 'center', borderLeft: '1px solid rgba(255,255,255,0.25)' }}>
+                    {g.label}
+                  </th>
+                ))}
+                <th rowSpan={2} style={{ minWidth: 130, padding: '8px 10px', background: 'var(--color-bg-brand)', color: '#fff', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', textAlign: 'right', borderLeft: '1px solid rgba(255,255,255,0.35)' }}>
+                  Итого
+                </th>
+              </tr>
+              <tr>
+                {allCols.map((col) => (
+                  <th key={col.name} title={col.name} style={{ minWidth: 96, padding: '8px 8px', background: 'color-mix(in srgb, var(--color-bg-brand) 65%, #ffffff)', color: '#fff', fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', textAlign: 'right', borderLeft: '1px solid rgba(255,255,255,0.25)', borderBottom: '1px solid var(--color-bg-border)' }}>
+                    {shortDoLabel(col.name)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ ...stickyCol, padding: '8px 12px', borderBottom: '1px solid var(--color-bg-border)', borderRight: '1px solid var(--color-bg-border)', fontStyle: 'italic', color: 'var(--color-typo-secondary)' }}>Дата</td>
+                {allCols.map((col) => (
+                  <td key={col.name} className="pmrk-tnum" style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-bg-border)', textAlign: 'right', color: 'var(--color-typo-secondary)', fontStyle: 'italic' }}>
+                    {dzKz.activeColumns.has(col.name) ? dateRu(dzKz.periodDate) : '—'}
+                  </td>
+                ))}
+                <td className="pmrk-tnum" style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-bg-border)', textAlign: 'right', color: 'var(--color-typo-secondary)', fontStyle: 'italic' }}>{dateRu(dzKz.periodDate)}</td>
+              </tr>
+              {dzKz.rows.map((r) => (
+                <tr key={r.key}>
+                  <td style={{ ...stickyCol, padding: '8px 12px', paddingLeft: 12 + r.indent * 16, borderBottom: '1px solid var(--color-bg-border)', borderRight: '1px solid var(--color-bg-border)', fontWeight: r.indent === 0 ? 600 : 400, whiteSpace: 'normal' }}>
+                    {r.label}
+                  </td>
+                  {allCols.map((col) => (
+                    <td key={col.name} className="pmrk-tnum" style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-bg-border)', textAlign: 'right' }}>
+                      {fmtCell(r.values[col.name])}
+                    </td>
+                  ))}
+                  <td className="pmrk-tnum" style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-bg-border)', textAlign: 'right', fontWeight: 700 }}>
+                    {fmtCell(r.total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState text="Нет данных о работе с ДО за выбранный период." />
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+        <span className="pmrk-muted" style={{ fontSize: 12 }}>
+          {allCols.length} {allCols.length === 1 ? 'ДО' : 'ДО'} в {dzKz.groups.length} {dzKz.groups.length === 1 ? 'блоке' : 'блоках'} · доля ПДЗ на конец периода:{' '}
+          <b style={{ color: 'var(--pmrk-risk-4)' }}>
+            {dzKz.rows[0].total ? pct((dzKz.rows[2].total / dzKz.rows[0].total) * 100) : '—'}
+          </b>.
+        </span>
+      </div>
+    </SectionCard>
   );
 }
 
