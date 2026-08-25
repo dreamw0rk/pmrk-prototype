@@ -150,23 +150,27 @@ export function CounterpartyProfile() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '2px 0 6px' }}>
                 <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>
                   {c.name}
-                  {c.underSanctions && <span style={{ color: 'var(--pmrk-risk-4)', fontSize: 15, fontWeight: 600 }}> (Находится под санкциями)</span>}
                 </h1>
                 {cardActions}
               </div>
             )}
             {/* реквизиты — одной строкой через точки-разделители: три блока
                 почти одинакового веса делали шапку рыхлой, теперь это одна
-                тихая подпись под названием */}
+                тихая подпись под названием. Статус и санкции сюда не выносим —
+                они уже есть чипами ниже (StatusBadge / SanctionBadge), и текст
+                в подписи их дублировал; источник статуса ушёл в подсказку чипа. */}
             <div style={{ fontSize: 12.5, color: 'var(--color-typo-secondary)', lineHeight: 1.5 }}>
-              ИНН {fmtInn(c.inn)} · КПП {c.kpp} · ОГРН {c.ogrn} · Статус по СПАРК: {c.status}
+              ИНН {fmtInn(c.inn)} · КПП {c.kpp} · ОГРН {c.ogrn}
             </div>
+            {/* строка бейджей — только статус контрагента и санкции. Кредито-
+                способность и Индекс РБ отсюда убраны: это риск-метрики, а не
+                состояние контрагента, и в шапке они спорили со статусом за
+                внимание. Обе остались там, где читаются в контексте: Индекс РБ —
+                во «Внешней информации», группа со скорингом — в «Оценке». */}
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <GroupBadge group={c.group} withScore={c.score} />
-              <RbIndicator value={c.rbIndex} />
-              {c.underSanctions && <SanctionBadge />}
+              <span title="Статус по данным СПАРК"><StatusBadge status={c.status} /></span>
               {c.specialControl && <StatusBadge status="Особый контроль" />}
-              <StatusBadge status={c.status} />
+              {c.underSanctions && <SanctionBadge />}
               {/* в скине СФК заголовка на странице нет (он в топбаре оболочки),
                   поэтому кнопки карточки остаются в строке бейджей */}
               {skin === 'sfk' && <div style={{ marginLeft: 'auto' }}>{cardActions}</div>}
