@@ -33,6 +33,20 @@ const lvl = (g: number, invert = false): Level => {
   return invert ? (base === 'low' ? 'high' : base === 'high' ? 'low' : 'medium') : base;
 };
 
+/* Реальные внешние рейтинги карточек-«героев». По остальным карточкам рейтинг
+   выводится из группы риска — там нужен правдоподобный порядок величины. */
+const REAL_RATINGS: Record<string, Indicator[]> = {
+  // ПАО «Газпром нефть»: АКРА подтвердило AAA(RU) 02.04.2026, «Эксперт РА» —
+  // ruAAA 16.06.2026; у Санкт-Петербурга как региона регистрации — AAA(RU).
+  'cp-gpn': [
+    { label: 'АКРА · Рейтинг (прогноз)', value: 'AAA(RU) (стабильный)', level: 'low', tip: 'Максимальный уровень по национальной шкале АКРА. Подтверждён 02.04.2026.' },
+    { label: 'АКРА · Дата подтверждения', value: '02.04.2026' },
+    { label: 'АКРА · Рейтинг региона регистрации', value: 'AAA(RU) (стабильный)' },
+    { label: 'Эксперт РА · Рейтинг (прогноз)', value: 'ruAAA (стабильный)', level: 'low', tip: 'Максимальный уровень по национальной шкале «Эксперт РА». Подтверждён 16.06.2026.' },
+    { label: 'Эксперт РА · Дата обновления', value: '16.06.2026' },
+  ],
+};
+
 export function buildExternal(cp: Counterparty) {
   const g = cp.group;
   const lastDz = cp.debt.length ? cp.debt[cp.debt.length - 1] : null;
@@ -61,10 +75,12 @@ export function buildExternal(cp: Counterparty) {
   const section4: Indicator[] = [
     { label: 'Оценка СПАРК · Кредитный лимит', value: cp.creditLimit ? moneyCompact(cp.creditLimit) : '—' },
     { label: 'Газпромбанк · Индекс Риска бизнеса', value: `${cp.rbIndex} / 14 — ${rbSignal(cp.rbIndex).desc}`, level: rbSignal(cp.rbIndex).color === 'green' ? 'low' : rbSignal(cp.rbIndex).color === 'red' ? 'high' : 'medium', tip: 'Индекс РБ (0…14) от Газпромбанк. Описание сигнала — по матрице РБ (ФТ-1.3.1).' },
-    { label: 'АКРА · Рейтинг (прогноз)', value: g <= 2 ? 'A (стабильный)' : g === 3 ? 'BBB (негативный)' : 'нет рейтинга' },
-    { label: 'АКРА · Рейтинг региона регистрации', value: 'A+ (стабильный)' },
-    { label: 'Эксперт РА · Рейтинг (прогноз)', value: g <= 2 ? 'ruA (стабильный)' : 'отозван / нет' },
-    { label: 'Эксперт РА · Дата обновления', value: '12.03.2026' },
+    ...(REAL_RATINGS[cp.uid] ?? [
+      { label: 'АКРА · Рейтинг (прогноз)', value: g <= 2 ? 'A (стабильный)' : g === 3 ? 'BBB (негативный)' : 'нет рейтинга' },
+      { label: 'АКРА · Рейтинг региона регистрации', value: 'A+ (стабильный)' },
+      { label: 'Эксперт РА · Рейтинг (прогноз)', value: g <= 2 ? 'ruA (стабильный)' : 'отозван / нет' },
+      { label: 'Эксперт РА · Дата обновления', value: '12.03.2026' },
+    ]),
   ];
 
   const section5: Indicator[] = [
