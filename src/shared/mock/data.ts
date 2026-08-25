@@ -442,16 +442,43 @@ export const BLOCK_NAMES: string[] = Object.values(BLOCKS);
 /** ДО → блок. Порядок ключей задаёт и порядок справочника SUBS. */
 export const SUB_BLOCK: Record<string, BlockCode> = {
   'ООО «Газпромнефть-Хантос»': 'БРД',
-  'ООО «Газпромнефть-Ноябрьскнефтегаз»': 'БРД',
+  'АО «Газпромнефть-Ноябрьскнефтегаз»': 'БРД',
   'ООО «Газпромнефть-Восток»': 'БРД',
+  'ООО «Газпром нефть шельф»': 'БРД',
+  'АО «Газпромнефть-ОНПЗ»': 'БЛПС',
+  'АО «Газпромнефть-МНПЗ»': 'БЛПС',
   'ООО «Газпромнефть-Региональные продажи»': 'БЛПС',
+  'ООО «Газпромнефть-Центр»': 'БЛПС',
   'ООО «Газпромнефть-Логистика»': 'БЛПС',
+  'ООО «Газпромнефть Марин Бункер»': 'БЛПС',
   'ООО «Газпромнефть — смазочные материалы»': 'БЛПС',
   'ООО «Газпромнефть-Снабжение»': 'БЛПС',
-  'ООО «Газпромнефть-Аэро»': 'БЛПС',
-  'ООО «Газпромнефть Финанс»': 'БЭФ',
+  'АО «Газпромнефть-Аэро»': 'БЛПС',
   'ООО «Газпромнефть — Цифровые решения»': 'БЦТ',
   'ООО «Газпромнефть Бизнес-сервис»': 'АУ',
+};
+
+/* Реальные ИНН дочерних обществ (ЕГРЮЛ). Наименования в справочнике даны в
+   привычном по ГК виде: часть обществ в ЕГРЮЛ уже переименована в сокращённую
+   форму (ГПН-Логистика, Газпромнефть-СМ, Газпромнефть-ЦР, Газпромнефть-ННГ),
+   но юрлицо и ИНН те же. ДО блока экономики и финансов (БЭФ) в справочнике нет:
+   финансовые функции ГК сосредоточены в ПАО и в ОЦО «Газпромнефть Бизнес-сервис». */
+const SUB_INN: Record<string, string> = {
+  'ООО «Газпромнефть-Хантос»': '8618006063',
+  'АО «Газпромнефть-Ноябрьскнефтегаз»': '8905000428',
+  'ООО «Газпромнефть-Восток»': '7017126251',
+  'ООО «Газпром нефть шельф»': '7725610285',
+  'АО «Газпромнефть-ОНПЗ»': '5501041254',
+  'АО «Газпромнефть-МНПЗ»': '7723006328',
+  'ООО «Газпромнефть-Региональные продажи»': '4703105075',
+  'ООО «Газпромнефть-Центр»': '7709359770',
+  'ООО «Газпромнефть-Логистика»': '8905039538',
+  'ООО «Газпромнефть Марин Бункер»': '7838392447',
+  'ООО «Газпромнефть — смазочные материалы»': '7728640182',
+  'ООО «Газпромнефть-Снабжение»': '5501072608',
+  'АО «Газпромнефть-Аэро»': '7714117720',
+  'ООО «Газпромнефть — Цифровые решения»': '7728654530',
+  'ООО «Газпромнефть Бизнес-сервис»': '8905044954',
 };
 
 export const SUBS = Object.keys(SUB_BLOCK);
@@ -462,12 +489,13 @@ export function blockOf(subsidiary: string): BlockCode | undefined {
   return SUB_BLOCK[subsidiary];
 }
 
-/** ИНН ДО — своих реквизитов у дочерних обществ в модели нет (справочник хранит
-    только названия), поэтому генерируем стабильный правдоподобный ИНН
-    детерминированно от наименования: префикс 77 — Москва, где зарегистрировано
-    большинство ДО ГК ГПН. Функция общая для всех экранов, чтобы один и тот же ДО
-    везде показывался с одним и тем же ИНН. */
+/** ИНН ДО. У обществ из справочника — настоящий ИНН из ЕГРЮЛ; для ДО вне
+    справочника (например, головная компания ГК в роли «ДО» у самой себя)
+    реквизитов в модели нет, поэтому ИНН генерируется детерминированно от
+    наименования — чтобы один и тот же ДО везде показывался одинаково. */
 export function doInn(subsidiary: string): string {
+  const real = SUB_INN[subsidiary];
+  if (real) return real;
   const seed = subsidiary.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
   const h = seed * 9301 + 49297;
   return `77${String(h % 100_000_000).padStart(8, '0')}`;
@@ -549,14 +577,14 @@ export const GRAPHS: Record<string, AffiliationGraph> = {
       { id: 'gp-s1', name: 'АО «Газпромнефть-Ноябрьскнефтегаз»', inn: '8905000428', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       { id: 'gp-s2', name: 'ООО «Газпромнефть-Хантос»', inn: '8618006063', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       { id: 'gp-s3', name: 'ООО «Газпромнефть-Ямал»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s4', name: 'ООО «Газпромнефть-Восток»', isPerson: false, directShare: 51, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s4', name: 'ООО «Газпромнефть-Восток»', inn: '7017126251', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       // Дочерние общества — переработка
       { id: 'gp-s5', name: 'АО «Газпромнефть-ОНПЗ» (Омский НПЗ)', inn: '5501041254', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s6', name: 'АО «Газпромнефть-Московский НПЗ»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s6', name: 'АО «Газпромнефть-МНПЗ»', inn: '7723006328', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       // Дочерние общества — сбыт/сервис (ДО, с которыми работают контрагенты реестра)
-      { id: 'gp-s7', name: 'АО «Газпромнефть-Аэро»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s8', name: 'ООО «Газпромнефть — смазочные материалы»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s9', name: 'ООО «Газпромнефть-Региональные продажи»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s7', name: 'АО «Газпромнефть-Аэро»', inn: '7714117720', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s8', name: 'ООО «Газпромнефть — смазочные материалы»', inn: '7728640182', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s9', name: 'ООО «Газпромнефть-Региональные продажи»', inn: '4703105075', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       // Зарубежный актив (под санкциями)
       { id: 'gp-s10', name: 'НИС а.д. Нови-Сад (NIS, Сербия)', isPerson: false, directShare: 44.85, inRegistry: false, underSanctions: true, linkType: 'subsidiary', level: 1 },
       // Совместно контролируемые (метод долевого участия)
