@@ -73,8 +73,8 @@ export const HEROES: Counterparty[] = [
     kpp: '783801001',
     ogrn: '1025501701686',
     status: 'Действующее',
-    okved: 'Добыча сырой нефти и нефтяного (попутного) газа',
-    okvedCode: '06.10.1',
+    okved: 'Производство жидкого топлива',
+    okvedCode: '19.20.1',
     region: 'г. Санкт-Петербург',
     subsidiary: 'ПАО «Газпром нефть» (головная компания ГК)',
     group: 1,
@@ -84,8 +84,10 @@ export const HEROES: Counterparty[] = [
     specialControl: true,
     isForeign: false,
     registered: '1995-10-06',
-    revenue: 4_100_000_000_000,
-    employees: 86_000,
+    // РСБУ 2025: выручка 2 873,1 млрд ₽ (−11,9% г/г), чистая прибыль 281,8 млрд ₽.
+    // Численность — списочная по группе на конец 2025 года (МСФО).
+    revenue: 2_873_070_000_000,
+    employees: 87_000,
     creditLimit: 5_000_000_000,
     limitUtilization: 0.38,
     groupAggregateLimit: 22_000_000_000,
@@ -95,9 +97,12 @@ export const HEROES: Counterparty[] = [
       { id: 'as-gpn2', date: '2026-02-20', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 90, limit: 5_000_000_000, author: 'Петрова И.А.' },
     ],
     news: [
-      { id: 'n-gpn1', date: '2026-03-14', title: 'Выручка по МСФО за 2024 год — 4,1 трлн ₽ (+16,5%)', source: 'PRIMO / Отчётность', sentiment: 'positive', summary: 'Скорректированная EBITDA 1,4 трлн ₽; чистая прибыль акционеров 479,5 млрд ₽; чистый долг/EBITDA 0,6×.' },
-      { id: 'n-gpn2', date: '2026-05-20', title: 'Совет директоров рекомендовал дивиденды за 2025 год', source: 'PRIMO / Компания', sentiment: 'positive', summary: 'Дивидендная политика — не менее 50% скорректированной чистой прибыли по МСФО.' },
-      { id: 'n-gpn3', date: '2025-01-11', title: 'OFAC включил «Газпром нефть» в SDN-список', source: 'PRIMO / Санкции', sentiment: 'negative', summary: 'Минфин США 10.01.2025 внёс компанию и ряд дочерних обществ в блокирующий список (Executive Order 14024).' },
+      { id: 'n-gpn1', date: '2026-06-16', title: '«Эксперт РА» подтвердил рейтинг на уровне ruAAA', source: 'PRIMO / Рейтинговые агентства', sentiment: 'positive', summary: 'Максимальный уровень по национальной шкале, прогноз «стабильный».' },
+      { id: 'n-gpn2', date: '2026-05-22', title: 'Совет директоров рекомендовал финальные дивиденды за 2025 год', source: 'PRIMO / Компания', sentiment: 'positive', summary: 'Финальные 28,11 ₽ на акцию, с учётом промежуточных 17,30 ₽ — 45,41 ₽ за год (215,3 млрд ₽). ГОСА 25.06.2026, закрытие реестра 06.07.2026.' },
+      { id: 'n-gpn3', date: '2026-04-13', title: 'Результаты за 2025 год по МСФО: выручка 3,61 трлн ₽ (−12%)', source: 'PRIMO / Отчётность', sentiment: 'negative', summary: 'EBITDA −21%, чистая прибыль акционеров 245,8 млрд ₽ против 479,5 млрд ₽ годом ранее — давление санкционного дисконта и крепкого рубля.' },
+      { id: 'n-gpn4', date: '2026-04-02', title: 'АКРА подтвердило кредитный рейтинг на уровне AAA(RU)', source: 'PRIMO / Рейтинговые агентства', sentiment: 'positive', summary: 'Прогноз «стабильный»; очень сильный бизнес-профиль — низкая себестоимость добычи, высокие объём и глубина переработки.' },
+      { id: 'n-gpn5', date: '2025-10-23', title: 'ЕС ввёл полный запрет на сделки в 19-м пакете санкций', source: 'PRIMO / Санкции', sentiment: 'negative', summary: 'Компания включена в Annex XIX Регламента 833/2014 (ст. 5aa); отменены изъятия для нефтегазовых операций и ряда зарубежных проектов.' },
+      { id: 'n-gpn6', date: '2025-01-10', title: 'OFAC включил «Газпром нефть» в SDN-список, Великобритания заморозила активы', source: 'PRIMO / Санкции', sentiment: 'negative', summary: 'Минфин США внёс компанию и ряд дочерних обществ в блокирующий список (Executive Order 14024); в тот же день OFSI ввела заморозку активов.' },
     ],
     courtCases: [
       { id: 'c-gpn1', kind: 'lawsuit', role: 'истец', amount: 1_240_000_000, date: '2026-02-18', status: 'Рассмотрение по существу', subject: 'Взыскание задолженности с подрядчика' },
@@ -105,8 +110,9 @@ export const HEROES: Counterparty[] = [
     ],
     sanctions: [
       { program: 'Блокирующие санкции (SDN List)', authority: 'OFAC (США)', date: '2025-01-10', basis: 'Включение в SDN-список (Executive Order 14024)' },
-      { program: 'Секторальные ограничения', authority: 'Евросоюз', date: '2014-09-12', basis: 'Ограничения доступа к финансированию и нефтесервисным технологиям' },
-      { program: 'Финансовые санкции', authority: 'OFSI (Великобритания)', date: '2022-04-06', basis: 'Включение в санкционный перечень' },
+      { program: 'Заморозка активов (UK Sanctions List)', authority: 'OFSI (Великобритания)', date: '2025-01-10', basis: 'Designation в рамках Russia (Sanctions) (EU Exit) Regulations 2019' },
+      { program: 'Полный запрет на сделки', authority: 'Евросоюз', date: '2025-10-23', basis: '19-й пакет: ст. 5aa и Annex XIX Регламента (ЕС) 833/2014' },
+      { program: 'Секторальные ограничения', authority: 'Евросоюз', date: '2014-09-12', basis: 'Ограничения доступа к финансированию и к технологиям для глубоководной, арктической и сланцевой добычи' },
     ],
     pdForecast: [
       { horizon: '30+ дней', pd: 0.2 },
@@ -118,7 +124,7 @@ export const HEROES: Counterparty[] = [
       statements: '2026-04-01', assessment: '2026-05-28', news: '2026-06-10', security: '2026-06-05',
       'special-control': '2026-06-05', legal: '2026-06-12', 'credit-limit': '2026-06-14',
     },
-    flags: ['Под санкциями (OFAC SDN)', 'Контроль ПАО «Газпром» 95,68%', 'Группа 1 — высокая надёжность'],
+    flags: ['Под санкциями (OFAC SDN, ЕС, Великобритания)', 'Контроль ПАО «Газпром» 95,68%', 'АКРА AAA(RU) · Эксперт РА ruAAA'],
   },
   {
     uid: 'cp-balt',
@@ -436,16 +442,43 @@ export const BLOCK_NAMES: string[] = Object.values(BLOCKS);
 /** ДО → блок. Порядок ключей задаёт и порядок справочника SUBS. */
 export const SUB_BLOCK: Record<string, BlockCode> = {
   'ООО «Газпромнефть-Хантос»': 'БРД',
-  'ООО «Газпромнефть-Ноябрьскнефтегаз»': 'БРД',
+  'АО «Газпромнефть-Ноябрьскнефтегаз»': 'БРД',
   'ООО «Газпромнефть-Восток»': 'БРД',
+  'ООО «Газпром нефть шельф»': 'БРД',
+  'АО «Газпромнефть-ОНПЗ»': 'БЛПС',
+  'АО «Газпромнефть-МНПЗ»': 'БЛПС',
   'ООО «Газпромнефть-Региональные продажи»': 'БЛПС',
+  'ООО «Газпромнефть-Центр»': 'БЛПС',
   'ООО «Газпромнефть-Логистика»': 'БЛПС',
+  'ООО «Газпромнефть Марин Бункер»': 'БЛПС',
   'ООО «Газпромнефть — смазочные материалы»': 'БЛПС',
   'ООО «Газпромнефть-Снабжение»': 'БЛПС',
-  'ООО «Газпромнефть-Аэро»': 'БЛПС',
-  'ООО «Газпромнефть Финанс»': 'БЭФ',
+  'АО «Газпромнефть-Аэро»': 'БЛПС',
   'ООО «Газпромнефть — Цифровые решения»': 'БЦТ',
   'ООО «Газпромнефть Бизнес-сервис»': 'АУ',
+};
+
+/* Реальные ИНН дочерних обществ (ЕГРЮЛ). Наименования в справочнике даны в
+   привычном по ГК виде: часть обществ в ЕГРЮЛ уже переименована в сокращённую
+   форму (ГПН-Логистика, Газпромнефть-СМ, Газпромнефть-ЦР, Газпромнефть-ННГ),
+   но юрлицо и ИНН те же. ДО блока экономики и финансов (БЭФ) в справочнике нет:
+   финансовые функции ГК сосредоточены в ПАО и в ОЦО «Газпромнефть Бизнес-сервис». */
+const SUB_INN: Record<string, string> = {
+  'ООО «Газпромнефть-Хантос»': '8618006063',
+  'АО «Газпромнефть-Ноябрьскнефтегаз»': '8905000428',
+  'ООО «Газпромнефть-Восток»': '7017126251',
+  'ООО «Газпром нефть шельф»': '7725610285',
+  'АО «Газпромнефть-ОНПЗ»': '5501041254',
+  'АО «Газпромнефть-МНПЗ»': '7723006328',
+  'ООО «Газпромнефть-Региональные продажи»': '4703105075',
+  'ООО «Газпромнефть-Центр»': '7709359770',
+  'ООО «Газпромнефть-Логистика»': '8905039538',
+  'ООО «Газпромнефть Марин Бункер»': '7838392447',
+  'ООО «Газпромнефть — смазочные материалы»': '7728640182',
+  'ООО «Газпромнефть-Снабжение»': '5501072608',
+  'АО «Газпромнефть-Аэро»': '7714117720',
+  'ООО «Газпромнефть — Цифровые решения»': '7728654530',
+  'ООО «Газпромнефть Бизнес-сервис»': '8905044954',
 };
 
 export const SUBS = Object.keys(SUB_BLOCK);
@@ -456,12 +489,13 @@ export function blockOf(subsidiary: string): BlockCode | undefined {
   return SUB_BLOCK[subsidiary];
 }
 
-/** ИНН ДО — своих реквизитов у дочерних обществ в модели нет (справочник хранит
-    только названия), поэтому генерируем стабильный правдоподобный ИНН
-    детерминированно от наименования: префикс 77 — Москва, где зарегистрировано
-    большинство ДО ГК ГПН. Функция общая для всех экранов, чтобы один и тот же ДО
-    везде показывался с одним и тем же ИНН. */
+/** ИНН ДО. У обществ из справочника — настоящий ИНН из ЕГРЮЛ; для ДО вне
+    справочника (например, головная компания ГК в роли «ДО» у самой себя)
+    реквизитов в модели нет, поэтому ИНН генерируется детерминированно от
+    наименования — чтобы один и тот же ДО везде показывался одинаково. */
 export function doInn(subsidiary: string): string {
+  const real = SUB_INN[subsidiary];
+  if (real) return real;
   const seed = subsidiary.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
   const h = seed * 9301 + 49297;
   return `77${String(h % 100_000_000).padStart(8, '0')}`;
@@ -534,25 +568,27 @@ export const GRAPHS: Record<string, AffiliationGraph> = {
       // Владельцы (вверх по цепочке контроля)
       { id: 'gp-o1', name: 'ПАО «Газпром»', inn: '7736050003', isPerson: false, directShare: 95.68, inRegistry: false, underSanctions: true, linkType: 'owner', level: 1 },
       { id: 'gp-o2', name: 'Миноритарии (free float, MOEX)', isPerson: false, directShare: 4.32, inRegistry: false, linkType: 'owner', level: 1 },
-      { id: 'gp-o3', name: 'Gazprom Finance B.V. (Нидерланды)', isPerson: false, indirectShare: 9.83, inRegistry: false, linkType: 'owner', level: 2 },
-      // Конечный контролирующий бенефициар
-      { id: 'gp-b1', name: 'Российская Федерация (Росимущество, Роснефтегаз)', isPerson: false, indirectShare: 50.23, inRegistry: false, linkType: 'beneficiary', level: 2 },
+      { id: 'gp-o3', name: 'АО «Роснефтегаз» (10,97% в ПАО «Газпром»)', isPerson: false, indirectShare: 10.50, inRegistry: false, linkType: 'owner', level: 2 },
+      // Конечный контролирующий бенефициар: РФ контролирует 50,23% ПАО «Газпром»
+      // (Росимущество 38,37%, Роснефтегаз 10,97%, Росгазификация 0,89%), что даёт
+      // 48,06% косвенного владения в «Газпром нефти» (50,23% × 95,68%).
+      { id: 'gp-b1', name: 'Российская Федерация (Росимущество, Роснефтегаз, Росгазификация)', isPerson: false, indirectShare: 48.06, inRegistry: false, linkType: 'beneficiary', level: 2 },
       // Дочерние общества — добыча
       { id: 'gp-s1', name: 'АО «Газпромнефть-Ноябрьскнефтегаз»', inn: '8905000428', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       { id: 'gp-s2', name: 'ООО «Газпромнефть-Хантос»', inn: '8618006063', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       { id: 'gp-s3', name: 'ООО «Газпромнефть-Ямал»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s4', name: 'ООО «Газпромнефть-Восток»', isPerson: false, directShare: 51, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s4', name: 'ООО «Газпромнефть-Восток»', inn: '7017126251', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       // Дочерние общества — переработка
       { id: 'gp-s5', name: 'АО «Газпромнефть-ОНПЗ» (Омский НПЗ)', inn: '5501041254', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s6', name: 'АО «Газпромнефть-Московский НПЗ»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s6', name: 'АО «Газпромнефть-МНПЗ»', inn: '7723006328', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       // Дочерние общества — сбыт/сервис (ДО, с которыми работают контрагенты реестра)
-      { id: 'gp-s7', name: 'АО «Газпромнефть-Аэро»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s8', name: 'ООО «Газпромнефть — смазочные материалы»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s9', name: 'ООО «Газпромнефть-Региональные продажи»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s7', name: 'АО «Газпромнефть-Аэро»', inn: '7714117720', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s8', name: 'ООО «Газпромнефть — смазочные материалы»', inn: '7728640182', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s9', name: 'ООО «Газпромнефть-Региональные продажи»', inn: '4703105075', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
       // Зарубежный актив (под санкциями)
       { id: 'gp-s10', name: 'НИС а.д. Нови-Сад (NIS, Сербия)', isPerson: false, directShare: 44.85, inRegistry: false, underSanctions: true, linkType: 'subsidiary', level: 1 },
       // Совместно контролируемые (метод долевого участия)
-      { id: 'gp-a1', name: 'ПАО «НГК «Славнефть»', inn: '7707017509', isPerson: false, directShare: 50, inRegistry: false, linkType: 'affiliate', level: 1 },
+      { id: 'gp-a1', name: 'ПАО «НГК «Славнефть»', inn: '7707017509', isPerson: false, directShare: 49.94, inRegistry: false, linkType: 'affiliate', level: 1 },
       { id: 'gp-a2', name: 'АО «Томскнефть» ВНК', isPerson: false, indirectShare: 50, inRegistry: false, linkType: 'affiliate', level: 2 },
     ],
   },

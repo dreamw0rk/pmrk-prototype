@@ -31,6 +31,7 @@ import { buildCreditLimitsByDo, isDoLimitActive, activeCreditLimit } from '@/sha
 import { buildDoLinks, type DoLink } from '@/shared/mock/subsidiaries';
 import { buildAdditionalOkveds } from '@/shared/mock/okved';
 import { buildNameChanges } from '@/shared/mock/nameHistory';
+import { buildStatements } from '@/shared/mock/statements';
 import { buildDzKzTable, exportDzKzToExcel, MONTH_NAMES, shortDoLabel } from '@/shared/mock/dzKzMatrix';
 import type { Counterparty, AffiliationLinkType, AffiliationNode } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
@@ -150,23 +151,27 @@ export function CounterpartyProfile() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '2px 0 6px' }}>
                 <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>
                   {c.name}
-                  {c.underSanctions && <span style={{ color: 'var(--pmrk-risk-4)', fontSize: 15, fontWeight: 600 }}> (Находится под санкциями)</span>}
                 </h1>
                 {cardActions}
               </div>
             )}
             {/* реквизиты — одной строкой через точки-разделители: три блока
                 почти одинакового веса делали шапку рыхлой, теперь это одна
-                тихая подпись под названием */}
+                тихая подпись под названием. Статус и санкции сюда не выносим —
+                они уже есть чипами ниже (StatusBadge / SanctionBadge), и текст
+                в подписи их дублировал; источник статуса ушёл в подсказку чипа. */}
             <div style={{ fontSize: 12.5, color: 'var(--color-typo-secondary)', lineHeight: 1.5 }}>
-              ИНН {fmtInn(c.inn)} · КПП {c.kpp} · ОГРН {c.ogrn} · Статус по СПАРК: {c.status}
+              ИНН {fmtInn(c.inn)} · КПП {c.kpp} · ОГРН {c.ogrn}
             </div>
+            {/* строка бейджей — только статус контрагента и санкции. Кредито-
+                способность и Индекс РБ отсюда убраны: это риск-метрики, а не
+                состояние контрагента, и в шапке они спорили со статусом за
+                внимание. Обе остались там, где читаются в контексте: Индекс РБ —
+                во «Внешней информации», группа со скорингом — в «Оценке». */}
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <GroupBadge group={c.group} withScore={c.score} />
-              <RbIndicator value={c.rbIndex} />
-              {c.underSanctions && <SanctionBadge />}
+              <span title="Статус по данным СПАРК"><StatusBadge status={c.status} /></span>
               {c.specialControl && <StatusBadge status="Особый контроль" />}
-              <StatusBadge status={c.status} />
+              {c.underSanctions && <SanctionBadge />}
               {/* в скине СФК заголовка на странице нет (он в топбаре оболочки),
                   поэтому кнопки карточки остаются в строке бейджей */}
               {skin === 'sfk' && <div style={{ marginLeft: 'auto' }}>{cardActions}</div>}
@@ -1034,35 +1039,39 @@ function DzKzDetailCard({
 }
 
 function StatementsTab({ c }: { c: Counterparty }) {
-  // Столбцы — по убыванию: текущий год и два предыдущих. Прошедший (завершённый)
-  // год подписан датой закрытия периода (31.12.YYYY), текущий, ещё не прошедший, —
-  // последней доступной датой отчётности контрагента (c.asOf.statements),
-  // а не годом: иначе непонятно, на какую дату фактически приведены цифры.
-  const periodYears = [NOW.getFullYear(), NOW.getFullYear() - 1, NOW.getFullYear() - 2];
-  const periodLabel = (year: number) => (year < NOW.getFullYear() ? dateRu(`${year}-12-31`) : dateRu(c.asOf.statements ?? NOW));
+  // Столбцы — отчётные периоды от свежего к старому. По «героям» это реальная
+  // годовая отчётность (три закрытых года), по остальным карточкам — прежняя
+  // синтетика, где текущий, ещё не закрытый год подписан датой актуализации
+  // отчётности контрагента: иначе непонятно, на какую дату приведены цифры.
+  const st = useMemo(() => buildStatements(c), [c.uid]);
 
   return (
-    <SectionCard title="Отчётность (Ф1–Ф4 за 3 периода)" extra={<DateActuality date={c.asOf.statements} source="СПАРК / ручной ввод" />}>
+    <SectionCard title="Отчётность (Ф1–Ф2 за 3 периода)" extra={<DateActuality date={c.asOf.statements} source="СПАРК / ручной ввод" />}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <Button size="xs" view="secondary" label="РСБУ отчётность (PDF)" iconLeft={IconDownload as never} />
         <span className="pmrk-muted" style={{ fontSize: 12, alignSelf: 'center' }}>Стандарт: РСБУ · валюта ₽ · тыс. руб.</span>
       </div>
-      <div className="pmrk-table" style={{ overflow: 'hidden' }}>
-        {/* Колонка показателя — резиновая (flex:1), суммовые — узкие и фиксированной
-            ширины (не растут на всю оставшуюся ширину карточки), поэтому стоят
-            вплотную друг к другу справа — так проще сверять числа взглядом. */}
-        <div className="pmrk-table__head">
-          <div className="pmrk-th" style={{ flex: 1 }}>Показатель (Форма №1)</div>
-          {periodYears.map((year) => <div key={year} className="pmrk-th" style={{ flex: '0 0 120px', justifyContent: 'flex-end' }}>{periodLabel(year)}</div>)}
-        </div>
-        {[['Внеоборотные активы', 0.3], ['Оборотные активы', 0.7], ['БАЛАНС (актив)', 1], ['Капитал и резервы', 0.35], ['Долгосрочные обязательства', 0.2], ['Краткосрочные обязательства', 0.45], ['БАЛАНС (пассив)', 1]].map(([label, k]) => (
-          <div key={label as string} className="pmrk-tr" style={{ cursor: 'default', fontWeight: (label as string).includes('БАЛАНС') ? 700 : 400 }}>
-            <div className="pmrk-td" style={{ flex: 1 }}>{label}</div>
-            {[1, 0.96, 0.9].map((y, i) => <div key={i} className="pmrk-td pmrk-tnum" style={{ flex: '0 0 120px', justifyContent: 'flex-end', display: 'flex' }}>{money(Math.round((c.revenue * 0.4 * (k as number)) * y / 1000), { unit: '' })}</div>)}
+      {st.blocks.map((block, bi) => (
+        <div key={block.title} className="pmrk-table" style={{ overflow: 'hidden', marginTop: bi ? 16 : 0 }}>
+          {/* Колонка показателя — резиновая (flex:1), суммовые — узкие и фиксированной
+              ширины (не растут на всю оставшуюся ширину карточки), поэтому стоят
+              вплотную друг к другу справа — так проще сверять числа взглядом. */}
+          <div className="pmrk-table__head">
+            <div className="pmrk-th" style={{ flex: 1 }}>{block.title}</div>
+            {st.periods.map((d) => <div key={d} className="pmrk-th" style={{ flex: '0 0 120px', justifyContent: 'flex-end' }}>{dateRu(d)}</div>)}
           </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--pmrk-risk-1)' }}>✓ Проверка пройдена: активы = пассивам на каждую отчётную дату (ФТ-3.4).</div>
+          {block.rows.map((row) => (
+            <div key={row.label} className="pmrk-tr" style={{ cursor: 'default', fontWeight: row.strong ? 700 : 400 }}>
+              <div className="pmrk-td" style={{ flex: 1 }}>{row.label}</div>
+              {row.values.map((v, i) => <div key={i} className="pmrk-td pmrk-tnum" style={{ flex: '0 0 120px', justifyContent: 'flex-end', display: 'flex' }}>{money(v, { unit: '' })}</div>)}
+            </div>
+          ))}
+        </div>
+      ))}
+      {st.balanceCheck && (
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--pmrk-risk-1)' }}>✓ Проверка пройдена: активы = пассивам на каждую отчётную дату (ФТ-3.4).</div>
+      )}
+      {st.note && <div className="pmrk-muted" style={{ marginTop: 8, fontSize: 12 }}>{st.note}</div>}
     </SectionCard>
   );
 }
