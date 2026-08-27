@@ -96,6 +96,8 @@ export interface AffiliationNode {
   inRegistry: boolean; // есть в реестре ПМРК → оранжевая обводка, кликабельно
   uid?: string; // если inRegistry
   underSanctions?: boolean;
+  /** руководитель — единоличный исполнительный орган анализируемой компании или лица в цепочке */
+  isDirector?: boolean;
   linkType: AffiliationLinkType;
   level: number;
 }

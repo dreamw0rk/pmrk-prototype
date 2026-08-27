@@ -34,6 +34,43 @@ const ROLE_SHORT: Record<AffiliationLinkType, string> = {
   affiliate: 'Аффилированное лицо',
 };
 
+/** Цвет значка «руководитель» (ЕИО) — отдельный от orange/red (реестр/санкции),
+    чтобы три признака не путались друг с другом на карточке. */
+export const DIRECTOR_COLOR = '#7c5cff';
+
+/** Текстовое описание связи (как в отчётах СПАРК-Аффилированность) — по типу
+    связи и доле владения, плюс отдельно отмечает руководителя (ЕИО), если это
+    он же. Несколько оснований для одного лица — обычное дело (совладелец
+    и руководитель одновременно), поэтому части просто объединяются. */
+export function describeAffiliation(n: AffiliationNode): string {
+  const parts: string[] = [];
+  if (n.isDirector) parts.push('Руководитель (единоличный исполнительный орган)');
+
+  const indirect = n.directShare == null && n.indirectShare != null;
+  const share = n.directShare ?? n.indirectShare;
+
+  if (n.linkType === 'owner' && share != null) {
+    if (share >= 50) {
+      parts.push(`${indirect ? 'Косвенно' : 'Прямо'} контролирующее лицо — доля владения ${indirect ? 'по всей цепочке' : ''} больше 50% (${share}%)`.replace('  ', ' '));
+    } else if (share >= 20) {
+      parts.push(`Совладелец с долей ${indirect ? 'косвенного' : 'прямого'} владения ${share}% (равной или больше 20%)`);
+    } else {
+      parts.push(`Совладелец, доля ${indirect ? 'косвенного' : 'прямого'} владения ${share}%`);
+    }
+  } else if (n.linkType === 'beneficiary') {
+    parts.push(`Конечный бенефициар — контролирует ${share ?? '—'}% по всей цепочке владения`);
+  } else if (n.linkType === 'subsidiary') {
+    parts.push(share != null && share >= 50
+      ? `Дочернее общество — доля владения больше 50% (${share}%)`
+      : `Зависимое общество, доля владения ${share ?? '—'}%`);
+  } else if (n.linkType === 'affiliate') {
+    parts.push(share != null
+      ? `Аффилированное лицо — общий контролирующий участник по цепочке, доля ${share}%`
+      : 'Аффилированное лицо — общий контролирующий участник по цепочке владения');
+  }
+  return parts.join('; ');
+}
+
 // Геометрия: корень слева, ярусы-полосы справа
 const W = 1040;
 const ROOT_X = 22;
@@ -157,6 +194,7 @@ export function AffiliationDiagram(props: {
       {/* ЛЕГЕНДА — сверху над диаграммой */}
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 18px', marginBottom: 10, fontSize: 12, padding: '10px 14px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius)' }}>
         <Legend swatch="#ffffff" border="#cfd6e0" label="Владение (доля): прямое / косвенное" pill />
+        <Legend swatch={DIRECTOR_COLOR} border={DIRECTOR_COLOR} label="Руководитель (ЕИО)" dot />
         <Legend swatch="#ffffff" border="#ff7a00" label="Есть в реестре — кликабельно" thick />
         <Legend swatch="#ffffff" border="var(--pmrk-risk-4)" label="Под санкциями" thick />
         <Button
@@ -188,6 +226,13 @@ export function AffiliationDiagram(props: {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ width: 14, height: 14, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none', marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>Руководитель (ЕИО)</div>
+                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Лицо — единоличный исполнительный орган (директор, генеральный директор) анализируемой компании или другого лица в цепочке. Может одновременно быть совладельцем — тогда значок стоит на той же карточке, что и доля владения.</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '2px solid #ff7a00', flex: 'none', marginTop: 2 }} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>Есть в реестре — кликабельно</div>
@@ -205,7 +250,7 @@ export function AffiliationDiagram(props: {
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Ярусы диаграммы</div>
             <div className="pmrk-muted" style={{ fontSize: 12.5 }}>
-              Связанные лица сгруппированы по типу связи с анализируемой компанией — собственники и акционеры, конечный бенефициар, дочерние/зависимые общества, аффилированные лица. Оранжевая подсветка карточки — совпадение с поисковым запросом.
+              Связанные лица сгруппированы по типу связи с анализируемой компанией — собственники и акционеры, конечный бенефициар, дочерние/зависимые общества, аффилированные лица. Оранжевая подсветка карточки — совпадение с поисковым запросом. Полное текстовое описание связи (как в примере ниже) — при наведении на карточку и в разделе «Таблица».
             </div>
           </div>
         </div>
@@ -297,6 +342,12 @@ export function AffiliationDiagram(props: {
                   <text x={n._x + 15} y={n._y + 25} fontSize={12.5} fontWeight={700} fill="#15233b">{l1}</text>
                   {l2 && <text x={n._x + 15} y={n._y + 42} fontSize={12.5} fontWeight={700} fill="#15233b">{l2}</text>}
                   <text x={n._x + 15} y={n._y + 62} fontSize={10.5} fill="#6b7689">{sub}</text>
+                  {n.isDirector && (
+                    <>
+                      <circle cx={n._x + CARD_W - 15} cy={n._y + 15} r={9} fill={DIRECTOR_COLOR} />
+                      <text x={n._x + CARD_W - 15} y={n._y + 18.5} textAnchor="middle" fontSize={10} fontWeight={700} fill="#ffffff">Р</text>
+                    </>
+                  )}
                   {share != null && (
                     <>
                       <rect x={n._x + CARD_W - 68} y={n._y + CARD_H - 30} width={56} height={20} rx={10} fill={pillFill} stroke={pillStroke} />
@@ -315,11 +366,7 @@ export function AffiliationDiagram(props: {
             <div className="pmrk-muted" style={{ marginTop: 4 }}>
               {ROLE_SHORT[hover.linkType]}{hover.inn ? ` · ИНН ${hover.inn}` : hover.isPerson ? ' · физлицо' : ''}
             </div>
-            {(hover.directShare != null || hover.indirectShare != null) && (
-              <div style={{ marginTop: 4 }}>
-                {hover.directShare != null ? `Доля прямого владения в % — ${hover.directShare}%` : `Доля косвенного владения в % — ${hover.indirectShare}%`}
-              </div>
-            )}
+            <div style={{ marginTop: 4 }}>{describeAffiliation(hover)}</div>
             {hover.inRegistry && <div style={{ color: '#ff7a00', marginTop: 4 }}>Есть в реестре ПМРК → клик откроет профиль</div>}
             {hover.underSanctions && <div style={{ color: 'var(--pmrk-risk-4)', marginTop: 4 }}>Под санкциями</div>}
           </div>
@@ -329,10 +376,14 @@ export function AffiliationDiagram(props: {
   );
 }
 
-function Legend({ swatch, border, label, thick, pill }: { swatch: string; border: string; label: string; thick?: boolean; pill?: boolean }) {
+function Legend({ swatch, border, label, thick, pill, dot }: { swatch: string; border: string; label: string; thick?: boolean; pill?: boolean; dot?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: pill ? 24 : 18, height: 14, borderRadius: pill ? 9 : 3, background: swatch, border: `${thick ? 2 : 1}px solid ${border}` }} />
+      {dot ? (
+        <span style={{ width: 14, height: 14, borderRadius: '50%', background: swatch, flex: 'none' }} />
+      ) : (
+        <span style={{ width: pill ? 24 : 18, height: 14, borderRadius: pill ? 9 : 3, background: swatch, border: `${thick ? 2 : 1}px solid ${border}` }} />
+      )}
       {label}
     </span>
   );

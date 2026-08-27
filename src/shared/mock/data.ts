@@ -563,7 +563,7 @@ export const GRAPHS: Record<string, AffiliationGraph> = {
     asOf: '2026-06-11',
     nodes: [
       { id: 'o1', name: 'АО «Холдинговая компания Ресурс»', inn: '7701445566', isPerson: false, directShare: 75, inRegistry: false, linkType: 'owner', level: 1 },
-      { id: 'o2', name: 'Громов Андрей Викторович', isPerson: true, directShare: 15, inRegistry: false, linkType: 'owner', level: 1 },
+      { id: 'o2', name: 'Громов Андрей Викторович', isPerson: true, directShare: 15, inRegistry: false, linkType: 'owner', level: 1, isDirector: true },
       { id: 'o3', name: 'ООО «Инвест-Капитал СЗ»', inn: '7842301551', isPerson: false, indirectShare: 10, inRegistry: true, uid: 'cp-balt', linkType: 'owner', level: 2 },
       { id: 'b1', name: 'Громов Андрей Викторович', isPerson: true, inRegistry: false, linkType: 'beneficiary', level: 1, indirectShare: 51 },
       { id: 'b2', name: 'Сидорова Мария Олеговна', isPerson: true, inRegistry: false, linkType: 'beneficiary', level: 2, indirectShare: 12 },
@@ -580,7 +580,7 @@ export const GRAPHS: Record<string, AffiliationGraph> = {
     asOf: '2026-06-10',
     nodes: [
       { id: 'bo1', name: 'ПАО «РН-Снабжение»', inn: '7706222333', isPerson: false, directShare: 40, inRegistry: true, uid: 'cp-rnsnab', linkType: 'owner', level: 1 },
-      { id: 'bo2', name: 'Кузнецов Артём Игоревич', isPerson: true, directShare: 35, inRegistry: false, linkType: 'owner', level: 1 },
+      { id: 'bo2', name: 'Кузнецов Артём Игоревич', isPerson: true, directShare: 35, inRegistry: false, linkType: 'owner', level: 1, isDirector: true },
       { id: 'bo3', name: 'ООО «Невские Нефтепродукты»', inn: '7811556677', isPerson: false, indirectShare: 25, inRegistry: true, uid: 'cp-nevsky', underSanctions: true, linkType: 'owner', level: 2 },
       { id: 'bb1', name: 'Кузнецов Артём Игоревич', isPerson: true, inRegistry: false, linkType: 'beneficiary', level: 1, indirectShare: 35 },
       { id: 'ba1', name: 'ООО «БалтОйл Сервис»', inn: '7842556612', isPerson: false, inRegistry: false, linkType: 'affiliate', level: 1 },

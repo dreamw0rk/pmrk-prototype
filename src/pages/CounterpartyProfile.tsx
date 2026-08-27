@@ -21,7 +21,7 @@ import {
 } from '@/shared/ui/kit';
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
 import { LineChart, Gauge } from '@/shared/ui/MiniChart';
-import { AffiliationDiagram, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
+import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
 import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
 import { useMockQuery } from '@/shared/mock/useMockQuery';
@@ -32,7 +32,7 @@ import { buildDoLinks, type DoLink } from '@/shared/mock/subsidiaries';
 import { buildAdditionalOkveds } from '@/shared/mock/okved';
 import { buildNameChanges } from '@/shared/mock/nameHistory';
 import { buildDzKzTable, exportDzKzToExcel, MONTH_NAMES, shortDoLabel } from '@/shared/mock/dzKzMatrix';
-import type { Counterparty, AffiliationLinkType } from '@/shared/mock/types';
+import type { Counterparty, AffiliationLinkType, AffiliationNode } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
 
 interface TabDef { key: string; label: string; cap?: Parameters<typeof can>[1]; }
@@ -834,24 +834,33 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
   const owners = graph.nodes.filter((n) => n.linkType === 'owner');
   const benef = graph.nodes.filter((n) => n.linkType === 'beneficiary');
   const aff = graph.nodes.filter((n) => n.linkType === 'affiliate' || n.linkType === 'subsidiary');
-  const hit = (name: string, inn?: string) => q && (name.toLowerCase().includes(q) || (inn ?? '').includes(q));
-  const Row = ({ name, inn, extra, uid, person, sanc }: { name: string; inn?: string; extra: string; uid?: string; person?: boolean; sanc?: boolean }) => (
-    <div className={`pmrk-tr ${hit(name, inn) ? 'pmrk-search-hit' : ''}`} style={{ padding: '8px 4px', cursor: uid ? 'pointer' : 'default' }} onClick={() => uid && onOpen(uid)}>
-      <div style={{ flex: 2 }}>
-        <span style={{ fontWeight: 600 }}>{name}</span> {sanc && <SanctionBadge />}
-        <div className="pmrk-muted" style={{ fontSize: 11 }}>{person ? 'Физлицо' : inn ? `ИНН ${inn}` : 'ЮЛ'}{uid ? ' · есть в реестре →' : ''}</div>
+  const hit = (n: AffiliationNode) => !!q && (n.name.toLowerCase().includes(q) || (n.inn ?? '').includes(q));
+  const Row = ({ n }: { n: AffiliationNode }) => (
+    <div className={`pmrk-tr ${hit(n) ? 'pmrk-search-hit' : ''}`} style={{ cursor: n.uid ? 'pointer' : 'default', alignItems: 'flex-start' }} onClick={() => n.uid && onOpen(n.uid)}>
+      <div className="pmrk-td" style={{ flex: 1.6, whiteSpace: 'normal' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {n.isDirector && <span title="Руководитель (ЕИО)" style={{ width: 8, height: 8, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none' }} />}
+          <span style={{ fontWeight: 600 }}>{n.name}</span>
+        </span>{' '}{n.underSanctions && <SanctionBadge />}
+        <div className="pmrk-muted" style={{ fontSize: 11 }}>{n.isPerson ? 'Физлицо' : 'ЮЛ'}{n.uid ? ' · есть в реестре →' : ''}</div>
       </div>
-      <div style={{ flex: 1, fontSize: 12.5 }} className="pmrk-muted">{extra}</div>
+      <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{n.inn ?? '—'}</div>
+      <div className="pmrk-td pmrk-muted" style={{ flex: 2, whiteSpace: 'normal' }}>{describeAffiliation(n)}</div>
     </div>
   );
   return (
-    <div>
-      <div style={{ fontWeight: 600, margin: '4px 0 6px' }}>Структура собственников</div>
-      {owners.map((n) => <Row key={n.id} name={n.name} inn={n.inn} person={n.isPerson} uid={n.uid} sanc={n.underSanctions} extra={n.directShare != null ? `Доля прямого владения ${n.directShare}%` : n.indirectShare != null ? `Доля косвенного владения ${n.indirectShare}%` : '—'} />)}
-      <div style={{ fontWeight: 600, margin: '14px 0 6px' }}>Бенефициары</div>
-      {benef.map((n) => <Row key={n.id} name={n.name} person={n.isPerson} extra={`Конечный бенефициар · ${n.indirectShare ?? '—'}%`} />)}
-      <div style={{ fontWeight: 600, margin: '14px 0 6px' }}>Аффилированные и дочерние лица</div>
-      {aff.map((n) => <Row key={n.id} name={n.name} inn={n.inn} uid={n.uid} sanc={n.underSanctions} extra={n.linkType === 'subsidiary' ? `Дочернее · доля ${n.directShare ?? '—'}%` : 'Аффилированное лицо'} />)}
+    <div className="pmrk-table">
+      <div className="pmrk-table__head">
+        <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
+        <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+        <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
+      </div>
+      <div style={{ fontWeight: 600, fontSize: 13, padding: '10px 12px 4px' }}>Структура собственников</div>
+      {owners.map((n) => <Row key={n.id} n={n} />)}
+      <div style={{ fontWeight: 600, fontSize: 13, padding: '14px 12px 4px' }}>Бенефициары</div>
+      {benef.map((n) => <Row key={n.id} n={n} />)}
+      <div style={{ fontWeight: 600, fontSize: 13, padding: '14px 12px 4px' }}>Аффилированные и дочерние лица</div>
+      {aff.map((n) => <Row key={n.id} n={n} />)}
     </div>
   );
 }
