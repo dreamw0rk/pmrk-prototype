@@ -802,17 +802,25 @@ function ExternalTab({ c }: { c: Counterparty }) {
                 <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 6 }}>Расшифровка судебных дел</div>
                 <div className="pmrk-table">
                   <div className="pmrk-table__head">
-                    <div className="pmrk-th" style={{ flex: 1.6 }}>Истец</div>
-                    <div className="pmrk-th" style={{ flex: 1.2 }}>Номер дела</div>
-                    <div className="pmrk-th" style={{ flex: 1 }}>Состояние</div>
-                    <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Сумма иска</div>
+                    <div className="pmrk-th" style={{ flex: 1.5, minWidth: 0 }}>Истец</div>
+                    <div className="pmrk-th" style={{ flex: 1.1, minWidth: 0 }}>Номер дела</div>
+                    <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Категория</div>
+                    <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Состояние</div>
+                    <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Исход дела</div>
+                    <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата иска</div>
+                    <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма иска</div>
+                    <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма по решению</div>
                   </div>
                   {(allCases ? ext.courtCases : ext.courtCases.slice(0, 3)).map((cc, i) => (
                     <div key={i} className="pmrk-tr" style={{ cursor: 'default' }}>
-                      <div className="pmrk-td" style={{ flex: 1.6 }}>{cc.plaintiff}</div>
-                      <div className="pmrk-td" style={{ flex: 1.2 }}>{cc.number}</div>
-                      <div className="pmrk-td" style={{ flex: 1 }}>{cc.state}</div>
-                      <div className="pmrk-td pmrk-tnum" style={{ flex: 1, justifyContent: 'flex-end', display: 'flex' }}>{moneyCompact(cc.claim)}</div>
+                      <div className="pmrk-td" style={{ flex: 1.5, minWidth: 0 }}>{cc.plaintiff}</div>
+                      <div className="pmrk-td" style={{ flex: 1.1, minWidth: 0 }}>{cc.number}</div>
+                      <div className="pmrk-td" style={{ flex: 1.3, minWidth: 0 }}>{cc.category}</div>
+                      <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{cc.state}</div>
+                      <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{cc.outcome}</div>
+                      <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{dateRu(cc.date)}</div>
+                      <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{moneyCompact(cc.claim)}</div>
+                      <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{cc.decision ? moneyCompact(cc.decision) : '—'}</div>
                     </div>
                   ))}
                 </div>
@@ -832,23 +840,25 @@ function ExternalTab({ c }: { c: Counterparty }) {
               <div style={{ marginTop: 10 }}>
                 <div className="pmrk-table">
                   <div className="pmrk-table__head">
-                    <div className="pmrk-th" style={{ flex: 1.5 }}>Санкционная программа / список</div>
-                    <div className="pmrk-th" style={{ flex: 1 }}>Категория</div>
-                    <div className="pmrk-th" style={{ flex: 1.1 }}>Тип санкций</div>
-                    <div className="pmrk-th" style={{ flex: 0.8 }}>Включение</div>
-                    <div className="pmrk-th" style={{ flex: 0.8 }}>Исключение</div>
-                    <div className="pmrk-th" style={{ flex: 0.8 }}>Совладельцы</div>
-                    <div className="pmrk-th" style={{ flex: 1.8 }}>Причина включения</div>
+                    <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Категория ограничительных мер</div>
+                    <div className="pmrk-th" style={{ flex: 1.6, minWidth: 0 }}>Санкционный список</div>
+                    <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Санкционная программа</div>
+                    <div className="pmrk-th" style={{ flex: 1.8, minWidth: 0 }}>Причина включения</div>
+                    <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата включения</div>
+                    <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата исключения</div>
+                    <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Тип санкций</div>
+                    <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0 }}>Совладельцы</div>
                   </div>
                   {ext.sanctions.map((sd, i) => (
                     <div key={i} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-                      <div className="pmrk-td" style={{ flex: 1.5, fontWeight: 600, whiteSpace: 'normal' }}>{sd.program}</div>
-                      <div className="pmrk-td" style={{ flex: 1, whiteSpace: 'normal' }}>{sd.category}</div>
-                      <div className="pmrk-td" style={{ flex: 1.1, whiteSpace: 'normal' }}>{sd.type}</div>
-                      <div className="pmrk-td" style={{ flex: 0.8 }}>{dateRu(sd.from)}</div>
-                      <div className="pmrk-td" style={{ flex: 0.8 }}>{sd.to}</div>
-                      <div className="pmrk-td" style={{ flex: 0.8 }}>{sd.coOwners}</div>
-                      <div className="pmrk-td" style={{ flex: 1.8, whiteSpace: 'normal' }}>{sd.reason}</div>
+                      <div className="pmrk-td" style={{ flex: 1.3, minWidth: 0, whiteSpace: 'normal' }}>{sd.category}</div>
+                      <div className="pmrk-td" style={{ flex: 1.6, minWidth: 0, fontWeight: 600, whiteSpace: 'normal' }}>{sd.list}</div>
+                      <div className="pmrk-td" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>{sd.program}</div>
+                      <div className="pmrk-td" style={{ flex: 1.8, minWidth: 0, whiteSpace: 'normal' }}>{sd.reason}</div>
+                      <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{dateRu(sd.from)}</div>
+                      <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{sd.to}</div>
+                      <div className="pmrk-td" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>{sd.type}</div>
+                      <div className="pmrk-td" style={{ flex: 1.2, minWidth: 0, whiteSpace: 'normal' }}>{sd.coOwners}</div>
                     </div>
                   ))}
                 </div>
