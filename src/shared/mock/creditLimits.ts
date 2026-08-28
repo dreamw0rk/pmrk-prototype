@@ -16,6 +16,10 @@ export interface DoLimitRow {
   subsidiary: string;
   subsidiaryInn: string;
   segment: string;
+  /** сумма в валюте утверждённого КЛ (см. currency) — у нас всегда рубль,
+      поэтому численно совпадает с amountRub, но это отдельное поле реестра */
+  amountCurrency: number;
+  currency: string;
   amountRub: number;
   deferralDays: number;
   approvalBody: string;
@@ -23,6 +27,8 @@ export interface DoLimitRow {
   startDate: string;
   endDate: string;
   collateral: string;
+  /** комментарии по обеспечению — отдельное поле реестра, обычно пустое */
+  comment: string;
 }
 
 const SEGMENTS = [
@@ -62,6 +68,8 @@ export function buildCreditLimitsByDo(cp: Counterparty): DoLimitRow[] {
     subsidiary: cp.subsidiary,
     subsidiaryInn: doInn(cp.subsidiary, cp),
     segment: SEGMENTS[seed % SEGMENTS.length],
+    amountCurrency: cp.creditLimit,
+    currency: 'рубль',
     amountRub: cp.creditLimit,
     deferralDays: DEFERRAL_DAYS[seed % DEFERRAL_DAYS.length],
     approvalBody: cp.creditLimit >= 300_000_000 ? 'Кредитный комитет Блока' : 'Кредитный комитет ДО',
@@ -69,6 +77,7 @@ export function buildCreditLimitsByDo(cp: Counterparty): DoLimitRow[] {
     startDate: '2025-09-17',
     endDate: '2026-09-16',
     collateral: cp.group >= 3 ? 'Поручительство группы' : 'нет',
+    comment: '',
   }];
 
   const remainder = cp.groupAggregateLimit - cp.creditLimit;
@@ -84,17 +93,21 @@ export function buildCreditLimitsByDo(cp: Counterparty): DoLimitRow[] {
       // разницу между «Действующий КЛ» (только непросроченные лимиты) и
       // «Совокупный КЛ группы» (все утверждённые, включая просроченные).
       const expired = i === 1;
+      const amount = Math.round(remainder * shares[i]);
       rows.push({
         subsidiary: sub,
         subsidiaryInn: doInn(sub, cp),
         segment: SEGMENTS[s2 % SEGMENTS.length],
-        amountRub: Math.round(remainder * shares[i]),
+        amountCurrency: amount,
+        currency: 'рубль',
+        amountRub: amount,
         deferralDays: DEFERRAL_DAYS[s2 % DEFERRAL_DAYS.length],
         approvalBody: 'Кредитный комитет ДО',
         documentRef: docRef(s2),
         startDate: expired ? '2024-09-01' : '2025-10-01',
         endDate: expired ? '2025-08-31' : '2026-09-30',
         collateral: 'нет',
+        comment: '',
       });
     }
   }
