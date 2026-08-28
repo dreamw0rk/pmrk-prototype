@@ -1,9 +1,17 @@
 import type { Counterparty, RiskGroup } from './types';
 import { groupLabel } from './data';
+import { buildStatements } from './statements';
 
 /* Полная модель экспресс-оценки (ФТ-3.5): 3 методики, каждая — со структурой
    1. Финансовые показатели · 2. Деловая репутация · 3. Внешние источники ·
-   Итого скоринг-балл · 4. Расчёт КЛ. Числа детерминированы (П-1). */
+   Итого скоринг-балл · 4. Расчёт КЛ. Числа детерминированы (П-1).
+
+   Класс контрагента/внутренний рейтинг, категория/подразделение и
+   постатейный расчёт кредитного лимита (шаги «Внеоборотные активы / Чистые
+   активы / Оборотные активы / КО …») сверены с реальным порталом — раньше
+   здесь была только итоговая сумма лимита без самого расчёта. Расчёт лимита
+   берёт строки прямо из Формы №1 (buildStatements), поэтому «Оценка» и
+   «Отчётность» не расходятся в цифрах баланса одной и той же карточки. */
 
 export const STOP_FACTORS = [
   'Нет',
@@ -24,8 +32,17 @@ export const DIRECTIONS: { key: Direction; label: string; short: string; templat
   { key: 'ADVANCE', label: 'Лимит авансового платежа', short: 'Авансирование', template: 'Ш-13.08-03', method: 'М-13.08-02' },
 ];
 
+/** Полное название методики (версия + название документа), точно как в
+    исходной системе — используется в подписи «МЕТОДОЛОГИЯ» на вкладке. */
+export const METHODOLOGY_TITLE: Record<Direction, string> = {
+  OIL: 'М-13.08.01-01 В.3.0 «Методика оценки кредитоспособности контрагентов – покупателей нефти, газа и нефтепродуктов»',
+  MTR: 'М-13.08.01-02 В.3.0 «Методика оценки кредитоспособности контрагентов – покупателей МТР и логистических услуг»',
+  ADVANCE: 'М-13.08-02 В.1.0 «Методика определения лимита авансового платежа контрагентам при закупке товаров, работ, услуг»',
+};
+
 export interface IndicatorRow { name: string; value: string; points: number; max: number }
 export interface ScoreBlock { key: string; title: string; rows: IndicatorRow[]; subtotal: number }
+export interface LimitStep { label: string; value: number }
 export interface DirectionResult {
   direction: Direction;
   label: string;
@@ -33,16 +50,35 @@ export interface DirectionResult {
   template: string;
   method: string;
   date: string;
+  category: string;
+  department: string;
   group: RiskGroup;
   reliability: string;
   groupText: string;
+  contragentClass: 'A' | 'B' | 'C';
+  internalRating: string;
   blocks: ScoreBlock[];
   totalScore: number;
+  limitSteps: LimitStep[];
+  downRatio: number;
   limit: number;
 }
 
 const groupFromScore = (s: number): RiskGroup => (s >= 75 ? 1 : s >= 55 ? 2 : s >= 35 ? 3 : 4);
 const reliabilityOf = (g: RiskGroup): string => (g === 1 ? 'Высокая' : g === 2 ? 'Приемлемая' : g === 3 ? 'Удовлетворительная' : 'Низкая');
+
+function categoryFor(cp: Counterparty, dir: Direction): string {
+  const pool = dir === 'OIL' ? CATEGORIES_OIL : dir === 'MTR' ? CATEGORIES_MTR : CATEGORIES_ADV;
+  const okved = cp.okved.toLowerCase();
+  const guess =
+    okved.includes('торгов') ? 'Торговля' :
+    (okved.includes('нефт') || okved.includes('газ')) ? 'Добыча, переработка и транспортировка газа, нефти и нефтепродуктов' :
+    okved.includes('строит') ? 'Строительство' :
+    (okved.includes('транспорт') || okved.includes('склад') || okved.includes('перевозк')) ? 'Транспортировка и хранение' :
+    okved.includes('произв') ? 'Производство' :
+    'Прочие';
+  return pool.includes(guess) ? guess : 'Прочие';
+}
 
 /** Распределяет subtotal по строкам пропорционально весам (последняя добирает остаток). */
 function rows(subtotal: number, defs: { name: string; value: string; w: number; max: number }[]): IndicatorRow[] {
@@ -53,6 +89,44 @@ function rows(subtotal: number, defs: { name: string; value: string; w: number; 
     acc += pts;
     return { name: d.name, value: d.value, points: Math.max(0, pts), max: d.max };
   });
+}
+
+/** Постатейный расчёт кредитного лимита — по строкам Формы №1 (та же
+    отчётность, что и на вкладке «Отчётность»): показатель 1 — наименьшее из
+    внеоборотных активов и чистых активов, показатель 2 — оборотные активы
+    минус краткосрочные обязательства, база — наибольшее из них, лимит — база
+    × понижающий коэффициент (итого баллов / 100). Для направления
+    «Авансирование» база дополнительно уполовинивается (лимит авансового
+    платежа исторически ниже лимита на поставку). Значения — тыс. руб.,
+    как в Форме №1. */
+function limitCalc(cp: Counterparty, dir: Direction, g: RiskGroup, totalScore: number): { steps: LimitStep[]; downRatio: number; limitThousands: number } {
+  const st = buildStatements(cp);
+  const f1 = st.blocks[0]?.rows ?? [];
+  const pick = (code: string) => f1.find((r) => r.code === code)?.values[0] ?? 0;
+  const fixedAssets = pick('1150');
+  const netAssets = pick('1300');
+  const currentAssets = pick('1200');
+  const shortTermLiab = pick('1500');
+  const indicator1 = Math.min(fixedAssets, netAssets);
+  const indicator2 = currentAssets - shortTermLiab;
+  const baseRaw = Math.max(indicator1, indicator2);
+  const base = dir === 'ADVANCE' ? Math.round(baseRaw * 0.5) : baseRaw;
+  const downRatio = Math.round((totalScore / 100) * 100) / 100;
+  const limitThousands = g === 4 ? 0 : Math.max(0, Math.round(base * downRatio));
+
+  return {
+    steps: [
+      { label: 'Внеоборотные активы (ОС+НЗС)', value: fixedAssets },
+      { label: 'Чистые активы', value: netAssets },
+      { label: 'Наименьшее значение (показатель 1)', value: indicator1 },
+      { label: 'Оборотные активы (ОА)', value: currentAssets },
+      { label: 'Краткосрочные обязательства (КО)', value: shortTermLiab },
+      { label: 'ОА − КО (показатель 2)', value: indicator2 },
+      { label: 'База для расчёта (наибольшее из показателей 1 и 2)' + (dir === 'ADVANCE' ? ', × 0.5 для авансирования' : ''), value: base },
+    ],
+    downRatio,
+    limitThousands,
+  };
 }
 
 function buildDirection(cp: Counterparty, dir: Direction, scoreAdj: number): DirectionResult {
@@ -84,9 +158,8 @@ function buildDirection(cp: Counterparty, dir: Direction, scoreAdj: number): Dir
     { name: 'Негативные новости', value: cp.news.some((n) => n.sentiment === 'negative') ? 'есть' : 'нет', w: 1, max: 25 },
   ]);
 
-  // расчёт КЛ: для авансирования — лимит авансового платежа (меньше); группа 4 → 0
-  const baseLimit = cp.assessments[0]?.limit || cp.creditLimit || 0;
-  const limit = g === 4 ? 0 : dir === 'ADVANCE' ? Math.round(baseLimit * 0.5) : dir === 'MTR' ? Math.round(baseLimit * 1.0) : baseLimit;
+  const { steps, downRatio, limitThousands } = limitCalc(cp, dir, g, total);
+  const contragentClass: 'A' | 'B' | 'C' = total >= 70 ? 'A' : total >= 40 ? 'B' : 'C';
 
   return {
     direction: dir,
@@ -95,16 +168,22 @@ function buildDirection(cp: Counterparty, dir: Direction, scoreAdj: number): Dir
     template: def.template,
     method: def.method,
     date: cp.assessments[0]?.date || '2026-06-15',
+    category: categoryFor(cp, dir),
+    department: cp.subsidiary,
     group: g,
     reliability: reliabilityOf(g),
     groupText: groupLabel(g),
+    contragentClass,
+    internalRating: `${contragentClass}${g}`,
     blocks: [
       { key: 'fin', title: '1. Финансовые показатели', rows: finRows, subtotal: b1 },
       { key: 'rep', title: '2. Показатели деловой репутации', rows: repRows, subtotal: b2 },
       { key: 'ext', title: '3. Показатели из внешних источников', rows: extRows, subtotal: b3 },
     ],
     totalScore: total,
-    limit,
+    limitSteps: steps,
+    downRatio,
+    limit: limitThousands * 1000,
   };
 }
 

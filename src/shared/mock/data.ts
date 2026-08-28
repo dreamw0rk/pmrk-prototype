@@ -100,8 +100,8 @@ export const HEROES: Counterparty[] = [
     groupAggregateLimit: 22_000_000_000,
     debt: debtSeries({ base: 1_700_000_000, pdzStart: 0.004, pdzEnd: 0.009, advance: 380_000_000, payable: 1_150_000_000 }),
     assessments: [
-      { id: 'as-gpn1', date: '2026-05-28', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 92, limit: 5_000_000_000, author: 'Петрова И.А.' },
-      { id: 'as-gpn2', date: '2026-02-20', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 90, limit: 5_000_000_000, author: 'Петрова И.А.' },
+      { id: 'as-gpn1', date: '2026-05-28', reportPeriod: '2025-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 92, limit: 5_000_000_000, author: 'Петрова И.А.' },
+      { id: 'as-gpn2', date: '2026-02-20', reportPeriod: '2024-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 90, limit: 5_000_000_000, author: 'Петрова И.А.' },
     ],
     news: [
       { id: 'n-gpn1', date: '2026-06-16', title: '«Эксперт РА» подтвердил рейтинг на уровне ruAAA', source: 'PRIMO / Рейтинговые агентства', sentiment: 'positive', summary: 'Максимальный уровень по национальной шкале, прогноз «стабильный».' },
@@ -166,9 +166,9 @@ export const HEROES: Counterparty[] = [
     groupAggregateLimit: 410_000_000,
     debt: debtSeries({ base: 96_000_000, pdzStart: 0.04, pdzEnd: 0.27, advance: 18_000_000, payable: 64_000_000 }),
     assessments: [
-      { id: 'as-b1', date: '2026-05-21', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 3, score: 47, limit: 120_000_000, author: 'Соколова Е.В.' },
-      { id: 'as-b2', date: '2026-02-18', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 2, score: 58, limit: 150_000_000, author: 'Соколова Е.В.' },
-      { id: 'as-b3', date: '2025-11-12', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 2, score: 61, limit: 150_000_000, author: 'Иванов П.С.' },
+      { id: 'as-b1', date: '2026-05-21', reportPeriod: '2025-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 3, score: 47, limit: 120_000_000, author: 'Соколова Е.В.' },
+      { id: 'as-b2', date: '2026-02-18', reportPeriod: '2024-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 2, score: 58, limit: 150_000_000, author: 'Соколова Е.В.' },
+      { id: 'as-b3', date: '2025-11-12', reportPeriod: '2024-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 2, score: 61, limit: 150_000_000, author: 'Иванов П.С.' },
     ],
     news: [
       { id: 'n-b1', date: '2026-06-08', title: 'Поставщик подал иск о взыскании 34 млн ₽ задолженности', source: 'PRIMO / Картотека', sentiment: 'negative', summary: 'Арбитраж принял к производству иск ООО «ТЭК-Снаб» к Балтийской ТК на 34,2 млн ₽ — просрочка по договору поставки.' },
@@ -226,7 +226,7 @@ export const HEROES: Counterparty[] = [
     groupAggregateLimit: 1_900_000_000,
     debt: debtSeries({ base: 220_000_000, pdzStart: 0.01, pdzEnd: 0.02, advance: 60_000_000, payable: 180_000_000 }),
     assessments: [
-      { id: 'as-s1', date: '2026-05-12', direction: 'MTR', directionLabel: 'Покупатели МТР и логистики', group: 1, score: 86, limit: 600_000_000, author: 'Петрова И.А.' },
+      { id: 'as-s1', date: '2026-05-12', reportPeriod: '2025-12-31', direction: 'MTR', directionLabel: 'Покупатели МТР и логистики', group: 1, score: 86, limit: 600_000_000, author: 'Петрова И.А.' },
     ],
     news: [
       { id: 'n-s1', date: '2026-05-28', title: 'Расширение логистического хаба в Усть-Луге', source: 'PRIMO / Компания', sentiment: 'positive', summary: 'Запущена вторая очередь перевалочного комплекса, рост мощности на 25%.' },
@@ -278,7 +278,7 @@ export const HEROES: Counterparty[] = [
     groupAggregateLimit: 75_000_000,
     debt: debtSeries({ base: 52_000_000, pdzStart: 0.03, pdzEnd: 0.06, advance: 9_000_000, payable: 31_000_000 }),
     assessments: [
-      { id: 'as-p1', date: '2026-05-19', direction: 'MTR', directionLabel: 'Покупатели МТР и логистики', group: 2, score: 64, limit: 75_000_000, author: 'Соколова Е.В.' },
+      { id: 'as-p1', date: '2026-05-19', reportPeriod: '2025-12-31', direction: 'MTR', directionLabel: 'Покупатели МТР и логистики', group: 2, score: 64, limit: 75_000_000, author: 'Соколова Е.В.' },
     ],
     news: [],
     courtCases: [
@@ -329,7 +329,7 @@ export const HEROES: Counterparty[] = [
     groupAggregateLimit: 0,
     debt: debtSeries({ base: 40_000_000, pdzStart: 0.2, pdzEnd: 0.74, advance: 0, payable: 88_000_000 }),
     assessments: [
-      { id: 'as-n1', date: '2026-04-30', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 4, score: 21, limit: 0, author: 'Соколова Е.В.' },
+      { id: 'as-n1', date: '2026-04-30', reportPeriod: '2025-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 4, score: 21, limit: 0, author: 'Соколова Е.В.' },
     ],
     news: [
       { id: 'n-n1', date: '2026-06-01', title: 'Введена процедура наблюдения', source: 'PRIMO / Банкротства', sentiment: 'negative', summary: 'Арбитражный суд ввёл наблюдение по заявлению кредитора, требования 88 млн ₽.' },
@@ -385,7 +385,7 @@ export const HEROES: Counterparty[] = [
     groupAggregateLimit: 1_250_000_000,
     debt: debtSeries({ base: 180_000_000, pdzStart: 0.02, pdzEnd: 0.05, advance: 40_000_000, payable: 120_000_000 }),
     assessments: [
-      { id: 'as-r1', date: '2026-05-05', direction: 'MTR', directionLabel: 'Покупатели МТР и логистики', group: 2, score: 66, limit: 450_000_000, author: 'Петрова И.А.' },
+      { id: 'as-r1', date: '2026-05-05', reportPeriod: '2025-12-31', direction: 'MTR', directionLabel: 'Покупатели МТР и логистики', group: 2, score: 66, limit: 450_000_000, author: 'Петрова И.А.' },
     ],
     news: [],
     courtCases: [],
@@ -435,7 +435,7 @@ export const HEROES: Counterparty[] = [
     groupAggregateLimit: 95_000_000,
     debt: debtSeries({ base: 58_000_000, pdzStart: 0.05, pdzEnd: 0.19, advance: 6_000_000, payable: 44_000_000 }),
     assessments: [
-      { id: 'as-y1', date: '2026-05-25', direction: 'ADVANCE', directionLabel: 'Лимит авансирования', group: 3, score: 44, limit: 60_000_000, author: 'Соколова Е.В.' },
+      { id: 'as-y1', date: '2026-05-25', reportPeriod: '2025-12-31', direction: 'ADVANCE', directionLabel: 'Лимит авансирования', group: 3, score: 44, limit: 60_000_000, author: 'Соколова Е.В.' },
     ],
     news: [
       { id: 'n-y1', date: '2026-06-03', title: 'Рост просроченной задолженности перед поставщиками', source: 'PRIMO / Отрасль', sentiment: 'negative', summary: 'Отмечен рост ПДЗ; компания ведёт переговоры о реструктуризации.' },

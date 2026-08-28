@@ -12,7 +12,7 @@ import { ROLES, can } from '@/shared/roles';
 import { PageHeader, SectionCard, GroupBadge, Stat, EmptyState, AuditFooter, DateActuality, CalcStamp, Segmented, FileDrop } from '@/shared/ui/kit';
 import { StatementsEditor } from '@/shared/ui/StatementsEditor';
 import { HEROES, BY_UID, REGISTRY } from '@/shared/mock/data';
-import { buildAssessment, DIRECTIONS, STOP_FACTORS, CATEGORIES_OIL, CATEGORIES_MTR, CATEGORIES_ADV, type Direction, type DirectionResult, type ScoreBlock } from '@/shared/mock/assessment';
+import { buildAssessment, DIRECTIONS, METHODOLOGY_TITLE, STOP_FACTORS, CATEGORIES_OIL, CATEGORIES_MTR, CATEGORIES_ADV, type Direction, type DirectionResult, type ScoreBlock } from '@/shared/mock/assessment';
 import { SCORE_EXPLAIN } from '@/shared/mock/ai';
 import type { Counterparty } from '@/shared/mock/types';
 import { dateRu, moneyCompact, money, inn as fmtInn } from '@/shared/format';
@@ -201,6 +201,10 @@ export function AssessmentResultView({ cp, onRecalc }: { cp: Counterparty; onRec
   const r: DirectionResult = all[dir];
   const explain = SCORE_EXPLAIN[cp.uid];
   const [showExplain, setShowExplain] = useState(false);
+  const history = useMemo(
+    () => cp.assessments.filter((a) => a.direction === dir).slice().sort((x, y) => y.date.localeCompare(x.date)),
+    [cp.uid, dir],
+  );
 
   return (
     <SectionCard
@@ -220,11 +224,13 @@ export function AssessmentResultView({ cp, onRecalc }: { cp: Counterparty; onRec
           <div className="pmrk-muted" style={{ fontSize: 12, maxWidth: 170 }}>{r.groupText}</div>
           <div style={{ marginTop: 6 }}><CalcStamp date={r.date} source={r.method} /></div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
           <Stat label="Методика" value={`${r.method}`} sub={r.label} />
           <Stat label="Степень надёжности" value={r.reliability} />
           <Stat label="Контрагент" value={cp.shortName} sub={`ИНН ${fmtInn(cp.inn)}`} />
-          <Stat label="4. Расчёт кредитного лимита" value={r.limit ? moneyCompact(r.limit) : '—'} asOf={r.date} calcSource={r.method} tone={r.limit ? 'good' : 'risk'} />
+          <Stat label="Категория контрагента" value={r.category} />
+          <Stat label="Подразделение" value={r.department} />
+          <Stat label="Класс / внутренний рейтинг" value={`${r.contragentClass} / ${r.internalRating}`} sub="класс A–C, рейтинг = класс + группа" />
         </div>
       </div>
 
@@ -251,6 +257,66 @@ export function AssessmentResultView({ cp, onRecalc }: { cp: Counterparty; onRec
         <span style={{ fontWeight: 700 }}>Итого скоринг-балл (1 + 2 + 3)</span>
         <span className="pmrk-tnum" style={{ fontWeight: 800, fontSize: 18 }}>{r.totalScore}</span>
       </div>
+
+      {/* 4. Расчёт кредитного лимита — постатейно по Форме №1 (ФТ-3.5) */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+          <span style={{ fontWeight: 600, fontSize: 13.5 }}>4. Расчёт кредитного лимита</span>
+          <span className="pmrk-tnum" style={{ fontWeight: 700 }}>{r.limit ? moneyCompact(r.limit) : '—'}</span>
+        </div>
+        <div className="pmrk-table">
+          <div className="pmrk-table__head">
+            <div className="pmrk-th" style={{ flex: 2, minWidth: 0 }}>Показатель</div>
+            <div className="pmrk-th" style={{ flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>тыс. руб.</div>
+          </div>
+          {r.limitSteps.map((s) => (
+            <div key={s.label} className="pmrk-tr" style={{ cursor: 'default' }}>
+              <div className="pmrk-td" style={{ flex: 2, minWidth: 0 }}>{s.label}</div>
+              <div className="pmrk-td pmrk-tnum" style={{ flex: 1, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{money(s.value, { unit: '' })}</div>
+            </div>
+          ))}
+          <div className="pmrk-tr" style={{ cursor: 'default' }}>
+            <div className="pmrk-td" style={{ flex: 2, minWidth: 0 }}>Понижающий коэффициент (итого баллов / 100)</div>
+            <div className="pmrk-td pmrk-tnum" style={{ flex: 1, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{r.downRatio.toFixed(2)}</div>
+          </div>
+          <div className="pmrk-tr" style={{ cursor: 'default', fontWeight: 700 }}>
+            <div className="pmrk-td" style={{ flex: 2, minWidth: 0 }}>Кредитный лимит контрагента (база × понижающий коэффициент)</div>
+            <div className="pmrk-td pmrk-tnum" style={{ flex: 1, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{money(Math.round(r.limit / 1000), { unit: '' })}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Все экспресс-оценки по направлению (ФТ-3.7) */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontWeight: 600, fontSize: 13.5, padding: '6px 0' }}>Все экспресс-оценки по направлению «{r.short}»</div>
+        {history.length === 0 ? (
+          <EmptyState text="По этому направлению сохранённых оценок ещё нет — показан предварительный расчёт по текущим данным." />
+        ) : (
+          <div className="pmrk-table">
+            <div className="pmrk-table__head">
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Дата оценки</div>
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Период отчётности</div>
+              <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Группа (1–4)</div>
+              <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит</div>
+              <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end' }}>Скоринг-балл</div>
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Категория</div>
+            </div>
+            {history.map((x) => (
+              <div key={x.id} className="pmrk-tr" style={{ cursor: 'default' }}>
+                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.date)}</div>
+                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.reportPeriod)}</div>
+                <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{x.group}</div>
+                <div className="pmrk-td pmrk-tnum" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.limit ? moneyCompact(x.limit) : '—'}</div>
+                <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.score}</div>
+                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{r.category}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* методология (ФТ-3.5) */}
+      <div className="pmrk-muted" style={{ fontSize: 12, marginBottom: 14 }}>МЕТОДОЛОГИЯ: {METHODOLOGY_TITLE[r.direction]}</div>
 
       {/* корректировка/пересчёт + выгрузка (ФТ-3.5/3.6) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', borderTop: '1px solid var(--color-bg-border)', paddingTop: 12 }}>

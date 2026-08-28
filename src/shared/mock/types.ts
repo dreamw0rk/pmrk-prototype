@@ -14,7 +14,11 @@ export interface DebtPoint {
 
 export interface AssessmentRow {
   id: string;
+  /** дата проведения оценки */
   date: string;
+  /** период отчётности, на данных которого считалась оценка — обычно
+      предыдущая закрытая отчётная дата, отличается от даты проведения */
+  reportPeriod: string;
   direction: 'OIL' | 'MTR' | 'ADVANCE';
   directionLabel: string;
   group: RiskGroup;

@@ -34,6 +34,7 @@ import { buildNameChanges } from '@/shared/mock/nameHistory';
 import { buildStatements } from '@/shared/mock/statements';
 import { buildDzKzTable, exportDzKzToExcel, MONTH_NAMES, shortDoLabel } from '@/shared/mock/dzKzMatrix';
 import { buildInteractionInfo } from '@/shared/mock/interaction';
+import { buildAssessment, DIRECTIONS, type Direction as AssessDirection, type ScoreBlock } from '@/shared/mock/assessment';
 import type { Counterparty, AffiliationLinkType, AffiliationNode } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
 
@@ -1180,40 +1181,78 @@ function StatementsTab({ c }: { c: Counterparty }) {
   );
 }
 
+/** Реальный максимум раздела — доля от 100 (веса 45/30/25 из buildDirection).
+    Суммы max отдельных строк внутри блока декоративные (не масштабируются
+    под вес раздела), поэтому для чипа считаем от общего максимума 100, а не
+    складываем их — иначе все три раздела показывали бы одинаковое «из 100». */
+const BLOCK_MAX: Record<string, number> = { fin: 45, rep: 30, ext: 25 };
+
+/** Компактная плашка балла по разделу (1/2/3) — на вкладке показываем только
+    итог раздела, без построчной раскладки: она есть на «Полной оценке». */
+function AssessmentScoreChip({ block }: { block: ScoreBlock }) {
+  const max = BLOCK_MAX[block.key] ?? block.rows.reduce((s, r) => s + r.max, 0);
+  const ratio = max ? block.subtotal / max : 0;
+  const tone = ratio >= 0.6 ? 'var(--pmrk-risk-1)' : ratio >= 0.3 ? 'var(--pmrk-risk-2)' : 'var(--pmrk-risk-4)';
+  const bg = ratio >= 0.6 ? 'var(--pmrk-risk-1-bg)' : ratio >= 0.3 ? 'var(--pmrk-risk-2-bg)' : 'var(--pmrk-risk-4-bg)';
+  return (
+    <div style={{ flex: 1, minWidth: 130, padding: '10px 12px', borderRadius: 10, background: bg }}>
+      <div style={{ fontSize: 18, fontWeight: 800, color: tone }}>{block.subtotal} <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.75 }}>из {max}</span></div>
+      <div className="pmrk-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{block.title.replace(/^\d+\.\s*/, '')}</div>
+    </div>
+  );
+}
+
 function AssessmentTab({ c }: { c: Counterparty }) {
   const navigate = useNavigate();
   const { aiOn } = useApp();
-  const a = c.assessments[0];
+  const all = useMemo(() => buildAssessment(c), [c.uid]);
+  const [dir, setDir] = useState<AssessDirection>('OIL');
+  const r = all[dir];
   const explain = SCORE_EXPLAIN[c.uid];
   const [showExplain, setShowExplain] = useState(false);
-  if (!a) return <SimpleTab title="Оценка" text="По контрагенту ещё не проводилась экспресс-оценка. Запустите новую с командного центра." asOf={c.asOf.assessment} />;
+  const history = useMemo(
+    () => c.assessments.filter((a) => a.direction === dir).slice().sort((x, y) => y.date.localeCompare(x.date)),
+    [c.uid, dir],
+  );
+
   return (
-    <SectionCard
-      title="Экспресс-оценка кредитоспособности"
-      extra={<DateActuality date={c.asOf.assessment} source="scoring-движок" />}
-    >
-      <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+    <SectionCard title="Оценка кредитоспособности" extra={<DateActuality date={r.date} source="ядро scoring" />}>
+      <Segmented value={dir} onChange={setDir} items={DIRECTIONS.map((d) => ({ key: d.key, label: d.short }))} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(0,1fr)', gap: 20, marginTop: 16 }}>
         <div>
-          <div className="pmrk-muted" style={{ fontSize: 12 }}>{a.directionLabel}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
-            <GroupBadge group={a.group} withScore={a.score} />
+          <div className="pmrk-muted" style={{ fontSize: 12, marginBottom: 6 }}>Динамика оценки кредитоспособности</div>
+          <LineChart
+            height={160}
+            labels={history.slice().reverse().map((x) => dateRu(x.date))}
+            series={[{ name: 'Группа кредитоспособности', color: 'var(--color-bg-brand)', points: history.slice().reverse().map((x) => x.group), area: true }]}
+            format={(v) => String(Math.round(v))}
+          />
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Результат последней оценки от {dateRu(r.date)}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}><span className="pmrk-muted">Категория</span><span>{r.category}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10 }}><span className="pmrk-muted">Период отчётности</span><span>{dateRu(history[0]?.reportPeriod ?? c.asOf.statements ?? r.date)}</span></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <GroupBadge group={r.group} withScore={r.totalScore} />
             {aiOn && explain && (
               <button onClick={() => setShowExplain((v) => !v)} style={{ background: 'var(--pmrk-ai-bg)', border: '1px solid var(--pmrk-ai-border)', color: 'var(--pmrk-ai-strong)', borderRadius: 6, padding: '2px 8px', fontSize: 12, cursor: 'pointer' }}>
-                ✦ почему группа {a.group}?
+                ✦ почему группа {r.group}?
               </button>
             )}
           </div>
-          <div className="pmrk-muted" style={{ fontSize: 12 }}>{groupLabel(a.group)}</div>
-          <div className="pmrk-muted" style={{ fontSize: 12, marginTop: 2 }}>Рекомендованный КЛ: <b>{a.limit ? moneyCompact(a.limit) : '—'}</b> · автор {a.author} · {dateRu(a.date)}</div>
-          <div style={{ marginTop: 4 }}><CalcStamp date={a.date} source="ядро scoring" /></div>
-        </div>
-        <div style={{ flex: 1, minWidth: 280 }}>
-          <div className="pmrk-muted" style={{ fontSize: 12, marginBottom: 4 }}>Динамика балла и группы</div>
-          <LineChart height={120} labels={c.assessments.map((x) => dateRu(x.date)).reverse()} series={[{ name: 'Интегральный балл', color: 'var(--color-bg-brand)', points: c.assessments.map((x) => x.score).reverse(), area: true }]} format={(v) => String(Math.round(v))} />
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Button size="xs" view="secondary" label="Выгрузить XLSX" iconLeft={IconDownload as never} />
-          <Button size="xs" view="ghost" label="Полная оценка" onClick={() => navigate(`/assessments/${a.id}`)} />
+          <div className="pmrk-muted" style={{ fontSize: 12, marginBottom: 10 }}>{r.groupText} · класс {r.contragentClass} · рейтинг {r.internalRating}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 12 }}><span>Кредитный лимит контрагента</span><span>{r.limit ? moneyCompact(r.limit) : '—'}</span></div>
+
+          <div className="pmrk-muted" style={{ fontSize: 11.5, marginBottom: 6 }}>Количество баллов по разделам</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {r.blocks.map((b) => <AssessmentScoreChip key={b.key} block={b} />)}
+          </div>
+
+          <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+            <Button size="xs" view="secondary" label="Выгрузить XLSX" iconLeft={IconDownload as never} />
+            <Button size="xs" view="ghost" label="Направить на почту" />
+          </div>
         </div>
       </div>
 
@@ -1221,17 +1260,39 @@ function AssessmentTab({ c }: { c: Counterparty }) {
         <div className="pmrk-ai-surface" style={{ marginTop: 16, padding: '14px 16px 14px 20px' }}>
           <div className="pmrk-ai-accentbar" />
           <div className="pmrk-ai__head"><span className="pmrk-ai__badge">✦ AI</span><span style={{ fontWeight: 600 }}>Объяснение оценки (AI-3) · число группы — детерминированное, AI вербализует</span></div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, margin: '8px 0' }}>
-            {explain.blocks.map((b) => (
-              <div key={b.name}>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{b.name}</div>
-                <div style={{ height: 8, background: 'var(--color-bg-secondary)', borderRadius: 4, overflow: 'hidden', margin: '4px 0' }}><div style={{ width: `${(b.contribution / 30) * 100}%`, height: '100%', background: 'var(--pmrk-ai)' }} /></div>
-                <div className="pmrk-muted" style={{ fontSize: 11 }}>вклад {b.contribution} · вес {Math.round(b.weight * 100)}% · {b.note}</div>
-              </div>
-            ))}
-          </div>
           <div style={{ fontSize: 13, marginTop: 6 }}><b>Что изменилось:</b> {explain.delta}</div>
-          <div style={{ fontSize: 13, marginTop: 6, color: 'var(--pmrk-ai-strong)' }}><b>Чтобы перейти в группу {explain.group - 1}:</b> {explain.toNextGroup}</div>
+          <div style={{ fontSize: 13, marginTop: 6, color: 'var(--pmrk-ai-strong)' }}><b>Чувствительность:</b> {explain.toNextGroup}</div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--color-bg-border)' }}>
+        <span className="pmrk-muted" style={{ fontSize: 12 }}>МЕТОДОЛОГИЯ: {r.method} «{r.label}»</span>
+        <Button size="xs" view="ghost" label="Подробнее" onClick={() => navigate(`/assessments/${c.assessments[0]?.id ?? c.uid}`)} />
+      </div>
+
+      <div style={{ fontWeight: 600, fontSize: 13, marginTop: 16, marginBottom: 6 }}>Все экспресс-оценки</div>
+      {history.length === 0 ? (
+        <EmptyState text={`По направлению «${r.short}» сохранённых оценок ещё нет — показан предварительный расчёт по текущим данным.`} />
+      ) : (
+        <div className="pmrk-table">
+          <div className="pmrk-table__head">
+            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Дата оценки</div>
+            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Период отчётности</div>
+            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Группа (1–4)</div>
+            <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит</div>
+            <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end' }}>Скоринг-балл</div>
+            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Категория</div>
+          </div>
+          {history.map((x) => (
+            <div key={x.id} className="pmrk-tr" style={{ cursor: 'pointer' }} onClick={() => navigate(`/assessments/${x.id}`)}>
+              <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.date)}</div>
+              <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.reportPeriod)}</div>
+              <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{x.group}</div>
+              <div className="pmrk-td pmrk-tnum" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.limit ? moneyCompact(x.limit) : '—'}</div>
+              <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.score}</div>
+              <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{r.category}</div>
+            </div>
+          ))}
         </div>
       )}
     </SectionCard>
