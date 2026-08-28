@@ -21,7 +21,7 @@ import {
 } from '@/shared/ui/kit';
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
 import { LineChart, Gauge } from '@/shared/ui/MiniChart';
-import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
+import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, FINAL_BENEFICIARY_THRESHOLD, isFinalBeneficiary, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
 import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, LIMIT_REQUESTS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
 import { useMockQuery } from '@/shared/mock/useMockQuery';
@@ -943,32 +943,78 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
   const benef = graph.nodes.filter((n) => n.linkType === 'beneficiary');
   const aff = graph.nodes.filter((n) => n.linkType === 'affiliate' || n.linkType === 'subsidiary');
   const hit = (n: AffiliationNode) => !!q && (n.name.toLowerCase().includes(q) || (n.inn ?? '').includes(q));
+
+  const NameCell = ({ n }: { n: AffiliationNode }) => (
+    <div className="pmrk-td" style={{ flex: 1.6, whiteSpace: 'normal' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        {n.isDirector && <span title="Руководитель (ЕИО)" style={{ width: 8, height: 8, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none' }} />}
+        <span style={{ fontWeight: 600 }}>{n.name}</span>
+      </span>{' '}{n.underSanctions && <SanctionBadge />}
+      <div className="pmrk-muted" style={{ fontSize: 11 }}>{n.isPerson ? 'Физлицо' : 'ЮЛ'}{n.uid ? ' · есть в реестре →' : ''}</div>
+    </div>
+  );
+
   const Row = ({ n }: { n: AffiliationNode }) => (
     <div className={`pmrk-tr ${hit(n) ? 'pmrk-search-hit' : ''}`} style={{ cursor: n.uid ? 'pointer' : 'default', alignItems: 'flex-start' }} onClick={() => n.uid && onOpen(n.uid)}>
-      <div className="pmrk-td" style={{ flex: 1.6, whiteSpace: 'normal' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {n.isDirector && <span title="Руководитель (ЕИО)" style={{ width: 8, height: 8, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none' }} />}
-          <span style={{ fontWeight: 600 }}>{n.name}</span>
-        </span>{' '}{n.underSanctions && <SanctionBadge />}
-        <div className="pmrk-muted" style={{ fontSize: 11 }}>{n.isPerson ? 'Физлицо' : 'ЮЛ'}{n.uid ? ' · есть в реестре →' : ''}</div>
-      </div>
+      <NameCell n={n} />
       <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{n.inn ?? '—'}</div>
       <div className="pmrk-td pmrk-muted" style={{ flex: 2, whiteSpace: 'normal' }}>{describeAffiliation(n)}</div>
     </div>
   );
-  return (
-    <div className="pmrk-table">
-      <div className="pmrk-table__head">
-        <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
-        <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-        <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
+
+  // Раздел «Бенефициары» в исходной системе — отдельный реестр (BeneficiarsList)
+  // со своим набором колонок: не «Описание связи» (оно у собственников/
+  // аффилированных лиц), а «Признак конечного бенефициара» — Да, если доля
+  // владения по цепочке достигает 25%, иначе Нет с описанием причины.
+  const BenefRow = ({ n }: { n: AffiliationNode }) => {
+    const share = n.directShare ?? n.indirectShare ?? 0;
+    const isFinal = isFinalBeneficiary(n);
+    return (
+      <div className={`pmrk-tr ${hit(n) ? 'pmrk-search-hit' : ''}`} style={{ cursor: n.uid ? 'pointer' : 'default', alignItems: 'flex-start' }} onClick={() => n.uid && onOpen(n.uid)}>
+        <NameCell n={n} />
+        <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{n.inn ?? '—'}</div>
+        <div className="pmrk-td" style={{ flex: 0.9 }}>
+          <span style={{ color: isFinal ? 'var(--pmrk-risk-1)' : 'var(--pmrk-risk-3)', fontWeight: 600 }}>{isFinal ? 'Да' : 'Нет'}</span>
+        </div>
+        <div className="pmrk-td pmrk-muted" style={{ flex: 2, whiteSpace: 'normal' }}>
+          {isFinal ? '—' : `Доля владения по цепочке (${share}%) ниже порога признания конечным бенефициаром (${FINAL_BENEFICIARY_THRESHOLD}%)`}
+        </div>
       </div>
-      <div style={{ fontWeight: 600, fontSize: 13, padding: '10px 12px 4px' }}>Структура собственников</div>
-      {owners.map((n) => <Row key={n.id} n={n} />)}
-      <div style={{ fontWeight: 600, fontSize: 13, padding: '14px 12px 4px' }}>Бенефициары</div>
-      {benef.map((n) => <Row key={n.id} n={n} />)}
-      <div style={{ fontWeight: 600, fontSize: 13, padding: '14px 12px 4px' }}>Аффилированные и дочерние лица</div>
-      {aff.map((n) => <Row key={n.id} n={n} />)}
+    );
+  };
+
+  return (
+    <div>
+      <div className="pmrk-table" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, padding: '4px 12px 8px' }}>Структура собственников</div>
+        <div className="pmrk-table__head">
+          <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
+          <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+          <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
+        </div>
+        {owners.length ? owners.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
+      </div>
+
+      <div className="pmrk-table" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, padding: '4px 12px 8px' }}>Бенефициары</div>
+        <div className="pmrk-table__head">
+          <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
+          <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+          <div className="pmrk-th" style={{ flex: 0.9 }}>Признак конечного бенефициара</div>
+          <div className="pmrk-th" style={{ flex: 2 }}>Описание причины ненахождения конечного бенефициара</div>
+        </div>
+        {benef.length ? benef.map((n) => <BenefRow key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
+      </div>
+
+      <div className="pmrk-table">
+        <div style={{ fontWeight: 600, fontSize: 13, padding: '4px 12px 8px' }}>Аффилированные и дочерние лица</div>
+        <div className="pmrk-table__head">
+          <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
+          <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+          <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
+        </div>
+        {aff.length ? aff.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
+      </div>
     </div>
   );
 }

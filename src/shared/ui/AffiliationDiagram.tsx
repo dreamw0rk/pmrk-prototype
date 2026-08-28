@@ -38,6 +38,16 @@ const ROLE_SHORT: Record<AffiliationLinkType, string> = {
     чтобы три признака не путались друг с другом на карточке. */
 export const DIRECTOR_COLOR = '#7c5cff';
 
+/** Порог доли владения по цепочке, ниже которого лицо не признаётся конечным
+    бенефициаром (реальный порог КЮРАСАО/СПАРК — 25%). Общий для диаграммы и
+    таблицы связей — источник один, чтобы «Да/Нет» не разъезжались между
+    вкладками «Диаграмма» и «Таблица» одного и того же графа. */
+export const FINAL_BENEFICIARY_THRESHOLD = 25;
+
+export function isFinalBeneficiary(n: AffiliationNode): boolean {
+  return (n.directShare ?? n.indirectShare ?? 0) >= FINAL_BENEFICIARY_THRESHOLD;
+}
+
 /** Текстовое описание связи (как в отчётах СПАРК-Аффилированность) — по типу
     связи и доле владения, плюс отдельно отмечает руководителя (ЕИО), если это
     он же. Несколько оснований для одного лица — обычное дело (совладелец
@@ -58,7 +68,11 @@ export function describeAffiliation(n: AffiliationNode): string {
       parts.push(`Совладелец, доля ${indirect ? 'косвенного' : 'прямого'} владения ${share}%`);
     }
   } else if (n.linkType === 'beneficiary') {
-    parts.push(`Конечный бенефициар — контролирует ${share ?? '—'}% по всей цепочке владения`);
+    parts.push(
+      isFinalBeneficiary(n)
+        ? `Конечный бенефициар — контролирует ${share ?? '—'}% по всей цепочке владения`
+        : `Не признан конечным бенефициаром — доля по цепочке (${share ?? 0}%) ниже порога ${FINAL_BENEFICIARY_THRESHOLD}%`,
+    );
   } else if (n.linkType === 'subsidiary') {
     parts.push(share != null && share >= 50
       ? `Дочернее общество — доля владения больше 50% (${share}%)`
@@ -195,6 +209,7 @@ export function AffiliationDiagram(props: {
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 18px', marginBottom: 10, fontSize: 12, padding: '10px 14px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius)' }}>
         <Legend swatch="#ffffff" border="#cfd6e0" label="Владение (доля): прямое / косвенное" pill />
         <Legend swatch={DIRECTOR_COLOR} border={DIRECTOR_COLOR} label="Руководитель (ЕИО)" dot />
+        <Legend swatch="#ffffff" border="#9aa7b8" label="Бенефициар не признан конечным (доля < 25%)" dashed />
         <Legend swatch="#ffffff" border="#ff7a00" label="Есть в реестре — кликабельно" thick />
         <Legend swatch="#ffffff" border="var(--pmrk-risk-4)" label="Под санкциями" thick />
         <Button
@@ -230,6 +245,13 @@ export function AffiliationDiagram(props: {
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>Руководитель (ЕИО)</div>
                 <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Лицо — единоличный исполнительный орган (директор, генеральный директор) анализируемой компании или другого лица в цепочке. Может одновременно быть совладельцем — тогда значок стоит на той же карточке, что и доля владения.</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '1.5px dashed #9aa7b8', flex: 'none', marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>Бенефициар не признан конечным</div>
+                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Доля владения по всей цепочке ниже порога {FINAL_BENEFICIARY_THRESHOLD}%, при котором лицо признаётся конечным бенефициаром (Признак конечного бенефициара = Нет). Полная формулировка причины — в подсказке при наведении и в разделе «Таблица» (вкладка «Бенефициары»).</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -325,6 +347,7 @@ export function AffiliationDiagram(props: {
               const clickable = n.inRegistry && !!n.uid;
               const border = hl ? '#ff7a00' : n.inRegistry ? '#ff7a00' : n.underSanctions ? 'var(--pmrk-risk-4)' : '#d4dae3';
               const bw = hl ? 2.5 : n.inRegistry || n.underSanctions ? 2 : 1;
+              const notFinalBenef = n.linkType === 'beneficiary' && !isFinalBeneficiary(n);
               const share = n.directShare ?? n.indirectShare;
               const [l1, l2] = wrap2(n.name, 19);
               const pillFill = n.directShare != null ? '#ffffff' : '#fff3c4';
@@ -338,7 +361,7 @@ export function AffiliationDiagram(props: {
                   onMouseEnter={() => setHover(n)}
                   onMouseLeave={() => setHover(null)}
                 >
-                  <rect x={n._x} y={n._y} width={CARD_W} height={CARD_H} rx={11} fill="url(#aff-card)" stroke={border} strokeWidth={bw} />
+                  <rect x={n._x} y={n._y} width={CARD_W} height={CARD_H} rx={11} fill="url(#aff-card)" stroke={border} strokeWidth={bw} strokeDasharray={notFinalBenef ? '5 3' : undefined} />
                   <text x={n._x + 15} y={n._y + 25} fontSize={12.5} fontWeight={700} fill="#15233b">{l1}</text>
                   {l2 && <text x={n._x + 15} y={n._y + 42} fontSize={12.5} fontWeight={700} fill="#15233b">{l2}</text>}
                   <text x={n._x + 15} y={n._y + 62} fontSize={10.5} fill="#6b7689">{sub}</text>
@@ -376,13 +399,13 @@ export function AffiliationDiagram(props: {
   );
 }
 
-function Legend({ swatch, border, label, thick, pill, dot }: { swatch: string; border: string; label: string; thick?: boolean; pill?: boolean; dot?: boolean }) {
+function Legend({ swatch, border, label, thick, pill, dot, dashed }: { swatch: string; border: string; label: string; thick?: boolean; pill?: boolean; dot?: boolean; dashed?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       {dot ? (
         <span style={{ width: 14, height: 14, borderRadius: '50%', background: swatch, flex: 'none' }} />
       ) : (
-        <span style={{ width: pill ? 24 : 18, height: 14, borderRadius: pill ? 9 : 3, background: swatch, border: `${thick ? 2 : 1}px solid ${border}` }} />
+        <span style={{ width: pill ? 24 : 18, height: 14, borderRadius: pill ? 9 : 3, background: swatch, border: `${thick ? 2 : 1}px solid ${border}`, borderStyle: dashed ? 'dashed' : 'solid' }} />
       )}
       {label}
     </span>
