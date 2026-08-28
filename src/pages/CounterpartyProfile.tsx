@@ -1351,6 +1351,37 @@ function SpecialControlTab({ c }: { c: Counterparty }) {
   );
 }
 
+/** Столбец широкой таблицы претензионно-исковой работы — ширина фиксирована
+    (не flex-резина): в исходной системе это плотные таблицы на 12–18 колонок,
+    и содержимое сверяется взглядом по столбцам, а не «влезает» в карточку. */
+interface LegalCol<T> { label: string; width: number; align?: 'right'; render: (row: T) => React.ReactNode }
+
+function safeDateRu(v: string): string {
+  return v && v !== '—' ? dateRu(v) : '—';
+}
+
+function LegalWideTable<T extends { id: string }>({ columns, rows, empty }: { columns: LegalCol<T>[]; rows: T[]; empty: string }) {
+  if (!rows.length) return <EmptyState text={empty} />;
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <div className="pmrk-table" style={{ minWidth: columns.reduce((s, col) => s + col.width, 0) }}>
+        <div className="pmrk-table__head">
+          {columns.map((col, i) => (
+            <div key={i} className="pmrk-th" style={{ flex: `0 0 ${col.width}px`, minWidth: 0, justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}>{col.label}</div>
+          ))}
+        </div>
+        {rows.map((r) => (
+          <div key={r.id} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+            {columns.map((col, i) => (
+              <div key={i} className="pmrk-td" style={{ flex: `0 0 ${col.width}px`, minWidth: 0, justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start', display: 'flex', whiteSpace: 'normal' }}>{col.render(r)}</div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LegalTab({ c }: { c: Counterparty }) {
   const legal = useMemo(() => buildLegal(c), [c.uid]);
   const SECTIONS = [
@@ -1360,51 +1391,87 @@ function LegalTab({ c }: { c: Counterparty }) {
     { key: 'bankruptcy', label: 'Банкротное дело', count: legal.bankruptcy.length },
   ];
   const [sec, setSec] = useState('claims');
-  const [detail, setDetail] = useState<{ title: string; items: { k: string; v: React.ReactNode }[] } | null>(null);
   const [curacao, setCuracao] = useState(false);
+  const m = (n: number) => money(n, { unit: '' });
 
-  const m = (n: number) => money(n);
+  // «Данные КЮРАСАО 2.0» — во всех 4 разделах один и тот же столбец: клик не
+  // ведёт в саму систему (для этого нужны доступы через СУИД), а открывает
+  // уведомление об этом — как и было в детальной карточке раньше.
+  const curacaoCol = <T,>(): LegalCol<T> => ({
+    label: 'Данные КЮРАСАО 2.0', width: 120,
+    render: () => <a href="#" onClick={(e) => { e.preventDefault(); setCuracao(true); }} style={{ color: 'var(--color-typo-brand)', fontSize: 12 }}>Перейти</a>,
+  });
 
-  const openClaim = (x: typeof legal.claims[0]) => setDetail({ title: `Претензия ${x.claimNo}`, items: [
-    { k: 'Заявитель претензии', v: x.applicant }, { k: 'Направление деятельности', v: x.activity }, { k: 'Номер договора', v: x.contractNo },
-    { k: 'Номер исходящей претензии', v: x.claimNo }, { k: 'Дата направления', v: dateRu(x.sentDate) }, { k: 'Предмет и основание', v: x.subject },
-    { k: 'Сумма претензии (общая)', v: m(x.total) }, { k: 'Основной долг', v: m(x.principal) }, { k: 'Неустойка', v: m(x.penalty) },
-    { k: 'Иное', v: m(x.other) }, { k: 'Удовлетворено', v: m(x.satisfied) }, { k: 'Событие по претензии', v: x.event }, { k: 'Дата события', v: dateRu(x.eventDate) },
-    { k: 'Статус', v: <StatusBadge status={x.status} /> }, { k: 'Комментарий', v: x.comment }, { k: 'Связь с судебным делом', v: x.lawsuitLink },
-    { k: 'Юрист, сопровождающий претензию', v: x.lawyer },
-  ] });
-  const openLawsuit = (x: typeof legal.lawsuits[0]) => setDetail({ title: `Судебное дело ${x.caseNo}`, items: [
-    { k: 'Истец', v: x.plaintiff }, { k: 'Номер дела', v: x.caseNo }, { k: 'Дата регистрации дела', v: dateRu(x.regDate) },
-    { k: 'Сумма иска текущая', v: m(x.currentClaim) }, { k: 'Удовлетворено', v: m(x.satisfied) }, { k: 'Текущая судебная инстанция', v: x.instance },
-    { k: 'Ближайшее судебное заседание', v: dateRu(x.nextHearing) }, { k: 'Статус дела', v: <StatusBadge status={x.status} /> }, { k: 'Результат решения суда', v: x.courtResult },
-    { k: 'Исход дела', v: x.outcome }, { k: 'Связь с исполнительным производством', v: x.enforcementLink }, { k: 'Связь с делом о банкротстве', v: x.bankruptcyLink },
-    { k: 'Юрист', v: x.lawyer },
-  ] });
-  const openEnf = (x: typeof legal.enforcement[0]) => setDetail({ title: x.caseName, items: [
-    { k: 'Взыскатель', v: x.claimant }, { k: 'Название дела', v: x.caseName }, { k: 'Дата создания дела', v: dateRu(x.createDate) },
-    { k: 'Дата выдачи исполнительного листа', v: dateRu(x.writDate) }, { k: 'Исполнительный документ: серия и номер', v: x.writSerial }, { k: 'Сумма по исполнительному документу', v: m(x.sumByDoc) },
-    { k: 'Фактически получено', v: m(x.received) }, { k: 'Дата последнего платежа', v: dateRu(x.lastPaymentDate) }, { k: 'Планируемое событие', v: x.plannedEvent },
-    { k: 'Дата планируемого события', v: dateRu(x.plannedDate) }, { k: 'Комментарий по событию', v: x.eventComment }, { k: 'Отметка о фактическом выполнении', v: x.completed },
-    { k: 'Дата фактического завершения', v: x.completionDate },
-  ] });
-  const openBank = (x: typeof legal.bankruptcy[0]) => setDetail({ title: x.caseName, items: [
-    { k: 'Кредитор в деле о банкротстве', v: x.creditor }, { k: 'Название дела о банкротстве', v: x.caseName }, { k: 'Стадия банкротства', v: <StatusBadge status={x.stage} /> },
-    { k: 'Сумма требований в реестре', v: m(x.claimInRegistry) }, { k: 'Сумма исполнения требований', v: m(x.execution) }, { k: 'Дата последнего платежа', v: x.lastPaymentDate },
-    { k: 'Сумма последнего платежа', v: m(x.lastPaymentSum) }, { k: 'Планируемое событие', v: x.plannedEvent }, { k: 'Дата планируемого события', v: dateRu(x.plannedDate) },
-  ] });
+  const claimCols: LegalCol<typeof legal.claims[0]>[] = [
+    { label: 'Заявитель претензии', width: 190, render: (x) => x.applicant },
+    { label: 'Направление деятельности, из которого возникла претензия', width: 170, render: (x) => x.activity },
+    { label: 'Номер договора', width: 110, render: (x) => x.contractNo },
+    { label: 'Номер исходящей претензии', width: 130, render: (x) => x.claimNo },
+    { label: 'Дата направления претензии', width: 110, render: (x) => dateRu(x.sentDate) },
+    { label: 'Предмет и основание претензии', width: 260, render: (x) => x.subject },
+    { label: 'Сумма претензии (общая), руб.', width: 130, align: 'right', render: (x) => m(x.total) },
+    { label: 'Основной долг, руб.', width: 110, align: 'right', render: (x) => m(x.principal) },
+    { label: 'Неустойка, руб.', width: 100, align: 'right', render: (x) => m(x.penalty) },
+    { label: 'Иное, руб.', width: 90, align: 'right', render: (x) => m(x.other) },
+    { label: 'Удовлетворено, руб.', width: 110, align: 'right', render: (x) => m(x.satisfied) },
+    { label: 'Событие по претензии', width: 180, render: (x) => x.event },
+    { label: 'Дата события', width: 100, render: (x) => dateRu(x.eventDate) },
+    { label: 'Статус', width: 150, render: (x) => <StatusBadge status={x.status} /> },
+    { label: 'Комментарий', width: 200, render: (x) => x.comment },
+    { label: 'Связь с судебным делом', width: 140, render: (x) => x.lawsuitLink },
+    curacaoCol<typeof legal.claims[0]>(),
+    { label: 'Юрист сопровождающий претензию', width: 170, render: (x) => x.lawyer },
+  ];
 
-  // Ссылка на КЮРАСАО 2.0 перенесена из детальной карточки в отдельный столбец
-  // таблицы («Данные КЮРАСАО 2.0» → «Перейти») — клик по ссылке не должен
-  // открывать саму карточку строки, поэтому останавливаем всплытие.
-  const Row = ({ onClick, cols }: { onClick: () => void; cols: React.ReactNode[] }) => (
-    <div className="pmrk-tr" onClick={onClick}>
-      {cols.map((col, i) => <div key={i} className="pmrk-td" style={{ flex: i === 0 ? 1.8 : 1, justifyContent: i > 1 ? 'flex-end' : 'flex-start', display: 'flex' }}>{col}</div>)}
-      <div className="pmrk-td" style={{ flex: 1 }} onClick={(e) => e.stopPropagation()}>
-        <a href="#" onClick={(e) => { e.preventDefault(); setCuracao(true); }} style={{ color: 'var(--color-typo-brand)', fontSize: 12 }}>Перейти</a>
-      </div>
-      <div className="pmrk-td" style={{ flex: 0.3, justifyContent: 'flex-end', display: 'flex' }}>→</div>
-    </div>
-  );
+  const lawsuitCols: LegalCol<typeof legal.lawsuits[0]>[] = [
+    { label: 'Истец', width: 190, render: (x) => x.plaintiff },
+    { label: 'Номер дела', width: 130, render: (x) => x.caseNo },
+    { label: 'Дата регистрации дела', width: 120, render: (x) => dateRu(x.regDate) },
+    { label: 'Сумма иска текущая, руб.', width: 140, align: 'right', render: (x) => m(x.currentClaim) },
+    { label: 'Удовлетворено, руб.', width: 110, align: 'right', render: (x) => m(x.satisfied) },
+    { label: 'Текущая судебная инстанция', width: 170, render: (x) => x.instance },
+    { label: 'Ближайшее судебное заседание', width: 130, render: (x) => dateRu(x.nextHearing) },
+    { label: 'Статус дела', width: 150, render: (x) => <StatusBadge status={x.status} /> },
+    { label: 'Результат решения суда', width: 240, render: (x) => x.courtResult },
+    { label: 'Исход дела', width: 160, render: (x) => x.outcome },
+    { label: 'Связь с исполнительным производством', width: 150, render: (x) => x.enforcementLink },
+    { label: 'Связь с делом о банкротстве', width: 150, render: (x) => x.bankruptcyLink },
+    curacaoCol<typeof legal.lawsuits[0]>(),
+    { label: 'Юрист сопровождающий претензию', width: 170, render: (x) => x.lawyer },
+  ];
+
+  const enfCols: LegalCol<typeof legal.enforcement[0]>[] = [
+    { label: 'Взыскатель в исполнительном производстве', width: 200, render: (x) => x.claimant },
+    { label: 'Название дела об исполнительном производстве', width: 220, render: (x) => x.caseName },
+    { label: 'Дата создания дела об исполнительном производстве', width: 130, render: (x) => dateRu(x.createDate) },
+    { label: 'Дата выдачи исполнительного листа', width: 130, render: (x) => dateRu(x.writDate) },
+    { label: 'Исполнительный документ: серия и номер', width: 160, render: (x) => x.writSerial },
+    { label: 'Сумма по исполнительному документу, руб.', width: 150, align: 'right', render: (x) => m(x.sumByDoc) },
+    { label: 'Фактически получено, руб.', width: 130, align: 'right', render: (x) => m(x.received) },
+    { label: 'Дата последнего платежа', width: 130, render: (x) => safeDateRu(x.lastPaymentDate) },
+    { label: 'Планируемое событие по исполнительному производству', width: 190, render: (x) => x.plannedEvent },
+    { label: 'Дата планируемого события по исполнительному производству', width: 150, render: (x) => safeDateRu(x.plannedDate) },
+    { label: 'Комментарий по событию', width: 200, render: (x) => x.eventComment },
+    { label: 'Отметка о фактическом выполнении', width: 150, render: (x) => x.completed },
+    { label: 'Дата фактического завершения исполнительного производства', width: 150, render: (x) => safeDateRu(x.completionDate) },
+    curacaoCol<typeof legal.enforcement[0]>(),
+  ];
+
+  const bankCols: LegalCol<typeof legal.bankruptcy[0]>[] = [
+    { label: 'Кредитор в деле о банкротстве', width: 220, render: (x) => x.creditor },
+    { label: 'Название дела о банкротстве', width: 220, render: (x) => x.caseName },
+    { label: 'Стадия банкротства', width: 150, render: (x) => <StatusBadge status={x.stage} /> },
+    { label: 'Сумма требований Кредитора в реестре требований, руб.', width: 160, align: 'right', render: (x) => m(x.claimInRegistry) },
+    { label: 'Сумма исполнения требований в деле о банкротстве, руб.', width: 160, align: 'right', render: (x) => m(x.execution) },
+    { label: 'Дата последнего платежа', width: 130, render: (x) => safeDateRu(x.lastPaymentDate) },
+    { label: 'Сумма последнего платежа, руб.', width: 140, align: 'right', render: (x) => m(x.lastPaymentSum) },
+    { label: 'Планируемое событие по банкротному делу', width: 200, render: (x) => x.plannedEvent },
+    { label: 'Дата планируемого события по банкротному делу', width: 150, render: (x) => safeDateRu(x.plannedDate) },
+    { label: 'Описание события', width: 220, render: (x) => x.eventDescription },
+    { label: 'Комментарий по делу о банкротстве', width: 220, render: (x) => x.comment },
+    { label: 'Дата перехода в архив', width: 130, render: (x) => safeDateRu(x.archiveDate) },
+    curacaoCol<typeof legal.bankruptcy[0]>(),
+  ];
 
   return (
     <SectionCard title="Претензионно-исковая работа" extra={<DateActuality date={c.asOf.legal} source="КЮРАСАО 2.0" />}>
@@ -1412,46 +1479,10 @@ function LegalTab({ c }: { c: Counterparty }) {
         <Segmented value={sec} onChange={setSec} items={SECTIONS.map((s) => ({ key: s.key, label: s.label, count: s.count }))} />
       </div>
 
-      {sec === 'claims' && (legal.claims.length ? (
-        <div className="pmrk-table">
-          <div className="pmrk-table__head"><div className="pmrk-th" style={{ flex: 1.8 }}>Заявитель / предмет</div><div className="pmrk-th" style={{ flex: 1 }}>Статус</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Сумма</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Удовлетворено</div><div className="pmrk-th" style={{ flex: 1 }}>Данные КЮРАСАО 2.0</div><div className="pmrk-th" style={{ flex: 0.3 }} /></div>
-          {legal.claims.map((x) => <Row key={x.id} onClick={() => openClaim(x)} cols={[<div><b>{x.applicant}</b><div className="pmrk-muted" style={{ fontSize: 11 }}>{x.subject}</div></div>, <StatusBadge status={x.status} />, <span className="pmrk-tnum">{moneyCompact(x.total)}</span>, <span className="pmrk-tnum">{moneyCompact(x.satisfied)}</span>]} />)}
-        </div>
-      ) : <EmptyState text="Выставленных претензий нет." />)}
-
-      {sec === 'lawsuits' && (legal.lawsuits.length ? (
-        <div className="pmrk-table">
-          <div className="pmrk-table__head"><div className="pmrk-th" style={{ flex: 1.8 }}>Истец / № дела</div><div className="pmrk-th" style={{ flex: 1 }}>Инстанция</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Сумма иска</div><div className="pmrk-th" style={{ flex: 1 }}>Заседание</div><div className="pmrk-th" style={{ flex: 1 }}>Данные КЮРАСАО 2.0</div><div className="pmrk-th" style={{ flex: 0.3 }} /></div>
-          {legal.lawsuits.map((x) => <Row key={x.id} onClick={() => openLawsuit(x)} cols={[<div><b>{x.plaintiff}</b><div className="pmrk-muted" style={{ fontSize: 11 }}>{x.caseNo}</div></div>, <span style={{ fontSize: 12 }}>1-я инстанция</span>, <span className="pmrk-tnum">{moneyCompact(x.currentClaim)}</span>, dateRu(x.nextHearing)]} />)}
-        </div>
-      ) : <EmptyState text="Судебных дел нет." />)}
-
-      {sec === 'enforcement' && (legal.enforcement.length ? (
-        <div className="pmrk-table">
-          <div className="pmrk-table__head"><div className="pmrk-th" style={{ flex: 1.8 }}>Взыскатель / дело</div><div className="pmrk-th" style={{ flex: 1 }}>Исп. лист</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Сумма</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Получено</div><div className="pmrk-th" style={{ flex: 1 }}>Данные КЮРАСАО 2.0</div><div className="pmrk-th" style={{ flex: 0.3 }} /></div>
-          {legal.enforcement.map((x) => <Row key={x.id} onClick={() => openEnf(x)} cols={[<div><b>{x.claimant}</b><div className="pmrk-muted" style={{ fontSize: 11 }}>{x.caseName}</div></div>, x.writSerial, <span className="pmrk-tnum">{moneyCompact(x.sumByDoc)}</span>, <span className="pmrk-tnum">{moneyCompact(x.received)}</span>]} />)}
-        </div>
-      ) : <EmptyState text="Исполнительных производств нет." />)}
-
-      {sec === 'bankruptcy' && (legal.bankruptcy.length ? (
-        <div className="pmrk-table">
-          <div className="pmrk-table__head"><div className="pmrk-th" style={{ flex: 1.8 }}>Кредитор / дело</div><div className="pmrk-th" style={{ flex: 1 }}>Стадия</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Требования</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Исполнено</div><div className="pmrk-th" style={{ flex: 1 }}>Данные КЮРАСАО 2.0</div><div className="pmrk-th" style={{ flex: 0.3 }} /></div>
-          {legal.bankruptcy.map((x) => <Row key={x.id} onClick={() => openBank(x)} cols={[<div><b>{x.creditor}</b><div className="pmrk-muted" style={{ fontSize: 11 }}>{x.caseName}</div></div>, <StatusBadge status={x.stage} />, <span className="pmrk-tnum">{moneyCompact(x.claimInRegistry)}</span>, <span className="pmrk-tnum">{moneyCompact(x.execution)}</span>]} />)}
-        </div>
-      ) : <EmptyState text="Банкротных дел нет." />)}
-
-      {/* Детальная карточка */}
-      <Modal isOpen={!!detail} onClickOutside={() => setDetail(null)} onEsc={() => setDetail(null)}>
-        {detail && (
-          <div style={{ padding: 20, width: 560, maxWidth: '92vw', maxHeight: '80vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, position: 'sticky', top: -20, background: 'var(--color-bg-default)', paddingTop: 4 }}>
-              <h3 style={{ margin: 0, fontSize: 16 }}>{detail.title}</h3>
-              <Button size="xs" view="clear" label="✕" onClick={() => setDetail(null)} />
-            </div>
-            <KeyValue cols={1} items={detail.items} />
-          </div>
-        )}
-      </Modal>
+      {sec === 'claims' && <LegalWideTable columns={claimCols} rows={legal.claims} empty="Данные по контрагенту отсутствуют" />}
+      {sec === 'lawsuits' && <LegalWideTable columns={lawsuitCols} rows={legal.lawsuits} empty="Данные по контрагенту отсутствуют" />}
+      {sec === 'enforcement' && <LegalWideTable columns={enfCols} rows={legal.enforcement} empty="Данные по контрагенту отсутствуют" />}
+      {sec === 'bankruptcy' && <LegalWideTable columns={bankCols} rows={legal.bankruptcy} empty="Данные по контрагенту отсутствуют" />}
 
       {/* Уведомление о доступах КЮРАСАО 2.0 */}
       <Modal isOpen={curacao} onClickOutside={() => setCuracao(false)} onEsc={() => setCuracao(false)}>

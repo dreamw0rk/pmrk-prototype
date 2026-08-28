@@ -21,9 +21,18 @@ export interface EnforcementItem {
 export interface BankruptcyItem {
   id: string; creditor: string; caseName: string; stage: string; claimInRegistry: number; execution: number;
   lastPaymentDate: string; lastPaymentSum: number; plannedEvent: string; plannedDate: string;
+  eventDescription: string; comment: string; archiveDate: string;
 }
 
 const LAWYERS = ['Морозова А.К.', 'Лебедев Д.С.', 'Орлова Т.В.'];
+
+const BANKRUPTCY_EVENT: Record<string, string> = {
+  'Наблюдение': 'Введена процедура наблюдения, назначен временный управляющий',
+  'Финансовое оздоровление': 'Введена процедура финансового оздоровления по плану погашения задолженности',
+  'Внешнее управление': 'Введено внешнее управление, назначен внешний управляющий',
+  'Конкурсное производство': 'Открыто конкурсное производство, формируется конкурсная масса',
+  'Мировое соглашение': 'Утверждено мировое соглашение между должником и кредиторами',
+};
 
 export function buildLegal(cp: Counterparty) {
   const cc = cp.courtCases;
@@ -47,10 +56,15 @@ export function buildLegal(cp: Counterparty) {
     eventComment: 'Постановление направлено в банк', completed: 'Частично', completionDate: '—',
   }));
 
-  const bankruptcy: BankruptcyItem[] = cc.filter((c) => c.kind === 'bankruptcy').map((c, i) => ({
-    id: c.id, creditor: 'ООО «Газпромнефть-Региональные продажи»', caseName: c.subject, stage: c.status, claimInRegistry: c.amount,
-    execution: 0, lastPaymentDate: '—', lastPaymentSum: 0, plannedEvent: 'Включение в реестр требований кредиторов', plannedDate: '2026-07-20',
-  }));
+  const bankruptcy: BankruptcyItem[] = cc.filter((c) => c.kind === 'bankruptcy').map((c, i) => {
+    const archived = /завершен/i.test(c.status);
+    return {
+      id: c.id, creditor: 'ООО «Газпромнефть-Региональные продажи»', caseName: c.subject, stage: c.status, claimInRegistry: c.amount,
+      execution: 0, lastPaymentDate: '—', lastPaymentSum: 0, plannedEvent: 'Включение в реестр требований кредиторов', plannedDate: '2026-07-20',
+      eventDescription: BANKRUPTCY_EVENT[c.status] ?? `Введена процедура: ${c.status.toLowerCase()}`,
+      comment: 'Требование включено в реестр кредиторов третьей очереди', archiveDate: archived ? '2026-08-01' : '—',
+    };
+  });
 
   return { claims, lawsuits, enforcement, bankruptcy };
 }
