@@ -35,7 +35,7 @@ import { buildStatements } from '@/shared/mock/statements';
 import { buildDzKzTable, exportDzKzToExcel, MONTH_NAMES, shortDoLabel } from '@/shared/mock/dzKzMatrix';
 import { buildInteractionInfo } from '@/shared/mock/interaction';
 import { buildAssessment, DIRECTIONS, type Direction as AssessDirection, type ScoreBlock } from '@/shared/mock/assessment';
-import type { Counterparty, AffiliationLinkType, AffiliationNode } from '@/shared/mock/types';
+import type { Counterparty, AffiliationLinkType, AffiliationNode, NewsSource } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
 
 interface TabDef { key: string; label: string; cap?: Parameters<typeof can>[1]; }
@@ -1299,20 +1299,39 @@ function AssessmentTab({ c }: { c: Counterparty }) {
   );
 }
 
+// Порядок и подписи блоков — как в исходной системе: отдельный реестр новостей
+// на каждый внешний источник (ContragentNewsList), а не общий поток.
+const NEWS_SOURCES: NewsSource[] = ['Яндекс.Новости', 'bankrot.fedresurs.ru', 'pravo.ru', 'zakon.ru'];
+const NEWS_SOURCE_TITLE: Record<NewsSource, string> = {
+  'Яндекс.Новости': 'Топ новости с сайта Яндекс.Новости',
+  'bankrot.fedresurs.ru': 'Новости (bankrot.fedresurs.ru)',
+  'pravo.ru': 'Новости (pravo.ru)',
+  'zakon.ru': 'Новости (zakon.ru)',
+};
+
 function NewsTab({ c }: { c: Counterparty }) {
   if (!c.news.length) return <SimpleTab title="Новости" text="По контрагенту нет значимых новостей за период." asOf={c.asOf.news} />;
   return (
     <SectionCard title="Новости" extra={<DateActuality date={c.asOf.news} source="PRIMO" />}>
-      {c.news.map((n) => (
-        <div key={n.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-bg-border)' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: n.sentiment === 'negative' ? 'var(--pmrk-risk-4)' : n.sentiment === 'positive' ? 'var(--pmrk-risk-1)' : 'var(--color-typo-ghost)' }} />
-            <span style={{ fontWeight: 600 }}>{n.title}</span>
-            <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{dateRu(n.date)} · {n.source}</span>
-          </div>
-          <div className="pmrk-muted" style={{ fontSize: 13, marginTop: 4, paddingLeft: 16 }}>{n.summary}</div>
-        </div>
-      ))}
+      {NEWS_SOURCES.map((src) => {
+        const items = c.news.filter((n) => n.source === src);
+        return (
+          <ExtAccordion key={src} title={NEWS_SOURCE_TITLE[src]} defaultOpen={items.length > 0}>
+            {items.length === 0 ? (
+              <div className="pmrk-muted" style={{ fontSize: 13, padding: '4px 0' }}>Новостей не найдено.</div>
+            ) : items.map((n) => (
+              <div key={n.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-bg-border)' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: n.sentiment === 'negative' ? 'var(--pmrk-risk-4)' : n.sentiment === 'positive' ? 'var(--pmrk-risk-1)' : 'var(--color-typo-ghost)' }} />
+                  <span style={{ fontWeight: 600 }}>{n.title}</span>
+                  <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{dateRu(n.date)}</span>
+                </div>
+                <div className="pmrk-muted" style={{ fontSize: 13, marginTop: 4, paddingLeft: 16 }}>{n.summary}</div>
+              </div>
+            ))}
+          </ExtAccordion>
+        );
+      })}
     </SectionCard>
   );
 }

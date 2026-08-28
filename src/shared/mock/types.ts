@@ -27,11 +27,15 @@ export interface AssessmentRow {
   author: string;
 }
 
+/** Источник новости — исходная система сводит новости по 4 внешним ресурсам
+    (реестры ContragentNewsList для каждого сайта), а не единым потоком. */
+export type NewsSource = 'Яндекс.Новости' | 'bankrot.fedresurs.ru' | 'pravo.ru' | 'zakon.ru';
+
 export interface NewsItem {
   id: string;
   date: string;
   title: string;
-  source: string;
+  source: NewsSource;
   sentiment: 'negative' | 'neutral' | 'positive';
   summary: string;
 }
