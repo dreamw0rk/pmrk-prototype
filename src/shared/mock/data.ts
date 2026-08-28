@@ -76,6 +76,13 @@ export const HEROES: Counterparty[] = [
     okved: 'Производство жидкого топлива',
     okvedCode: '19.20.1',
     region: 'г. Санкт-Петербург',
+    address: '190000, г. Санкт-Петербург, наб. реки Мойки, д. 75-79, лит. Д',
+    okopf: 'Публичные акционерные общества',
+    ownershipForm: 'Частная собственность',
+    website: 'gazprom-neft.ru',
+    director: 'Дюков Александр Валерьевич, Председатель Правления',
+    companySize: 'Крупные предприятия',
+    taxRegime: 'ОСН',
     subsidiary: 'ПАО «Газпром нефть» (головная компания ГК)',
     group: 1,
     score: 92,
@@ -137,6 +144,13 @@ export const HEROES: Counterparty[] = [
     okved: 'Торговля оптовая твёрдым, жидким и газообразным топливом',
     okvedCode: '46.71',
     region: 'г. Санкт-Петербург',
+    address: '198035, г. Санкт-Петербург, ул. Двинская, д. 10, лит. А, пом. 12-Н',
+    okopf: 'Общества с ограниченной ответственностью',
+    ownershipForm: 'Частная собственность',
+    website: 'baltteko.ru',
+    director: 'Кузнецов Артём Игоревич, генеральный директор',
+    companySize: 'Средние предприятия',
+    taxRegime: 'ОСН',
     subsidiary: 'ООО «Газпромнефть-Региональные продажи»',
     group: 3,
     score: 47,
@@ -190,6 +204,13 @@ export const HEROES: Counterparty[] = [
     okved: 'Деятельность вспомогательная, связанная с перевозками',
     okvedCode: '52.29',
     region: 'г. Москва',
+    address: '119435, г. Москва, ул. Малая Пироговская, д. 1',
+    okopf: 'Непубличные акционерные общества',
+    ownershipForm: 'Частная собственность',
+    website: 'sibur-logistika.ru',
+    director: 'Волков Сергей Николаевич, генеральный директор',
+    companySize: 'Крупные предприятия',
+    taxRegime: 'ОСН',
     subsidiary: 'ООО «Газпромнефть-Логистика»',
     group: 1,
     score: 86,
@@ -235,6 +256,13 @@ export const HEROES: Counterparty[] = [
     okved: 'Торговля оптовая смазочными материалами',
     okvedCode: '46.71.3',
     region: 'Московская область',
+    address: '141400, Московская область, г. Химки, ул. Ленинградская, д. 25',
+    okopf: 'Общества с ограниченной ответственностью',
+    ownershipForm: 'Частная собственность',
+    website: 'td-progress.ru',
+    director: 'Морозова Ирина Сергеевна, генеральный директор',
+    companySize: 'Средние предприятия',
+    taxRegime: 'УСН',
     subsidiary: 'ООО «Газпромнефть — смазочные материалы»',
     group: 2,
     score: 64,
@@ -280,6 +308,12 @@ export const HEROES: Counterparty[] = [
     okved: 'Торговля оптовая моторным топливом',
     okvedCode: '46.71.2',
     region: 'г. Санкт-Петербург',
+    address: '192019, г. Санкт-Петербург, пр. Обуховской Обороны, д. 70, корп. 2',
+    okopf: 'Общества с ограниченной ответственностью',
+    ownershipForm: 'Частная собственность',
+    director: 'Соловьёв Максим Андреевич, конкурсный управляющий',
+    companySize: 'Малые предприятия',
+    taxRegime: 'ОСН',
     subsidiary: 'ООО «Газпромнефть-Региональные продажи»',
     group: 4,
     score: 21,
@@ -329,6 +363,13 @@ export const HEROES: Counterparty[] = [
     okved: 'Торговля оптовая прочая',
     okvedCode: '46.90',
     region: 'г. Москва',
+    address: '117997, г. Москва, Софийская наб., д. 26',
+    okopf: 'Публичные акционерные общества',
+    ownershipForm: 'Частная собственность',
+    website: 'rn-snab.ru',
+    director: 'Громов Андрей Викторович, генеральный директор',
+    companySize: 'Крупные предприятия',
+    taxRegime: 'ОСН',
     subsidiary: 'ООО «Газпромнефть-Снабжение»',
     group: 2,
     score: 66,
@@ -372,6 +413,13 @@ export const HEROES: Counterparty[] = [
     okved: 'Деятельность автомобильного грузового транспорта',
     okvedCode: '49.41',
     region: 'Ростовская область',
+    address: '344029, Ростовская область, г. Ростов-на-Дону, ул. Извилистая, д. 21',
+    okopf: 'Общества с ограниченной ответственностью',
+    ownershipForm: 'Частная собственность',
+    website: 'yugtransoil.ru',
+    director: 'Ткаченко Олег Владимирович, генеральный директор',
+    companySize: 'Малые предприятия',
+    taxRegime: 'УСН',
     subsidiary: 'ООО «Газпромнефть-Логистика»',
     group: 3,
     score: 44,
@@ -419,6 +467,42 @@ const NAME_CORES = [
 ];
 const NAME_FORMS = ['ООО', 'АО', 'ПАО', 'ООО ТД', 'АО ПК'];
 const REGIONS = ['г. Москва', 'г. Санкт-Петербург', 'Московская область', 'Свердловская область', 'Краснодарский край', 'Республика Татарстан', 'Новосибирская область', 'Ростовская область', 'Самарская область', 'Тюменская область'];
+
+/* Поля ЕГРЮЛ/СПАРК, которых не было в исходной модели (адрес, ОКОПФ, форма
+   собственности, сайт, руководитель, размер предприятия, налоговый режим) —
+   добавлены при сверке набора полей с реальным порталом (вкладка «Общие
+   сведения»). Для «героев» заданы вручную выше, для остальных 4200 карточек —
+   генерируются здесь детерминированно. */
+const STREETS = ['Ленина', 'Промышленная', 'Заводская', 'Складская', 'Индустриальная', 'Мира', 'Гагарина', 'Советская', 'Нефтяников', 'Транспортная'];
+const LAST_NAMES = ['Иванов', 'Петров', 'Смирнов', 'Кузнецов', 'Соколов', 'Морозов', 'Волков', 'Ткаченко', 'Никитин', 'Фролов'];
+const FIRST_NAMES = ['Александр', 'Сергей', 'Дмитрий', 'Андрей', 'Игорь', 'Олег', 'Максим', 'Владимир'];
+const MIDDLE_NAMES = ['Александрович', 'Сергеевич', 'Дмитриевич', 'Андреевич', 'Игоревич', 'Олегович', 'Николаевич', 'Владимирович'];
+const OKOPF_BY_FORM: Record<string, string> = {
+  'ООО': 'Общества с ограниченной ответственностью',
+  'ООО ТД': 'Общества с ограниченной ответственностью',
+  'АО': 'Непубличные акционерные общества',
+  'АО ПК': 'Непубличные акционерные общества',
+  'ПАО': 'Публичные акционерные общества',
+};
+const TRANSLIT: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l',
+  м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'c', ч: 'ch', ш: 'sh',
+  щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+};
+function translit(s: string): string {
+  return s.toLowerCase().split('').map((ch) => TRANSLIT[ch] ?? (/[a-z0-9]/.test(ch) ? ch : '')).join('');
+}
+function directorTitle(status: string): string {
+  if (status === 'Банкротство') return 'конкурсный управляющий';
+  if (status === 'Ликвидация') return 'ликвидатор';
+  return 'генеральный директор';
+}
+function companySizeByEmployees(employees: number): string {
+  if (employees < 15) return 'Микропредприятия';
+  if (employees < 100) return 'Малые предприятия';
+  if (employees < 250) return 'Средние предприятия';
+  return 'Крупные предприятия';
+}
 /* --- Дочерние общества ГК «Газпром нефть» и их принадлежность к блокам --------
    Блоки — верхний уровень управленческой структуры ГК: контрагент, как правило,
    работает не с одним ДО, а с несколькими, и в отчётности они сворачиваются
@@ -516,6 +600,21 @@ function makeRegistry(): Counterparty[] {
     const underSanctions = rnd() < 0.03;
     const status = group === 4 && rnd() < 0.25 ? 'Банкротство' : 'Действующее';
     const limit = group === 4 ? 0 : Math.round((10 + rnd() * 240)) * 1_000_000;
+    const region = REGIONS[Math.floor(rnd() * REGIONS.length)];
+    const employees = 10 + Math.floor(rnd() * 1500);
+
+    // Поля ЕГРЮЛ, добавленные при сверке с реальным порталом (адрес, ОКОПФ,
+    // форма собственности, сайт, руководитель, размер предприятия, налоговый режим).
+    const postal = 100000 + Math.floor(rnd() * 599999);
+    const street = STREETS[Math.floor(rnd() * STREETS.length)];
+    const houseNo = 1 + Math.floor(rnd() * 120);
+    const address = region.startsWith('г. ') ? `${postal}, ${region}, ул. ${street}, д. ${houseNo}` : `${region}, ул. ${street}, д. ${houseNo}`;
+    const okopf = OKOPF_BY_FORM[form] ?? 'Общества с ограниченной ответственностью';
+    const website = rnd() < 0.7 ? `${translit(core)}${suffix}.ru` : undefined;
+    const director = `${LAST_NAMES[Math.floor(rnd() * LAST_NAMES.length)]} ${FIRST_NAMES[Math.floor(rnd() * FIRST_NAMES.length)]} ${MIDDLE_NAMES[Math.floor(rnd() * MIDDLE_NAMES.length)]}, ${directorTitle(status)}`;
+    const taxRoll = rnd();
+    const taxRegime = employees > 250 ? 'ОСН' : taxRoll < 0.55 ? 'УСН' : taxRoll < 0.9 ? 'ОСН' : 'Нет данных';
+
     rows.push({
       uid: `cp-${(100000 + i).toString(36)}`,
       name,
@@ -526,7 +625,14 @@ function makeRegistry(): Counterparty[] {
       status: status as Counterparty['status'],
       okved: 'Торговля оптовая твёрдым, жидким и газообразным топливом',
       okvedCode: '46.71',
-      region: REGIONS[Math.floor(rnd() * REGIONS.length)],
+      region,
+      address,
+      okopf,
+      ownershipForm: 'Частная собственность',
+      website,
+      director,
+      companySize: companySizeByEmployees(employees),
+      taxRegime,
       subsidiary: SUBS[Math.floor(rnd() * SUBS.length)],
       group,
       score: Math.round(score),
@@ -536,7 +642,7 @@ function makeRegistry(): Counterparty[] {
       isForeign: rnd() < 0.04,
       registered: `20${String(5 + Math.floor(rnd() * 18)).padStart(2, '0')}-0${1 + Math.floor(rnd() * 8)}-1${Math.floor(rnd() * 9)}`,
       revenue: Math.round((0.3 + rnd() * 40) * 1_000_000_000),
-      employees: 10 + Math.floor(rnd() * 1500),
+      employees,
       creditLimit: limit,
       limitUtilization: rnd(),
       groupAggregateLimit: limit,

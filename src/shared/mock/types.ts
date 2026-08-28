@@ -60,6 +60,13 @@ export interface Counterparty {
   okved: string;
   okvedCode: string;
   region: string;
+  address: string; // адрес контрагента (ЕГРЮЛ)
+  okopf: string; // организационно-правовая форма текстом (ЕГРЮЛ/СПАРК)
+  ownershipForm: string; // форма собственности
+  website?: string; // рабочий сайт
+  director: string; // ФИО и должность руководителя
+  companySize: string; // категория по размеру (СПАРК): крупное/среднее/малое/микро
+  taxRegime: string; // налоговый режим
   subsidiary: string; // ДО, с которым работает
   group: RiskGroup;
   score: number;

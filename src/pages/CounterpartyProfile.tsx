@@ -33,6 +33,7 @@ import { buildAdditionalOkveds } from '@/shared/mock/okved';
 import { buildNameChanges } from '@/shared/mock/nameHistory';
 import { buildStatements } from '@/shared/mock/statements';
 import { buildDzKzTable, exportDzKzToExcel, MONTH_NAMES, shortDoLabel } from '@/shared/mock/dzKzMatrix';
+import { buildInteractionInfo } from '@/shared/mock/interaction';
 import type { Counterparty, AffiliationLinkType, AffiliationNode } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
 
@@ -291,14 +292,13 @@ function DoBlockGroup({ block, name, items }: { block: string; name?: string; it
           {/* отступ и тонкая направляющая слева: строка визуально принадлежит
               блоку выше. Направляющая в 1px — вложенность держится на отступе,
               полоса лишь поддерживает её, не превращаясь в цветной ярлык */}
-          <div className="pmrk-td" style={{ flex: 1.8, fontWeight: 600, whiteSpace: 'normal', paddingLeft: 32, borderLeft: '1px solid var(--color-bg-border)' }}>
+          <div className="pmrk-td" style={{ flex: 2.7, fontWeight: 600, whiteSpace: 'normal', paddingLeft: 32, borderLeft: '1px solid var(--color-bg-border)' }}>
             {link.subsidiary}
             {/* основное ДО карточки — то самое значение поля «Работает с ДО» */}
             {link.primary && (
               <span className="pmrk-chip" style={{ marginLeft: 8, background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11, fontWeight: 500 }}>основное</span>
             )}
           </div>
-          <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{link.inn}</div>
           <div className="pmrk-td" style={{ flex: 1.3, whiteSpace: 'normal' }}>{link.segment}</div>
         </div>
       ))}
@@ -430,6 +430,21 @@ function GeneralTab({ c }: { c: Counterparty }) {
       }));
   }, [doLinks]);
 
+  const interaction = useMemo(() => buildInteractionInfo(c), [c.uid]);
+  // «Утверждённая отсрочка платежа» по ДО — та же реконструкция, что и на
+  // вкладке «Кредитный лимит» (buildCreditLimitsByDo), просто без сумм: здесь
+  // важны только ДО и срок отсрочки, дублировать остальные колонки незачем.
+  const deferralRows = useMemo(() => {
+    const seen = new Set<string>();
+    return buildCreditLimitsByDo(c).filter((row) => {
+      const key = `${row.subsidiary}::${row.deferralDays}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [c.uid]);
+  const pdHorizonLabel: Record<string, string> = { '30+ дней': '1 месяц', '90+ дней': '3 месяца', '180+ дней': '6 месяцев' };
+
   return (
     <>
       <SectionCard title="Общие сведения" extra={<DateActuality date={c.asOf.general} source="СПАРК / ЕГРЮЛ" />}>
@@ -439,11 +454,19 @@ function GeneralTab({ c }: { c: Counterparty }) {
             { k: 'Полное наименование', v: c.name },
             { k: 'ИНН / КПП', v: `${fmtInn(c.inn)} / ${c.kpp}` },
             { k: 'ОГРН', v: c.ogrn },
-            { k: 'Основной ОКВЭД', v: `${c.okvedCode} — ${c.okved}` },
+            { k: 'Номер контрагента в системе SAP', v: interaction.sapNumber },
+            { k: 'Дата регистрации (возраст компании)', v: `${dateRu(c.registered)} (${NOW.getFullYear() - new Date(c.registered).getFullYear()})` },
             { k: 'Регион регистрации', v: c.region },
-            { k: 'Дата регистрации', v: dateRu(c.registered) },
-            { k: 'Выручка (последний год)', v: moneyCompact(c.revenue) },
+            { k: 'Адрес контрагента', v: c.address },
+            { k: 'Организационно-правовая форма (ОКОПФ)', v: c.okopf },
+            { k: 'Форма собственности', v: c.ownershipForm },
+            { k: 'Рабочий сайт', v: c.website ?? 'Нет данных' },
+            { k: 'Руководитель (должность)', v: c.director },
+            { k: 'Размер предприятия', v: c.companySize },
             { k: 'Численность', v: `${c.employees} чел.` },
+            { k: 'Налоговый режим', v: c.taxRegime },
+            { k: 'Основной ОКВЭД', v: `${c.okvedCode} — ${c.okved}` },
+            { k: 'Выручка (последний год)', v: moneyCompact(c.revenue) },
           ]}
         />
       </SectionCard>
@@ -475,8 +498,7 @@ function GeneralTab({ c }: { c: Counterparty }) {
           <div className="pmrk-table__head">
             {/* +1px к отступу — на ширину направляющей у строк ДО, чтобы шапка и
                 данные были выровнены по одной вертикали */}
-            <div className="pmrk-th" style={{ flex: 1.8, paddingLeft: 33 }}>Наименование ДО</div>
-            <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+            <div className="pmrk-th" style={{ flex: 2.7, paddingLeft: 33 }}>Наименование ДО</div>
             <div className="pmrk-th" style={{ flex: 1.3 }}>Направление работы</div>
           </div>
           {doGroups.map((g) => (
@@ -484,6 +506,75 @@ function GeneralTab({ c }: { c: Counterparty }) {
           ))}
         </div>
       </SectionCard>
+
+      {/* Взаимодействие с ГК + деловая репутация — те же поля, что на реальном
+          портале (Статус контрагента здесь про факт работы с ГК, это не то же
+          самое, что статус по данным СПАРК в шапке карточки). */}
+      <SectionCard title="Взаимодействие контрагента с ГК Газпром нефть" extra={<DateActuality date={c.asOf.general} source="ПМРК" />}>
+        <KeyValue
+          cols={3}
+          items={[
+            { k: 'Статус контрагента', v: interaction.pmrkStatus },
+            { k: 'Признак принадлежности к ГК ГПН', v: interaction.gpnAffiliationFlag },
+            { k: 'Наличие обеспечения (признак)', v: interaction.hasCollateral ? 'Да' : 'Нет' },
+            { k: 'Наличие негативной информации от службы безопасности', v: interaction.hasNegativeSecurityInfo ? 'Да' : 'Нет' },
+          ]}
+        />
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Показатели деловой репутации с ГК Газпром нефть</div>
+          <KeyValue
+            cols={2}
+            items={[
+              { k: 'Опыт сотрудничества с ГК ГПН', v: interaction.experience },
+              { k: 'Платёжная дисциплина за последние 12 месяцев', v: interaction.paymentDiscipline },
+            ]}
+          />
+        </div>
+        {deferralRows.length > 0 && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Утверждённая отсрочка платежа</div>
+            <div className="pmrk-table">
+              <div className="pmrk-table__head">
+                <div className="pmrk-th" style={{ flex: 2 }}>Наименование ДО ГК ГПН</div>
+                <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Количество дней отсрочки платежа</div>
+              </div>
+              {deferralRows.map((row) => (
+                <div key={`${row.subsidiary}-${row.deferralDays}`} className="pmrk-tr" style={{ cursor: 'default' }}>
+                  <div className="pmrk-td" style={{ flex: 2, whiteSpace: 'normal' }}>{row.subsidiary}</div>
+                  <div className="pmrk-td pmrk-tnum" style={{ flex: 1, justifyContent: 'flex-end', display: 'flex' }}>{row.deferralDays}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Внутренние рейтинги и оценки: платформа деловых отзывов ГПН. */}
+      <SectionCard collapsible title="Платформа деловых отзывов" extra={<DateActuality date={c.asOf.general} source="mnenia.gazprom-neft.ru" />}>
+        <KeyValue
+          cols={3}
+          items={[
+            { k: 'Тип организации', v: interaction.reviews.orgType },
+            { k: 'Виды деятельности', v: interaction.reviews.activities },
+            { k: 'Регион', v: interaction.reviews.region },
+            { k: 'Количество отзывов', v: interaction.reviews.reviewsCount },
+            { k: 'Средняя оценка по 5-балльной шкале', v: interaction.reviews.avgRating > 0 ? interaction.reviews.avgRating.toFixed(2).replace('.', ',') : 'Нет данных' },
+            { k: 'Ссылка на платформу Мнения', v: <a href={interaction.reviews.link} target="_blank" rel="noreferrer" style={{ color: 'var(--color-typo-brand)' }}>{interaction.reviews.link}</a> },
+          ]}
+        />
+      </SectionCard>
+
+      {/* Предиктивная аналитика (модель АГАТА) — та же величина, что в отчёте
+          «Профиль контрагента» (c.pdForecast), но с горизонтом в месяцах,
+          как на реальном портале, а не в днях. */}
+      {c.pdForecast.length > 0 && (
+        <SectionCard collapsible title="Предиктивная аналитика по модели машинного обучения ГПН" extra={<DateActuality date={c.asOf.general} source="модель АГАТА" />}>
+          <KeyValue
+            cols={3}
+            items={c.pdForecast.map((p) => ({ k: `Вероятность возникновения ПДЗ на горизонте ${pdHorizonLabel[p.horizon] ?? p.horizon}`, v: `${p.pd}%` }))}
+          />
+        </SectionCard>
+      )}
     </>
   );
 }
