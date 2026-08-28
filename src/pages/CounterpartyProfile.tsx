@@ -648,7 +648,7 @@ function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
   );
 }
 
-function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; children?: React.ReactNode }) {
+function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; children?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const risky = indicators?.filter((i) => i.level === 'high' || i.level === 'medium').length ?? 0;
   return (
@@ -666,7 +666,7 @@ function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, childr
       {open && (
         <div style={{ padding: '10px 16px 12px' }}>
           {beforeIndicators}
-          {indicators?.map((ind, i) => <IndRow key={i} ind={ind} />)}
+          {!hideList && indicators?.map((ind, i) => <IndRow key={i} ind={ind} />)}
           {children}
         </div>
       )}
@@ -704,6 +704,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
             indicators={s.indicators}
             defaultOpen={['s1', 's2', 's4', 's6'].includes(s.key)}
             beforeIndicators={s.key === 's1' && s.indicators ? <RiskSummaryBar indicators={s.indicators} /> : undefined}
+            hideList={s.key === 's1'}
           >
             {s.key === 's6' && ext.courtCases.length > 0 && (
               <div style={{ marginTop: 10 }}>
