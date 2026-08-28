@@ -108,7 +108,8 @@ const METRICS: MetricDef[] = [
   { key: 'dzCollateral', label: 'Сумма обеспечения дебиторской задолженности, руб.', indent: 0, activity: 0.1, base: () => 0 },
   { key: 'advanceTotal', label: 'Авансы Сумма на конец периода, руб. (без отрицательных сальдо)', indent: 0, activity: 0.35, base: (t) => t.advance },
   { key: 'advanceCollateral', label: 'Аванс Сумма обеспечения, руб.', indent: 0, activity: 0.05, base: () => 0 },
-  { key: 'reserves', label: 'Сумма резервов по сомнительным долгам на конец периода, руб.', indent: 0, activity: 0.1, base: (t) => Math.round(t.pdz * 0.08) },
+  { key: 'reservesDz', label: 'Сумма резервов по сомнительным долгам по ДЗ на конец периода, руб.', indent: 0, activity: 0.1, base: (t) => Math.round(t.pdz * 0.07) },
+  { key: 'reservesAdvance', label: 'Сумма резервов по сомнительным долгам по авансам на конец периода, руб.', indent: 0, activity: 0.05, base: (t) => Math.round(t.advance * 0.015) },
   { key: 'payable', label: 'Кредиторская задолженность, руб.', indent: 0, activity: 0.4, base: (t) => t.payable },
   { key: 'otherCollateral', label: 'Сумма прочего обеспечения, руб.', indent: 0, activity: 0.05, base: () => 0 },
 ];
