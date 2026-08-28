@@ -1148,7 +1148,7 @@ function StatementsTab({ c }: { c: Counterparty }) {
   const st = useMemo(() => buildStatements(c), [c.uid]);
 
   return (
-    <SectionCard title="Отчётность (Ф1–Ф2 за 3 периода)" extra={<DateActuality date={c.asOf.statements} source="СПАРК / ручной ввод" />}>
+    <SectionCard title="Отчётность (Ф1–Ф4 за 3 периода)" extra={<DateActuality date={c.asOf.statements} source="СПАРК / ручной ввод" />}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <Button size="xs" view="secondary" label="РСБУ отчётность (PDF)" iconLeft={IconDownload as never} />
         <span className="pmrk-muted" style={{ fontSize: 12, alignSelf: 'center' }}>Стандарт: РСБУ · валюта ₽ · тыс. руб.</span>
@@ -1159,13 +1159,15 @@ function StatementsTab({ c }: { c: Counterparty }) {
               ширины (не растут на всю оставшуюся ширину карточки), поэтому стоят
               вплотную друг к другу справа — так проще сверять числа взглядом. */}
           <div className="pmrk-table__head">
-            <div className="pmrk-th" style={{ flex: 1 }}>{block.title}</div>
-            {st.periods.map((d) => <div key={d} className="pmrk-th" style={{ flex: '0 0 120px', justifyContent: 'flex-end' }}>{dateRu(d)}</div>)}
+            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>{block.title}</div>
+            <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>Код строки</div>
+            {st.periods.map((d) => <div key={d} className="pmrk-th" style={{ flex: '0 0 120px', minWidth: 0, justifyContent: 'flex-end' }}>{dateRu(d)}</div>)}
           </div>
           {block.rows.map((row) => (
             <div key={row.label} className="pmrk-tr" style={{ cursor: 'default', fontWeight: row.strong ? 700 : 400 }}>
-              <div className="pmrk-td" style={{ flex: 1 }}>{row.label}</div>
-              {row.values.map((v, i) => <div key={i} className="pmrk-td pmrk-tnum" style={{ flex: '0 0 120px', justifyContent: 'flex-end', display: 'flex' }}>{money(v, { unit: '' })}</div>)}
+              <div className="pmrk-td" style={{ flex: 1, minWidth: 0, paddingLeft: row.indent ? 20 : undefined }}>{row.label}</div>
+              <div className="pmrk-td pmrk-tnum pmrk-muted" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', display: 'flex', fontWeight: 400, fontSize: 12 }}>{row.code ?? ''}</div>
+              {row.values.map((v, i) => <div key={i} className="pmrk-td pmrk-tnum" style={{ flex: '0 0 120px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{money(v, { unit: '' })}</div>)}
             </div>
           ))}
         </div>
