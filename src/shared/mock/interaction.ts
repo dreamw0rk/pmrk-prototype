@@ -1,4 +1,5 @@
 import type { Counterparty } from './types';
+import { buildAdditionalOkveds } from './okved';
 
 /* «Взаимодействие контрагента с ГК Газпром нефть» + смежные блоки на вкладке
    «Общие сведения» (номер в SAP, статус контрагента, деловая репутация,
@@ -50,7 +51,11 @@ export function buildInteractionInfo(c: Counterparty): InteractionInfo {
     paymentDiscipline,
     reviews: {
       orgType: c.isForeign ? 'Иностранная организация' : 'Российская организация',
-      activities: c.okved,
+      // Платформа «Мнения» показывает не только основной ОКВЭД, а все виды
+      // деятельности контрагента (как на реальном портале — там это часто
+      // десятки строк) — используем тот же справочник допОКВЭД, что и на
+      // вкладке «Общие сведения».
+      activities: [c.okved, ...buildAdditionalOkveds(c).map((o) => o.name)].join(', '),
       region: c.region,
       reviewsCount: seed % 6,
       avgRating: seed % 6 === 0 ? 0 : Math.round((2.5 + ((seed >> 3) % 25) / 10) * 100) / 100,

@@ -307,6 +307,30 @@ function DoBlockGroup({ block, name, items }: { block: string; name?: string; it
   );
 }
 
+/** Подраздел внутри карточки (не отдельная секция уровня вкладки) — сворачиваемый
+    заголовок на прозрачном фоне с тонкой обводкой, в стиле шапки таблицы
+    (.pmrk-th/.pmrk-muted), а не брендовая плашка: так подраздел не спорит по
+    весу с заголовком самой SectionCard. */
+function SubSection({ title, count, defaultOpen, children }: { title: string; count?: number; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div
+        className="pmrk-clickable"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, cursor: 'pointer', padding: '10px 14px', borderRadius: 'var(--pmrk-radius)', border: '1px solid var(--color-bg-border)', background: 'transparent' }}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13, color: 'var(--color-typo-primary)' }}>
+          <span className="pmrk-muted" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', display: 'inline-block' }}>▸</span>
+          {title}
+        </span>
+        {count != null && <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11 }}>{count}</span>}
+      </div>
+      {open && <div style={{ marginTop: 10 }}>{children}</div>}
+    </div>
+  );
+}
+
 /** «Дополнительные виды деятельности» (ЕГРЮЛ) — список кроме основного ОКВЭД
     (тот уже показан в «Общих сведениях»). Поиск — по частичному совпадению
     и с кодом, и с наименованием: код ищут по цифрам, наименование — по словам. */
@@ -319,19 +343,7 @@ function AdditionalOkvedsCard({ c }: { c: Counterparty }) {
     : okveds;
 
   return (
-    <SectionCard
-      collapsible
-      defaultOpen={false}
-      title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          Дополнительные виды деятельности
-          <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11 }}>
-            {okveds.length}
-          </span>
-        </span>
-      }
-      extra={<DateActuality date={c.asOf.general} source="ЕГРЮЛ" />}
-    >
+    <SubSection title="Дополнительные виды деятельности" count={okveds.length}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', marginBottom: 12, maxWidth: 420, border: '1px solid var(--color-bg-border)', borderRadius: 10, background: 'var(--color-bg-default)' }}>
         <IconSearchStroked size="xs" className="pmrk-muted" />
         <input
@@ -355,7 +367,7 @@ function AdditionalOkvedsCard({ c }: { c: Counterparty }) {
         ))}
       </div>
       {!filtered.length && <EmptyState text="Ничего не найдено по запросу." />}
-    </SectionCard>
+    </SubSection>
   );
 }
 
@@ -366,19 +378,7 @@ function NameChangesCard({ c }: { c: Counterparty }) {
   const changes = useMemo(() => buildNameChanges(c), [c.uid]);
 
   return (
-    <SectionCard
-      collapsible
-      defaultOpen={false}
-      title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          Изменения в наименовании и организационно-правовой форме
-          <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11 }}>
-            {changes.length}
-          </span>
-        </span>
-      }
-      extra={<DateActuality date={c.asOf.general} source="ЕГРЮЛ" />}
-    >
+    <SubSection title="Изменения в наименовании и организационно-правовой форме" count={changes.length}>
       {changes.length ? (
         <div className="pmrk-table">
           <div className="pmrk-table__head">
@@ -401,7 +401,7 @@ function NameChangesCard({ c }: { c: Counterparty }) {
       ) : (
         <EmptyState text="По данным ЕГРЮЛ наименование и организационно-правовая форма не менялись." />
       )}
-    </SectionCard>
+    </SubSection>
   );
 }
 
@@ -432,19 +432,21 @@ function GeneralTab({ c }: { c: Counterparty }) {
   }, [doLinks]);
 
   const interaction = useMemo(() => buildInteractionInfo(c), [c.uid]);
-  // «Утверждённая отсрочка платежа» по ДО — та же реконструкция, что и на
-  // вкладке «Кредитный лимит» (buildCreditLimitsByDo), просто без сумм: здесь
-  // важны только ДО и срок отсрочки, дублировать остальные колонки незачем.
-  const deferralRows = useMemo(() => {
-    const seen = new Set<string>();
-    return buildCreditLimitsByDo(c).filter((row) => {
-      const key = `${row.subsidiary}::${row.deferralDays}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [c.uid]);
   const pdHorizonLabel: Record<string, string> = { '30+ дней': '1 месяц', '90+ дней': '3 месяца', '180+ дней': '6 месяцев' };
+
+  // Цветная точка перед значением — как на реальном портале у показателей
+  // деловой репутации и негативной информации (зелёная/жёлтая/красная), а не
+  // голый текст. «Наличие обеспечения» на портале — без точки, поэтому это
+  // единственное булево поле блока без DotValue.
+  const DotValue = ({ tone, children }: { tone: 'good' | 'warn' | 'bad' | 'neutral'; children: React.ReactNode }) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span className="pmrk-dot" style={{ background: tone === 'good' ? 'var(--pmrk-risk-1)' : tone === 'warn' ? 'var(--pmrk-risk-3)' : tone === 'bad' ? 'var(--pmrk-risk-4)' : 'var(--color-typo-ghost)' }} />
+      {children}
+    </span>
+  );
+  const experienceTone = interaction.experience === 'более 3-х лет' ? 'good' : interaction.experience === 'от 1 до 3-х лет' ? 'warn' : 'bad';
+  const disciplineTone = interaction.paymentDiscipline === 'Без нарушений' ? 'good' : interaction.paymentDiscipline === 'Единичные случаи возникновения ПДЗ' ? 'warn' : 'bad';
+  const ratingTone = interaction.reviews.avgRating === 0 ? 'neutral' : interaction.reviews.avgRating >= 4 ? 'good' : interaction.reviews.avgRating >= 2.5 ? 'warn' : 'bad';
 
   return (
     <>
@@ -470,20 +472,24 @@ function GeneralTab({ c }: { c: Counterparty }) {
             { k: 'Выручка (последний год)', v: moneyCompact(c.revenue) },
           ]}
         />
+
+        {/* На реальном портале это подразделы той же «СВЕДЕНИЯ ИЗ ЕГРЮЛ»
+            секции, а не отдельные карточки уровня вкладки. */}
+        <AdditionalOkvedsCard c={c} />
+        <NameChangesCard c={c} />
       </SectionCard>
 
-      <AdditionalOkvedsCard c={c} />
-      <NameChangesCard c={c} />
-
-      {/* «Работает с ДО» (ФТ-19.1) — отдельный сворачиваемый блок, а не девятое
-          поле карточки: ДО у контрагента несколько, и важно не только «с кем», но
-          и «в каком блоке ГК» — по блокам сводится управленческая отчётность
-          (ФТ-22.3 «Блок → ДО → итог»). Раскрытым нужен не всем, отсюда сворачивание. */}
+      {/* «Взаимодействие контрагента с ГК Газпром нефть» (ФТ-19.1) — отдельный
+          сворачиваемый блок, а не девятое поле карточки: объединяет статус
+          работы с ГК, состав ДО (по блокам сводится управленческая отчётность,
+          ФТ-22.3 «Блок → ДО → итог»), обеспечение/деловую репутацию и условия
+          отсрочки платежа — как один непрерывный раздел на реальном портале.
+          Раскрытым нужен не всем, отсюда сворачивание. */}
       <SectionCard
         collapsible
         title={
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            Работает с ДО
+            Взаимодействие контрагента с ГК Газпром нефть
             <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11 }}>
               {doLinks.length} ДО · {doGroups.length} {doGroups.length === 1 ? 'блок' : doGroups.length < 5 ? 'блока' : 'блоков'}
             </span>
@@ -491,7 +497,18 @@ function GeneralTab({ c }: { c: Counterparty }) {
         }
         extra={<DateActuality date={c.asOf.general} source="справочник ДО ГК ГПН" />}
       >
-        <div className="pmrk-muted" style={{ fontSize: 13, marginBottom: 12 }}>
+        {/* Статус контрагента и признак принадлежности к ГК ГПН — на реальном
+            портале это начало того же раздела «Взаимодействие с ГК», перед
+            списком блоков/ДО, а не отдельная карточка. */}
+        <KeyValue
+          cols={3}
+          items={[
+            { k: 'Статус контрагента', v: interaction.pmrkStatus },
+            { k: 'Признак принадлежности к ГК ГПН', v: interaction.gpnAffiliationFlag },
+          ]}
+        />
+
+        <div className="pmrk-muted" style={{ fontSize: 13, margin: '16px 0 12px' }}>
           Дочерние общества ГК «Газпром нефть», работающие с контрагентом, — по блокам. Условия работы по каждому ДО (кредитный лимит, отсрочка, обеспечение) — на вкладке «Кредитный лимит».
         </div>
 
@@ -506,61 +523,59 @@ function GeneralTab({ c }: { c: Counterparty }) {
             <DoBlockGroup key={g.block} block={g.block} name={g.name} items={g.items} />
           ))}
         </div>
-      </SectionCard>
 
-      {/* Взаимодействие с ГК + деловая репутация — те же поля, что на реальном
-          портале (Статус контрагента здесь про факт работы с ГК, это не то же
-          самое, что статус по данным СПАРК в шапке карточки). */}
-      <SectionCard title="Взаимодействие контрагента с ГК Газпром нефть" extra={<DateActuality date={c.asOf.general} source="ПМРК" />}>
-        <KeyValue
-          cols={3}
-          items={[
-            { k: 'Статус контрагента', v: interaction.pmrkStatus },
-            { k: 'Признак принадлежности к ГК ГПН', v: interaction.gpnAffiliationFlag },
-            { k: 'Наличие обеспечения (признак)', v: interaction.hasCollateral ? 'Да' : 'Нет' },
-            { k: 'Наличие негативной информации от службы безопасности', v: interaction.hasNegativeSecurityInfo ? 'Да' : 'Нет' },
-          ]}
-        />
+        {/* Наличие обеспечения/негативной информации и показатели деловой
+            репутации — на реальном портале это продолжение того же раздела
+            «Взаимодействие с ГК», сразу после списка ДО, а не отдельная
+            карточка. */}
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Показатели деловой репутации с ГК Газпром нефть</div>
           <KeyValue
             cols={2}
             items={[
-              { k: 'Опыт сотрудничества с ГК ГПН', v: interaction.experience },
-              { k: 'Платёжная дисциплина за последние 12 месяцев', v: interaction.paymentDiscipline },
+              { k: 'Наличие обеспечения (признак)', v: interaction.hasCollateral ? 'Да' : 'Нет' },
+              { k: 'Наличие негативной информации от службы безопасности', v: <DotValue tone={interaction.hasNegativeSecurityInfo ? 'bad' : 'good'}>{interaction.hasNegativeSecurityInfo ? 'Да' : 'Нет'}</DotValue> },
             ]}
           />
         </div>
-        {deferralRows.length > 0 && (
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Утверждённая отсрочка платежа</div>
-            <div className="pmrk-table">
-              <div className="pmrk-table__head">
-                <div className="pmrk-th" style={{ flex: 2 }}>Наименование ДО ГК ГПН</div>
-                <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Количество дней отсрочки платежа</div>
-              </div>
-              {deferralRows.map((row) => (
-                <div key={`${row.subsidiary}-${row.deferralDays}`} className="pmrk-tr" style={{ cursor: 'default' }}>
-                  <div className="pmrk-td" style={{ flex: 2, whiteSpace: 'normal' }}>{row.subsidiary}</div>
-                  <div className="pmrk-td pmrk-tnum" style={{ flex: 1, justifyContent: 'flex-end', display: 'flex' }}>{row.deferralDays}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--color-typo-brand)' }}>Показатели деловой репутации с ГК Газпром нефть</div>
+          <KeyValue
+            cols={2}
+            items={[
+              { k: 'Опыт сотрудничества с ГК ГПН', v: <DotValue tone={experienceTone}>{interaction.experience}</DotValue> },
+              { k: 'Платёжная дисциплина за последние 12 месяцев', v: <DotValue tone={disciplineTone}>{interaction.paymentDiscipline}</DotValue> },
+            ]}
+          />
+        </div>
       </SectionCard>
 
-      {/* Внутренние рейтинги и оценки: платформа деловых отзывов ГПН. */}
-      <SectionCard collapsible title="Платформа деловых отзывов" extra={<DateActuality date={c.asOf.general} source="mnenia.gazprom-neft.ru" />}>
+      {/* Внутренние рейтинги и оценки — на реальном портале общий заголовок
+          раздела, внутри которого пока один источник (платформа «Мнения»),
+          поэтому «Платформа деловых отзывов» — вложенный подзаголовок, а не
+          самостоятельная карточка. */}
+      <SectionCard collapsible title="Внутренние рейтинги и оценки" extra={<DateActuality date={c.asOf.general} source="mnenia.gazprom-neft.ru" />}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Мнения — платформа деловых отзывов</div>
+        {/* cols=1 — «Виды деятельности» и «Регион» на портале это не короткие
+            значения, а перечисление через запятую (все ОКВЭД контрагента,
+            основной и дополнительные), в 3-колоночной сетке они бы дробились
+            на узкие столбцы вместо переноса по всей ширине. Ссылка на
+            платформу — не отдельной строкой, а в скобках при оценке. */}
         <KeyValue
-          cols={3}
+          cols={1}
           items={[
-            { k: 'Тип организации', v: interaction.reviews.orgType },
             { k: 'Виды деятельности', v: interaction.reviews.activities },
             { k: 'Регион', v: interaction.reviews.region },
-            { k: 'Количество отзывов', v: interaction.reviews.reviewsCount },
-            { k: 'Средняя оценка по 5-балльной шкале', v: interaction.reviews.avgRating > 0 ? interaction.reviews.avgRating.toFixed(2).replace('.', ',') : 'Нет данных' },
-            { k: 'Ссылка на платформу Мнения', v: <a href={interaction.reviews.link} target="_blank" rel="noreferrer" style={{ color: 'var(--color-typo-brand)' }}>{interaction.reviews.link}</a> },
+            {
+              k: 'Средняя оценка по 5-балльной шкале',
+              v: (
+                <DotValue tone={ratingTone}>
+                  {interaction.reviews.avgRating > 0 ? interaction.reviews.avgRating.toFixed(2).replace('.', ',') : 'Нет данных'}
+                  {' ('}
+                  <a href={interaction.reviews.link} target="_blank" rel="noreferrer" style={{ color: 'var(--color-typo-brand)' }}>Ссылка на платформу Мнения</a>
+                  {')'}
+                </DotValue>
+              ),
+            },
           ]}
         />
       </SectionCard>
@@ -576,6 +591,23 @@ function GeneralTab({ c }: { c: Counterparty }) {
           />
         </SectionCard>
       )}
+
+      {/* Список «Под особым контролем» — тот же признак, что на бейдже в шапке
+          профиля и на одноимённой вкладке (там — карточка согласования
+          включения/исключения), но здесь, как на портале, это плоский блок
+          статуса: причина, комментарий и сведения из ЕФРСБ. */}
+      <SectionCard collapsible title="Список «Под особым контролем»" extra={<DateActuality date={c.asOf['special-control'] ?? c.asOf.general} source="ПМРК" />}>
+        <KeyValue
+          cols={2}
+          items={[
+            { k: 'Под особым контролем', v: <DotValue tone={c.specialControl ? 'bad' : 'good'}>{c.specialControl ? 'Да' : 'Нет'}</DotValue> },
+            { k: 'Причина', v: c.specialControl ? 'Внесено предложение о включении (КК Блока)' : '—' },
+            { k: 'Комментарий', v: c.specialControl ? 'Согласование — КК-Блок / КК-УФК / АДМ; исключение — КК-УФК / АДМ.' : '—' },
+            { k: 'Наличие сведений в Едином Федеральном реестре о банкротстве', v: c.status === 'Банкротство' ? 'Да' : 'Нет данных' },
+            { k: 'Ссылка на карточку в Едином Федеральном реестре о банкротстве', v: c.status === 'Банкротство' ? <a href={`https://bankrot.fedresurs.ru/entity/${c.inn}`} target="_blank" rel="noreferrer" style={{ color: 'var(--color-typo-brand)' }}>{`bankrot.fedresurs.ru/entity/${c.inn}`}</a> : 'Нет данных' },
+          ]}
+        />
+      </SectionCard>
     </>
   );
 }
