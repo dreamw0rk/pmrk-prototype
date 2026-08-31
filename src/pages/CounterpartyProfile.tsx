@@ -1654,25 +1654,26 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
           <EmptyState text="Действующих лимитов по ДО нет — заявка на открытие КЛ не подавалась или отклонена." />
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <div className="pmrk-table" style={{ minWidth: 1780 }}>
+            <div className="pmrk-table" style={{ minWidth: 1680 }}>
               <div className="pmrk-table__head">
                 {/* minWidth: 0 — без него длинные заголовки распирают свою ячейку сверх
-                    flex-доли по min-content самого длинного слова, и шапка перестаёт
-                    совпадать по ширине колонок со строками данных. */}
-                <div className="pmrk-th" style={{ flex: '0 0 190px', minWidth: 0 }}>Наименование ДО ГК ГПН</div>
-                <div className="pmrk-th" style={{ flex: '0 0 110px', minWidth: 0 }}>ИНН</div>
-                <div className="pmrk-th" style={{ flex: '0 0 160px', minWidth: 0 }}>Сегмент</div>
-                <div className="pmrk-th" style={{ flex: '0 0 140px', minWidth: 0, justifyContent: 'flex-end' }}>Утверждённый кредитный лимит, валюта</div>
-                <div className="pmrk-th" style={{ flex: '0 0 90px', minWidth: 0 }}>Валюта утверждённого КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 140px', minWidth: 0, justifyContent: 'flex-end' }}>Утверждённый кредитный лимит, руб.</div>
-                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end' }}>Утверждённая отсрочка платежа, кол-во дней</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0 }}>Коллегиальный орган, утвердивший КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0 }}>Реквизиты документа, согласно которому утверждён КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 90px', minWidth: 0 }}>Действительность</div>
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0 }}>Утверждённая дата начала действия КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0 }}>Утверждённая дата окончания действия КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 140px', minWidth: 0 }}>Описание обеспечения</div>
-                <div className="pmrk-th" style={{ flex: '0 0 170px', minWidth: 0 }}>Комментарии по обеспечению</div>
+                    flex-доли по min-content самого длинного слова. overflow: hidden —
+                    у .pmrk-th (в отличие от .pmrk-td) его нет по умолчанию, поэтому
+                    перенесённая строка чуть шире своей колонки визуально наезжает на
+                    соседнюю; с overflow:hidden она просто обрезается, как и в теле
+                    таблицы. «Действует» вместо «Действительность» — та же причина. */}
+                <div className="pmrk-th" style={{ flex: '0 0 190px', minWidth: 0, overflow: 'hidden' }}>Наименование ДО ГК ГПН</div>
+                <div className="pmrk-th" style={{ flex: '0 0 110px', minWidth: 0, overflow: 'hidden' }}>ИНН</div>
+                <div className="pmrk-th" style={{ flex: '0 0 160px', minWidth: 0, overflow: 'hidden' }}>Сегмент</div>
+                <div className="pmrk-th" style={{ flex: '0 0 160px', minWidth: 0, overflow: 'hidden' }}>Утверждённый кредитный лимит, руб.</div>
+                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, overflow: 'hidden' }}>Утверждённая отсрочка платежа, кол-во дней</div>
+                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Коллегиальный орган, утвердивший КЛ</div>
+                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Реквизиты документа, согласно которому утверждён КЛ</div>
+                <div className="pmrk-th" style={{ flex: '0 0 90px', minWidth: 0, overflow: 'hidden' }}>Действует</div>
+                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Утверждённая дата начала действия КЛ</div>
+                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Утверждённая дата окончания действия КЛ</div>
+                <div className="pmrk-th" style={{ flex: '0 0 140px', minWidth: 0, overflow: 'hidden' }}>Описание обеспечения</div>
+                <div className="pmrk-th" style={{ flex: '0 0 170px', minWidth: 0, overflow: 'hidden' }}>Комментарии по обеспечению</div>
               </div>
               {doLimits.map((row, i) => {
                 const active = isDoLimitActive(row);
@@ -1681,10 +1682,8 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
                     <div className="pmrk-td" style={{ flex: '0 0 190px', minWidth: 0, fontWeight: 600, whiteSpace: 'normal' }}>{row.subsidiary}</div>
                     <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 110px', minWidth: 0 }}>{row.subsidiaryInn}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 160px', minWidth: 0, whiteSpace: 'normal' }}>{row.segment}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 140px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{money(row.amountCurrency, { unit: '' })}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 90px', minWidth: 0 }}>{row.currency}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 140px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{money(row.amountRub, { unit: '' })}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{row.deferralDays}</div>
+                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 160px', minWidth: 0 }}>{money(row.amountRub, { unit: '' })}</div>
+                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 100px', minWidth: 0 }}>{row.deferralDays}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 150px', minWidth: 0, whiteSpace: 'normal' }}>{row.approvalBody}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 150px', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{row.documentRef}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 90px', minWidth: 0 }}>
@@ -1710,18 +1709,16 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
           <EmptyState text="Заявок на кредитный лимит по контрагенту нет." />
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <div className="pmrk-table" style={{ minWidth: 1280 }}>
+            <div className="pmrk-table" style={{ minWidth: 1090 }}>
               <div className="pmrk-table__head">
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0 }}>Номер заявки</div>
-                <div className="pmrk-th" style={{ flex: '0 0 200px', minWidth: 0 }}>Наименование ДО ГК ГПН</div>
-                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0 }}>Действительность</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, justifyContent: 'flex-end' }}>Утверждённый кредитный лимит, валюта</div>
-                <div className="pmrk-th" style={{ flex: '0 0 90px', minWidth: 0 }}>Валюта утверждённого КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, justifyContent: 'flex-end' }}>Утверждённый кредитный лимит, руб.</div>
-                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end' }}>Утверждённая отсрочка платежа, кол-во дней</div>
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0 }}>Утверждённая дата начала действия КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0 }}>Утверждённая дата окончания действия КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0 }}>Статус заявки</div>
+                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Номер заявки</div>
+                <div className="pmrk-th" style={{ flex: '0 0 200px', minWidth: 0, overflow: 'hidden' }}>Наименование ДО ГК ГПН</div>
+                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, overflow: 'hidden' }}>Действует</div>
+                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Утверждённый кредитный лимит, руб.</div>
+                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, overflow: 'hidden' }}>Утверждённая отсрочка платежа, кол-во дней</div>
+                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Утверждённая дата начала действия КЛ</div>
+                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Утверждённая дата окончания действия КЛ</div>
+                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Статус заявки</div>
               </div>
               {limitRequests.map((r) => {
                 const approved = r.status === 'Утверждено';
@@ -1730,10 +1727,8 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
                     <div className="pmrk-td" style={{ flex: '0 0 130px', minWidth: 0, fontWeight: 600 }}>{r.number}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 200px', minWidth: 0, whiteSpace: 'normal' }}>{r.subsidiary}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 100px', minWidth: 0 }}>{approved ? 'Да' : 'Нет'}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 150px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{approved ? money(r.requestedLimit, { unit: '' }) : '-'}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 90px', minWidth: 0 }}>{approved ? 'рубль' : '-'}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 150px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{approved ? money(r.requestedLimit, { unit: '' }) : '-'}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{approved ? r.deferralDays : '-'}</div>
+                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 150px', minWidth: 0 }}>{approved ? money(r.requestedLimit, { unit: '' }) : '-'}</div>
+                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 100px', minWidth: 0 }}>{approved ? r.deferralDays : '-'}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 130px', minWidth: 0 }}>{approved ? dateRu(r.createdAt) : '-'}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 130px', minWidth: 0 }}>{'-'}</div>
                     <div className="pmrk-td" style={{ flex: '0 0 150px', minWidth: 0 }}><StatusBadge status={r.status} /></div>

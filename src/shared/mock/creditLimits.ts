@@ -2,10 +2,10 @@ import type { Counterparty } from './types';
 import { SUBS, NOW, doInn as subsidiaryInn } from './data';
 
 /* Распределение кредитного лимита по ДО ГК ГПН (реестр «Кредитные лимиты», выгрузка
-   АРМ КК) — источник структуры и состава колонок: экспорт из системы (Название,
-   ИНН, Наименование ДО ГК ГПН, Действительность, Сегмент, Утверждённый КЛ (валюта
-   и руб.), Утверждённая отсрочка платежа, Коллегиальный орган, Реквизиты документа,
-   даты действия, обеспечение, комментарии по обеспечению). Сами суммы по ДО в проде
+   АРМ КК) — источник структуры и состава колонок: экспорт из системы (Наименование
+   ДО ГК ГПН, ИНН, Сегмент, Утверждённый КЛ в руб., Утверждённая отсрочка платежа,
+   Коллегиальный орган, Реквизиты документа, даты действия, обеспечение,
+   комментарии по обеспечению). Сами суммы по ДО в проде
    подтягиваются из limit-workflow построчно; здесь — детерминированная реконструкция
    по агрегатам контрагента: основной ДО (cp.subsidiary) закрывает действующий КЛ
    (cp.creditLimit), остаток до совокупного КЛ группы (cp.groupAggregateLimit)
@@ -16,10 +16,6 @@ export interface DoLimitRow {
   subsidiary: string;
   subsidiaryInn: string;
   segment: string;
-  /** сумма в валюте утверждённого КЛ (см. currency) — у нас всегда рубль,
-      поэтому численно совпадает с amountRub, но это отдельное поле реестра */
-  amountCurrency: number;
-  currency: string;
   amountRub: number;
   deferralDays: number;
   approvalBody: string;
@@ -68,8 +64,6 @@ export function buildCreditLimitsByDo(cp: Counterparty): DoLimitRow[] {
     subsidiary: cp.subsidiary,
     subsidiaryInn: doInn(cp.subsidiary, cp),
     segment: SEGMENTS[seed % SEGMENTS.length],
-    amountCurrency: cp.creditLimit,
-    currency: 'рубль',
     amountRub: cp.creditLimit,
     deferralDays: DEFERRAL_DAYS[seed % DEFERRAL_DAYS.length],
     approvalBody: cp.creditLimit >= 300_000_000 ? 'Кредитный комитет Блока' : 'Кредитный комитет ДО',
@@ -98,8 +92,6 @@ export function buildCreditLimitsByDo(cp: Counterparty): DoLimitRow[] {
         subsidiary: sub,
         subsidiaryInn: doInn(sub, cp),
         segment: SEGMENTS[s2 % SEGMENTS.length],
-        amountCurrency: amount,
-        currency: 'рубль',
         amountRub: amount,
         deferralDays: DEFERRAL_DAYS[s2 % DEFERRAL_DAYS.length],
         approvalBody: 'Кредитный комитет ДО',
