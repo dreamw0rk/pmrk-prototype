@@ -183,6 +183,15 @@ export function SanctionBadge() {
   );
 }
 
+export function RnpUnscrupulous() {
+  return (
+    <span className="pmrk-chip" style={{ background: 'var(--pmrk-risk-1-bg)', color: 'var(--pmrk-risk-1)' }}>
+      <span className="pmrk-dot" style={{ background: 'var(--pmrk-risk-1)' }} />
+      Не выявлено
+    </span>
+  );
+}
+
 const STATUS_TONE: Record<string, string> = {
   'Действующее': 'var(--pmrk-risk-1)',
   'Утверждено': 'var(--pmrk-risk-1)',

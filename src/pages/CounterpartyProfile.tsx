@@ -16,7 +16,7 @@ import { useApp } from '@/app/AppContext';
 import { useSetPageMeta } from '@/app/PageMeta';
 import { can } from '@/shared/roles';
 import {
-  GroupBadge, RbIndicator, SanctionBadge, StatusBadge, DateActuality, SectionCard, KeyValue, Stat,
+  GroupBadge, RbIndicator, SanctionBadge, RnpUnscrupulous, StatusBadge, DateActuality, SectionCard, KeyValue, Stat,
   EmptyState, AuditFooter, severityColor, SEVERITY_LABEL, CalcStamp, Segmented,
 } from '@/shared/ui/kit';
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
@@ -809,9 +809,23 @@ function ExternalTab({ c }: { c: Counterparty }) {
       <SectionCard title="Внешняя информация" extra={<DateActuality date={c.asOf.external} source="СПАРК / ФНС / ГПБ / Госзакупки" />}>
         <div className="pmrk-muted" style={{ fontSize: 13, marginBottom: 12 }}>11 разделов внешних источников (СПАРК, ФНС, Газпромбанк, Госзакупки). Разделы раскрываются по запросу — сигналы видны сразу.</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+          {/* Все три карточки — на 3 строки (label / value / доп.информация через
+              sub), а не вразнобой: раньше только у «Индекс РБ» была третья
+              строка (sub), у остальных двух — по 2, из-за чего значения не
+              выравнивались по одной высоте. */}
           <Stat label="Индекс РБ (Газпромбанк)" value={<RbIndicator value={c.rbIndex} />} sub={rb.desc} />
-          <Stat label="Санкционный статус" value={c.underSanctions ? <SanctionBadge /> : 'Не выявлено'} tone={c.underSanctions ? 'risk' : 'good'} />
-          <Stat label="РНП (недобросовестные)" value={c.group === 4 ? 'Есть записи' : 'Не выявлено'} tone={c.group === 4 ? 'risk' : 'good'} />
+          <Stat
+            label="Санкционный статус"
+            value={c.underSanctions ? <SanctionBadge /> : 'Не выявлено'}
+            tone={c.underSanctions ? 'risk' : 'good'}
+            sub={c.underSanctions ? (c.sanctions[0]?.basis ?? 'Основание уточняется') : 'Проверено по актуальным спискам'}
+          />
+          <Stat
+            label="РНП (недобросовестные)"
+            value={c.group ? <RnpUnscrupulous /> : 'Не выявлено'}
+            tone={c.group === 4 ? 'risk' : 'good'}
+            sub={c.group === 4 ? 'Требует внимания при заключении сделки' : 'Проверено в реестре ФАС'}
+          />
         </div>
       </SectionCard>
 
@@ -1155,8 +1169,8 @@ function DzKzDetailCard({
         <div style={{ overflowX: 'auto', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius-lg)' }}>
           <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%', minWidth: 'max-content' }}>
             <thead>
-              <tr>
-                <th rowSpan={2} style={{ ...stickyCol, minWidth: 280, textAlign: 'left', padding: '9px 12px', borderBottom: '1px solid var(--color-bg-border)', borderRight: '1px solid var(--color-bg-border)', color: 'var(--color-typo-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.02em', zIndex: 2 }}>
+              <tr>    
+                <th rowSpan={2} style={{ ...stickyCol, background: 'var(--color-bg-brand)', minWidth: 280, textAlign: 'left', padding: '9px 12px', borderBottom: '1px solid var(--color-bg-border)', borderRight: '1px solid var(--color-bg-border)', color: '#fff', fontSize: 11, fontWeight: 700, textTransform: 'uppercase'}}>
                   Аналитика / подразделение
                 </th>
                 {dzKz.groups.map((g) => (
