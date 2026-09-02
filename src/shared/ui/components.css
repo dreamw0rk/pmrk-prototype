@@ -237,14 +237,14 @@
 .pmrk-table__head {
   display: flex;
   align-items: center;
-  /* была --color-bg-secondary == фон-канва → шапка сливалась. Делаем таблицу
-     единой белой поверхностью: шапка белая, отделена от строк чёткой линией. */
-  background: var(--color-bg-default);
+  /* Фирменная светло-синяя плашка шапки таблицы — отделяет её от строк цветом,
+     а не только границей. */
+  background: #f0f5fd;
   border-bottom: 2px solid var(--color-bg-border);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: var(--color-typo-secondary);
+  color: rgb(61 113 173);
   position: sticky;
   top: 0;
   /* без положительного z-index: position:sticky уже рисуется поверх обычных строк,

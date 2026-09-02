@@ -20,14 +20,14 @@ import {
   EmptyState, AuditFooter, severityColor, SEVERITY_LABEL, CalcStamp, Segmented,
 } from '@/shared/ui/kit';
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
-import { LineChart, Gauge } from '@/shared/ui/MiniChart';
+import { LineChart } from '@/shared/ui/MiniChart';
 import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, FINAL_BENEFICIARY_THRESHOLD, isFinalBeneficiary, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
 import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, LIMIT_REQUESTS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
 import { useMockQuery } from '@/shared/mock/useMockQuery';
 import { buildExternal, rbSignal, type Indicator } from '@/shared/mock/external';
 import { buildLegal } from '@/shared/mock/legal';
-import { buildCreditLimitsByDo, isDoLimitActive, activeCreditLimit } from '@/shared/mock/creditLimits';
+import { buildCreditLimitsByDo, isDoLimitActive, affiliatedCreditLimit } from '@/shared/mock/creditLimits';
 import { buildDoLinks, type DoLink } from '@/shared/mock/subsidiaries';
 import { buildAdditionalOkveds } from '@/shared/mock/okved';
 import { buildNameChanges } from '@/shared/mock/nameHistory';
@@ -36,7 +36,7 @@ import { buildDzKzTable, exportDzKzToExcel, MONTH_NAMES, shortDoLabel } from '@/
 import { buildInteractionInfo } from '@/shared/mock/interaction';
 import { buildAssessment, DIRECTIONS, type Direction as AssessDirection, type ScoreBlock } from '@/shared/mock/assessment';
 import type { Counterparty, AffiliationLinkType, AffiliationNode, NewsSource } from '@/shared/mock/types';
-import { dateRu, money, moneyCompact, moneyCompactParts, pct, inn as fmtInn } from '@/shared/format';
+import { dateRu, money, moneyCompact, pct, inn as fmtInn } from '@/shared/format';
 
 interface TabDef { key: string; label: string; cap?: Parameters<typeof can>[1]; }
 const TABS: TabDef[] = [
@@ -280,7 +280,7 @@ function DoBlockGroup({ block, name, items }: { block: string; name?: string; it
     <>
       <div
         className="pmrk-clickable"
-        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-bg-border)', cursor: 'pointer' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: '#f7faff', borderBottom: '1px solid var(--color-bg-border)', cursor: 'pointer' }}
         onClick={() => setOpen((v) => !v)}
       >
         <span style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'var(--color-typo-secondary)', width: 12, display: 'inline-block' }}>▸</span>
@@ -772,7 +772,7 @@ function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
   );
 }
 
-function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; children?: React.ReactNode }) {
+function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, extra, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; extra?: React.ReactNode; children?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const risky = indicators?.filter((i) => i.level === 'high' || i.level === 'medium').length ?? 0;
   return (
@@ -786,6 +786,7 @@ function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideLi
           {title}
         </div>
         {risky > 0 && <span className="pmrk-chip" style={{ background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3)', fontSize: 11 }}>{risky} сигнал.</span>}
+        {extra && <div onClick={(e) => e.stopPropagation()}>{extra}</div>}
       </div>
       {open && (
         <div style={{ padding: '10px 16px 12px' }}>
@@ -1596,60 +1597,40 @@ function LegalTab({ c }: { c: Counterparty }) {
   );
 }
 
-/** Крупная цифра + мельче единица измерения рядом — числовое значение выделено
-    размером, а не вся строка целиком («млрд ₽» остаётся вспомогательным текстом). */
-function MoneyValue({ amount }: { amount: number }) {
-  if (!amount) return <>—</>;
-  const { value, unit } = moneyCompactParts(amount);
-  return (
-    <>
-      {/* Кегль цифры +50% к прежнему (28 → 42) по прямому запросу; единица
-          измерения увеличена пропорционально, чтобы соотношение сохранилось. */}
-      <span style={{ fontSize: 42, fontWeight: 800 }}>{value}</span>
-      <span style={{ fontSize: 21, fontWeight: 600, marginLeft: 6, color: 'var(--color-typo-secondary)' }}>{unit}</span>
-    </>
-  );
-}
-
 function CreditLimitTab({ c }: { c: Counterparty }) {
   const doLimits = useMemo(() => buildCreditLimitsByDo(c), [c.uid]);
   const limitRequests = useMemo(() => LIMIT_REQUESTS.filter((r) => r.counterpartyUid === c.uid), [c.uid]);
-  // Совокупный КЛ группы — не отдельный агрегат, а сумма поля «Лимит» из таблицы
-  // «Утверждённые кредитные лимиты аффилированных лиц» ниже: значение и расчёт
-  // всегда согласованы по построению, а не «случайно совпадают».
+  // Совокупный КЛ контрагента — сумма поля «Лимит» из таблицы ДО ниже: значение
+  // и расчёт всегда согласованы по построению, а не «случайно совпадают».
   const groupAggregateLimit = useMemo(() => doLimits.reduce((sum, row) => sum + row.amountRub, 0), [doLimits]);
-  // Действующий КЛ — тоже из этой таблицы, но только по лимитам с непросроченным
-  // сроком действия (Действительность = Да): сколько группа реально может выбрать
-  // прямо сейчас, в отличие от совокупного КЛ — общей утверждённой ёмкости.
-  const activeLimit = useMemo(() => activeCreditLimit(doLimits), [doLimits]);
-  // % использования — доля действующего КЛ от совокупного КЛ группы, а не отдельный
-  // мок-показатель: те же два числа выше, просто как отношение.
-  const utilizationPct = groupAggregateLimit > 0 ? (activeLimit / groupAggregateLimit) * 100 : 0;
+  // Совокупный КЛ аффилированных лиц — сумма утверждённых КЛ связанных компаний
+  // (владельцы/бенефициары/ДО/аффилиаты из диаграммы аффилированности), у которых
+  // есть карточка в реестре ПМРК.
+  const affiliatedLimit = useMemo(() => affiliatedCreditLimit(c), [c.uid]);
+
+  const summaryIndicators: Indicator[] = [
+    { label: 'Совокупный кредитный лимит контрагента, руб', value: money(groupAggregateLimit, { unit: '' }) },
+    { label: 'Совокупный кредитный лимит аффилированных лиц, руб', value: money(affiliatedLimit, { unit: '' }) },
+    { label: 'Совокупный кредитный лимит контрагента и аффилированных лиц, руб', value: money(groupAggregateLimit + affiliatedLimit, { unit: '' }) },
+  ];
+
   return (
-    <SectionCard title="Утверждённые совокупные кредитные лимиты по ГК Газпром-нефть" extra={<DateActuality date={c.asOf['credit-limit']} source="limit-workflow" />}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,auto)', gap: '8px 28px', alignItems: 'stretch' }}>
-        {/* Числовое значение выделено размером через MoneyValue (крупная цифра +
-            мельче единица) — .pmrk-stat__value центрирует его по вертикали между
-            подписью и сноской даты (эффект виден только при растянутой карточке). */}
-        <Stat label="Действующий КЛ" value={<MoneyValue amount={activeLimit} />} asOf={c.asOf['credit-limit']} calcLabel="обновлено" calcSource="сумма непросроченных по таблице" />
-        <Stat label="Совокупный КЛ группы" value={<MoneyValue amount={groupAggregateLimit} />} asOf={c.asOf['credit-limit']} calcSource="сумма по таблице ниже" />
-        {/* Та же обводка и расположение заголовка, что у Stat («Действующий КЛ»
-            и т.д.) — подпись сверху, содержимое (пончик) центрировано между ней
-            и сноской, как и в двух карточках рядом. */}
-        <div className="pmrk-stat">
-          <div className="pmrk-stat__label">% использования</div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-            <Gauge value={utilizationPct / 100} color={utilizationPct > 85 ? 'var(--pmrk-risk-4)' : utilizationPct > 60 ? 'var(--pmrk-risk-3)' : 'var(--pmrk-risk-1)'} />
-          </div>
-          <div className="pmrk-stat__stamp"><CalcStamp date={c.asOf['credit-limit']} source="действующий КЛ / совокупный КЛ" /></div>
-        </div>
-      </div>
-      {utilizationPct > 85 && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--pmrk-risk-4)' }}>⚠ Лимит выбран более чем на 85% — запас исчерпан, рекомендуется пересмотр.</div>}
+    <>
+      {/* Сводка — тем же компонентом и тем же списочным стилем, что и «Налоги
+          и взносы» во «Внешней информации» (обычный indicators-список внутри
+          ExtAccordion, без отдельной вёрстки). */}
+      <ExtAccordion
+        title="Утверждённые совокупные кредитные лимиты по ГК Газпром нефть"
+        indicators={summaryIndicators}
+        defaultOpen
+        extra={<DateActuality date={c.asOf['credit-limit']} source="limit-workflow" />}
+      />
 
       {/* Распределение совокупного КЛ по ДО ГК ГПН, работающим с контрагентом
-          (реестр «Кредитные лимиты», ФТ-1.7) — раскладка тех же агрегатов выше. */}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--color-bg-border)' }}>
-        <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 10 }}>Утверждённые кредитные лимиты аффилированных лиц по ГК Газпром-нефть</div>
+          (реестр «Кредитные лимиты», ФТ-1.7) — раскладка агрегата из блока выше.
+          Свой сворачиваемый блок, тем же ExtAccordion, что и разделы «Внешней
+          информации» — вместо прежней вложенной секции внутри общей карточки. */}
+      <ExtAccordion title="Утверждённые кредитные лимиты аффилированных лиц по ГК Газпром нефть" defaultOpen>
         {doLimits.length === 0 ? (
           <EmptyState text="Действующих лимитов по ДО нет — заявка на открытие КЛ не подавалась или отклонена." />
         ) : (
@@ -1699,12 +1680,11 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
             </div>
           </div>
         )}
-      </div>
+      </ExtAccordion>
 
       {/* Заявки на кредитный лимит (реестр заявок КК-ДО/КК-Блок, ФТ-1.7) —
           не только утверждённые лимиты по ДО, но и то, что сейчас в работе. */}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--color-bg-border)' }}>
-        <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 10 }}>Заявки на кредитный лимит (Платформа)</div>
+      <ExtAccordion title="Заявки на кредитный лимит (Платформа)" defaultOpen>
         {limitRequests.length === 0 ? (
           <EmptyState text="Заявок на кредитный лимит по контрагенту нет." />
         ) : (
@@ -1738,8 +1718,8 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
             </div>
           </div>
         )}
-      </div>
-    </SectionCard>
+      </ExtAccordion>
+    </>
   );
 }
 

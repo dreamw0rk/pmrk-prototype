@@ -1,5 +1,5 @@
 import type { Counterparty } from './types';
-import { SUBS, NOW, doInn as subsidiaryInn } from './data';
+import { SUBS, NOW, doInn as subsidiaryInn, GRAPHS, BY_UID } from './data';
 
 /* Распределение кредитного лимита по ДО ГК ГПН (реестр «Кредитные лимиты», выгрузка
    АРМ КК) — источник структуры и состава колонок: экспорт из системы (Наименование
@@ -116,4 +116,25 @@ export function isDoLimitActive(row: DoLimitRow): boolean {
     сюда не попадают лимиты с истёкшим сроком действия, ожидающие продления. */
 export function activeCreditLimit(rows: DoLimitRow[]): number {
   return rows.filter(isDoLimitActive).reduce((sum, row) => sum + row.amountRub, 0);
+}
+
+/** Совокупный КЛ аффилированных с контрагентом лиц — сумма утверждённых КЛ всех
+    связанных компаний (владельцы/бенефициары/ДО/аффилиаты из диаграммы
+    аффилированности), у которых есть карточка в реестре ПМРК (inRegistry + uid).
+    Одно и то же лицо может встретиться в графе в нескольких ролях (например,
+    и как владелец, и как дочернее общество) — считаем его лимит один раз. */
+export function affiliatedCreditLimit(cp: Counterparty): number {
+  const graph = GRAPHS[cp.uid];
+  if (!graph) return 0;
+
+  const seenUids = new Set<string>();
+  let sum = 0;
+  for (const node of graph.nodes) {
+    if (!node.inRegistry || !node.uid || seenUids.has(node.uid)) continue;
+    seenUids.add(node.uid);
+    const affiliate = BY_UID.get(node.uid);
+    if (!affiliate) continue;
+    sum += buildCreditLimitsByDo(affiliate).reduce((s, row) => s + row.amountRub, 0);
+  }
+  return sum;
 }
