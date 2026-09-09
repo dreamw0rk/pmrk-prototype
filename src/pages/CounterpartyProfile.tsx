@@ -717,11 +717,13 @@ const SPARK_LEVEL_WORD: Record<'low' | 'medium' | 'high', string> = { low: 'Ни
 /** Визуальное представление значения индикатора в строке списка — цветная точка
     и значение. Крупные шкалы вынесены в сводку раздела (SparkIndicatorCard):
     в списке они дублировали бы её и растягивали строки. */
-function IndicatorVisual({ ind, hideDot }: { ind: Indicator; hideDot?: boolean }) {
+function IndicatorVisual({ ind, hideDot, left }: { ind: Indicator; hideDot?: boolean; left?: boolean }) {
   return (
     // inline-flex, а не inline: у inline-элемента .pmrk-dot (width/height 8px)
-    // не применялись размеры и точка была невидимой
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, fontWeight: 600, color: extLevelColor(ind.level) }}>
+    // не применялись размеры и точка была невидимой.
+    // left — значение по левому краю (списки раздела «Внешняя информация»):
+    // занимает свободную ширину строки, текст и переносы прижаты влево.
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: left ? 'flex-start' : 'flex-end', gap: 6, fontWeight: 600, color: extLevelColor(ind.level), whiteSpace: 'pre-line', textAlign: left ? 'left' : 'right', flex: left ? 1 : undefined }}>
       {ind.level && (ind.dot ?? !hideDot) && <span className="pmrk-dot" style={{ background: extLevelColor(ind.level) }} />}
       {ind.value}
       {ind.link && (
@@ -731,14 +733,14 @@ function IndicatorVisual({ ind, hideDot }: { ind: Indicator; hideDot?: boolean }
   );
 }
 
-function IndRow({ ind, hideDot }: { ind: Indicator; hideDot?: boolean }) {
+function IndRow({ ind, hideDot, left }: { ind: Indicator; hideDot?: boolean; left?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--color-bg-border)', fontSize: 13 }}>
+    <div style={{ display: 'flex', alignItems: left ? 'flex-start' : 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--color-bg-border)', fontSize: 13 }}>
       <span style={{ flex: 1 }}>
         {ind.label}
         {ind.tip && <span title={ind.tip} style={{ marginLeft: 6, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 12 }}>ⓘ</span>}
       </span>
-      <IndicatorVisual ind={ind} hideDot={hideDot} />
+      <IndicatorVisual ind={ind} hideDot={hideDot} left={left} />
     </div>
   );
 }
@@ -748,7 +750,7 @@ function IndRow({ ind, hideDot }: { ind: Indicator; hideDot?: boolean }) {
     «Внешние рейтинги и оценки»). Текст показателя (второй уровень) — часть
     метки после первого « · », либо вся метка, если разделителя нет. Первый
     уровень — плашка-заголовок с фоном шапки таблицы (.pmrk-table__head). */
-function GroupedIndicators({ indicators, hideDot }: { indicators: Indicator[]; hideDot?: boolean }) {
+function GroupedIndicators({ indicators, hideDot, left }: { indicators: Indicator[]; hideDot?: boolean; left?: boolean }) {
   const groups: { name: string; items: { sub: string; ind: Indicator }[] }[] = [];
   for (const ind of indicators) {
     const sep = ind.label.indexOf(' · ');
@@ -764,12 +766,12 @@ function GroupedIndicators({ indicators, hideDot }: { indicators: Indicator[]; h
         <Fragment key={g.name}>
           <div className="pmrk-table__head" style={{ padding: '8px 12px' }}>{g.name}</div>
           {g.items.map(({ sub, ind }, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: i === g.items.length - 1 ? 'none' : '1px solid var(--color-bg-border)', fontSize: 13 }}>
+            <div key={i} style={{ display: 'flex', alignItems: left ? 'flex-start' : 'center', gap: 12, padding: '8px 12px', borderBottom: i === g.items.length - 1 ? 'none' : '1px solid var(--color-bg-border)', fontSize: 13 }}>
               <span style={{ flex: 1 }}>
                 {sub}
                 {ind.tip && <span title={ind.tip} style={{ marginLeft: 6, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 12 }}>ⓘ</span>}
               </span>
-              <IndicatorVisual ind={ind} hideDot={hideDot} />
+              <IndicatorVisual ind={ind} hideDot={hideDot} left={left} />
             </div>
           ))}
         </Fragment>
@@ -828,13 +830,13 @@ function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
   const cards = indicators.filter((ind) => SPARK_SCALES[ind.label]);
   if (cards.length === 0) return null;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))`, gap: 8, padding: '8px 0 12px', marginBottom: 10, borderBottom: '1px solid var(--color-bg-border)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))`, gap: 8, padding: '8px 0 0' }}>
       {cards.map((ind, i) => <SparkIndicatorCard key={i} ind={ind} />)}
     </div>
   );
 }
 
-function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
+function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, valueLeft, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; valueLeft?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   // collapsible={false} — тот же брендовый подблок, но без шеврона и клика:
   // содержимое всегда раскрыто (таблицы раздела «Аффилированность»).
@@ -861,8 +863,8 @@ function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideLi
         <div style={{ padding: '10px 16px 12px' }}>
           {beforeIndicators}
           {!hideList && indicators && (grouped
-            ? <GroupedIndicators indicators={indicators} hideDot={hideDot} />
-            : indicators.map((ind, i) => <IndRow key={i} ind={ind} hideDot={hideDot} />))}
+            ? <GroupedIndicators indicators={indicators} hideDot={hideDot} left={valueLeft} />
+            : indicators.map((ind, i) => <IndRow key={i} ind={ind} hideDot={hideDot} left={valueLeft} />))}
           {children}
         </div>
       )}
@@ -877,7 +879,12 @@ function ExternalTab({ c }: { c: Counterparty }) {
 
   return (
     <>
-      <SectionCard title="Внешняя информация" extra={<DateActuality date={c.asOf.external} source="СПАРК / ФНС / ГПБ / Госзакупки" />}>
+      <SectionCard>
+        {/* Заголовок-плашка «Внешняя информация» убран — вкладка и так названа
+            так же; дата актуальности источников оставлена строкой над сводкой. */}
+        <div style={{ marginBottom: 10 }}>
+          <DateActuality date={c.asOf.external} source="СПАРК / ФНС / ГПБ / Госзакупки" />
+        </div>
         <div className="pmrk-muted" style={{ fontSize: 13, marginBottom: 12 }}>11 разделов внешних источников (СПАРК, ФНС, Газпромбанк, Госзакупки). Разделы раскрываются по запросу — в заголовке каждого показана дата актуализации источника.</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
           {/* Все три карточки — на 3 строки (label / value / доп.информация через
@@ -917,6 +924,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
             hideList={s.key === 's1'}
             hideDot={['s4', 's6'].includes(s.key)}
             grouped={['s4', 's5', 's9'].includes(s.key)}
+            valueLeft
             extra={<DateActuality date={s.asOf} source={s.source} />}
           >
             {s.key === 's6' && ext.pledges.length > 0 && (
@@ -924,7 +932,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
               // а не строки общего списка судебных дел и исполнительных производств.
               <div style={{ marginTop: 10 }}>
                 <ExtAccordion title="Выданные залоги" defaultOpen>
-                  {ext.pledges.map((ind, i) => <IndRow key={i} ind={ind} hideDot />)}
+                  {ext.pledges.map((ind, i) => <IndRow key={i} ind={ind} hideDot left />)}
                 </ExtAccordion>
               </div>
             )}
@@ -1744,6 +1752,7 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
         title="Утверждённые совокупные кредитные лимиты по ГК Газпром нефть"
         indicators={summaryIndicators}
         defaultOpen
+        valueLeft
         extra={<DateActuality date={c.asOf['credit-limit']} source="limit-workflow" />}
       />
 

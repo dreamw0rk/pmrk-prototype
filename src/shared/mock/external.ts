@@ -158,6 +158,8 @@ export function buildExternal(cp: Counterparty) {
   const section4: Indicator[] = [
     { label: 'Оценка СПАРК · Кредитный лимит', value: cp.creditLimit ? moneyCompact(cp.creditLimit) : '—' },
     { label: 'Газпромбанк · Индекс Риска бизнеса', value: `${cp.rbIndex} / 14 — ${rbSignal(cp.rbIndex).desc}`, level: rbSignal(cp.rbIndex).color === 'green' ? 'low' : rbSignal(cp.rbIndex).color === 'red' ? 'high' : 'medium', tip: 'Индекс РБ (0…14) от Газпромбанк. Описание сигнала — по матрице РБ (ФТ-1.3.1).' },
+    { label: 'Газпромбанк · Графовый индикатор', value: 'AAA' },
+    { label: 'Газпромбанк · Исковый индикатор', value: 'AAA' },
     { label: 'Газпромбанк · Дата включения в негативный реестр', value: rbSignal(cp.rbIndex).color === 'red' ? '—' : 'не включён' },
     ...(REAL_RATINGS[cp.uid] ?? [
       { label: 'АКРА · Рейтинг (прогноз)', value: g <= 2 ? 'A (стабильный)' : g === 3 ? 'BBB (негативный)' : 'нет рейтинга' },
@@ -188,21 +190,20 @@ export function buildExternal(cp: Counterparty) {
     { label: 'Сумма активных исполнительных производств', value: enforcement ? money(enforcement) : '0 ₽', level: enforcement ? 'medium' : 'low' },
     { label: 'Судебные дела о банкротстве (ответчик)', value: hasBankruptcyCase ? 'Да' : 'Нет', level: hasBankruptcyCase ? 'high' : 'low', dot: true },
   ];
-  // «Залоги выданные» и их описание — отдельный подблок раздела s6, а не строки
-  // общего списка судебных дел / исполнительных производств.
+  // «Залоги выданные» — отдельный подблок раздела s6, а не строка общего списка
+  // судебных дел / исполнительных производств.
   const pledges: Indicator[] = [
     { label: 'Залоги выданные', value: g <= 2 ? 'Нет' : '1 предмет залога' },
-    { label: 'Описание выданных залогов', value: g <= 2 ? '—' : 'Описание отсутствует' },
   ];
   const courtCases: CourtCaseDetail[] = lawsuits.map((c, i) => ({
     plaintiff: i === 0 ? 'ООО «ТЭК-Снаб»' : 'ООО «Поставщик-' + (100 + i) + '»', number: `А56-${10000 + i * 137}/2026`, category: 'Экономические споры', state: c.status, outcome: c.status.includes('производ') ? 'рассматривается' : 'в работе', date: c.date, claim: c.amount, decision: 0,
   }));
 
   const section7: Indicator[] = [
-    { label: 'РНП (реестр недобросовестных поставщиков)', value: g === 4 ? 'входит' : 'не входит', level: g === 4 ? 'high' : 'low' },
+    { label: 'Реестр недобросовестных поставщиков(РНП)', value: g === 4 ? 'входит' : 'не входит', level: g === 4 ? 'high' : 'low' },
     { label: 'Ссылка на реестр', value: g === 4 ? 'zakupki.gov.ru/epz/dishonestsupplier/' : 'Нет данных' },
-    { label: 'Количество РНП', value: g === 4 ? '1' : '0' },
-    { label: 'РНП: общая стоимость контрактов', value: g === 4 ? money(4_200_000) : '0 ₽' },
+    { label: 'Количество РНП, в которые входит контрагент', value: g === 4 ? '1' : '0' },
+    { label: 'РНП: общая стоимость контрактов, руб.', value: g === 4 ? money(4_200_000) : '0 ₽' },
     { label: 'Планируемая дата исключения из РНП', value: g === 4 ? '—' : 'Нет данных' },
   ];
 
@@ -219,14 +220,24 @@ export function buildExternal(cp: Counterparty) {
     { group: SRO_REGISTRY, label: 'Контрагент входит в состав СРО', value: 'Нет данных' },
   ];
 
+  const taxVat = money(Math.round(cp.revenue * 0.04));
+  const taxProfit = money(Math.round(cp.revenue * 0.02));
+  const taxOps = money(Math.round(cp.revenue * 0.01));
+  const taxOms = money(Math.round(cp.revenue * 0.003));
+  const taxSocial = money(Math.round(cp.revenue * 0.002));
   const section10: Indicator[] = [
     { label: 'Налоговый период', value: '31.12.2025' },
     { label: 'Уплачено налогов всего', value: money(Math.round(cp.revenue * 0.08)) },
-    { label: 'НДС', value: money(Math.round(cp.revenue * 0.04)) },
-    { label: 'Налог на прибыль организаций', value: money(Math.round(cp.revenue * 0.02)) },
-    { label: 'Страховые взносы на ОПС (ПФР)', value: money(Math.round(cp.revenue * 0.01)) },
-    { label: 'Страховые взносы на ОМС', value: money(Math.round(cp.revenue * 0.003)) },
-    { label: 'Страховые взносы на соц. страхование', value: money(Math.round(cp.revenue * 0.002)) },
+    {
+      label: 'Расшифровка по видам налогов и взносов',
+      value: [
+        `Налог на добавленную стоимость (НДС) – ${taxVat}`,
+        `Страховые взносы на обязательное медицинское страхование в фонд ОМС – ${taxOms}`,
+        `Налог на прибыль организаций (НПО) – ${taxProfit}`,
+        `Страховые взносы на обязательное пенсионное страхование в ПФ РФ – ${taxOps}`,
+        `Страховые взносы на обязательное социальное страхование – ${taxSocial}`,
+      ].join('\n'),
+    },
   ];
 
   // «Признаки хозяйственной деятельности» — в реальной системе это закупки,
@@ -249,16 +260,38 @@ export function buildExternal(cp: Counterparty) {
   const enforcementDone = seed % 4;
   const enforcementDoneSum = enforcementDone ? 40_000 + (seed % 700_000) : 0;
   const sroCount = g <= 2 ? seed % 3 : 0;
+  // Реквизиты СРО (ИНН, дата включения в реестр членов) — детерминированно от uid.
+  const sroInn = (i: number) => String(7700000000 + ((seed * 131 + i * 977) % 289_999_999));
+  const sroSince = (i: number) => {
+    const d = new Date(2020, 0, 1);
+    d.setDate(d.getDate() + ((seed * 17 + i * 349) % 1900));
+    return dateRu(d);
+  };
 
   const section11: Indicator[] = [
     { label: 'Закупки (сводная информация)', value: g <= 2 && seed % 3 !== 0 ? `${3 + (seed % 40)} контрактов` : 'информация по закупочной деятельности отсутствует' },
     { label: 'Количество действующих лицензий', value: `${licenses} шт.` },
     { label: 'Количество действующих сертификатов', value: `${certificates} шт.` },
     { label: 'Проверки', value: `${checksTotal} проведено всего` },
-    { label: 'Интеллектуальная собственность', value: ipUsed > 0 ? `товарные знаки — ${trademarks}; программы для ЭВМ/БД — ${software}; заявки на патенты — ${patents}; объекты в использовании — ${ipUsed}` : 'не выявлено' },
-    { label: 'Арбитражные дела в качестве истца и ответчика (сводная информация)', value: arbReviewing + arbDone > 0 ? `${arbReviewing} рассматриваются; ${arbAppealed} обжалуются; ${arbDecisions} решения и постановления; ${arbDone} завершено; ${arbWon} выиграно в роли ответчика` : 'не выявлено' },
+    { label: 'Интеллектуальная собственность', 
+      value: ipUsed > 0 ?  [
+        `Количество товарных знаков — ${trademarks}`,
+        `Количество программы для ЭВМ, без данных — ${software}`,
+        `Количество заявок на патенты — ${patents}`,
+        `Количество используемых объектов интеллектуальной собственности — ${ipUsed}`,
+      ].join('\n') : 'не выявлено' },
+    { label: 'Арбитражные дела в качестве истца и ответчика (сводная информация)', 
+      value: arbReviewing + arbDone > 0 ?  [
+        `${arbReviewing} рассматриваются`,
+        `${arbAppealed} обжалуются`,
+        `${arbDecisions} решения и постановления`,
+        `${arbDone} завершено`,
+        `${arbWon} выиграно в роли ответчика`,
+      ].join('\n') : 'не выявлено' },
     { label: 'Исполнительные производства (сводная информация)', value: enforcementDone ? `${enforcementDone} завершённых на сумму ${money(enforcementDoneSum)}` : 'не выявлено' },
-    { label: 'Член СРО', value: sroCount > 0 ? SRO_POOL.slice(0, sroCount).join('; ') : 'не выявлено' },
+    { label: 'Член СРО', value: sroCount > 0
+      ? SRO_POOL.slice(0, sroCount).map((name, i) => `${name} (ИНН ${sroInn(i)}), дата включения — ${sroSince(i)};`).join('\n')
+      : 'не выявлено' },
     { label: 'Исключение из ЕГРЮЛ', value: cp.status === 'Ликвидация' ? 'предстоящее исключение недействующего юрлица' : 'Нет данных' },
   ];
 
