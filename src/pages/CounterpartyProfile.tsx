@@ -896,8 +896,9 @@ function ExternalTab({ c }: { c: Counterparty }) {
     <>
       <SectionCard>
         {/* Заголовок-плашка «Внешняя информация» убран — вкладка и так названа
-            так же; дата актуальности источников оставлена строкой над сводкой. */}
-        <div style={{ marginBottom: 10 }}>
+            так же; дата актуальности источников оставлена строкой над сводкой,
+            прижата к правому краю (как extra у заголовков остальных блоков). */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
           <DateActuality date={c.asOf.external} source="СПАРК / ФНС / ГПБ / Госзакупки" />
         </div>
         <div className="pmrk-muted" style={{ fontSize: 13, marginBottom: 12 }}>11 разделов внешних источников (СПАРК, ФНС, Газпромбанк, Госзакупки). Разделы раскрываются по запросу — в заголовке каждого показана дата актуализации источника.</div>
@@ -995,6 +996,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
               title="Санкции по данным СПАРК"
               indicators={[{ label: 'Под санкциями', value: 'Да', level: 'high' }]}
               defaultOpen
+              valueLeft
               extra={<DateActuality date={c.asOf.external} source="СПАРК · Санкции" />}
             >
               {/* «Расшифровка санкций» — вложенный сворачиваемый подблок, тем же

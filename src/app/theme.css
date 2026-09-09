@@ -36,7 +36,7 @@
   --pmrk-sidebar-w: 244px;
   --pmrk-sidebar-w-collapsed: 60px;
   --pmrk-topbar-h: 56px;
-  --pmrk-content-max: 1480px;
+  --pmrk-content-max: 1600px;
   /* Ширина «липкой» шапки карточки контрагента — отдельно от колонки контента
      (--pmrk-content-max), чтобы шапку и разделы можно было тянуть независимо. */
   --pmrk-cp-header-max: 1940px;
