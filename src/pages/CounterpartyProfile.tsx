@@ -6,10 +6,6 @@ import { IconFavoriteStroked } from '@consta/icons/IconFavoriteStroked';
 import { IconFavoriteFilled } from '@consta/icons/IconFavoriteFilled';
 import { IconRing } from '@consta/icons/IconRing';
 import { IconDownload } from '@consta/icons/IconDownload';
-import { IconFileDocument } from '@consta/icons/IconFileDocument';
-import { IconFilePDF } from '@consta/icons/IconFilePDF';
-import { IconDocExport } from '@consta/icons/IconDocExport';
-import { IconAlert } from '@consta/icons/IconAlert';
 import { IconConnection } from '@consta/icons/IconConnection';
 import { IconSearchStroked } from '@consta/icons/IconSearchStroked';
 import { useApp } from '@/app/AppContext';
@@ -20,9 +16,10 @@ import {
   EmptyState, AuditFooter, severityColor, SEVERITY_LABEL, CalcStamp, Segmented,
 } from '@/shared/ui/kit';
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
+import iconPdf from '@/assets/icon-pdf.png';
 import { LineChart } from '@/shared/ui/MiniChart';
 import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, FINAL_BENEFICIARY_THRESHOLD, isFinalBeneficiary, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
-import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, LIMIT_REQUESTS, type BlockCode } from '@/shared/mock/data';
+import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
 import { useMockQuery } from '@/shared/mock/useMockQuery';
 import { buildExternal, rbSignal, type Indicator } from '@/shared/mock/external';
@@ -65,10 +62,10 @@ const monthLabels = (n = 12) =>
 /** Отчёты по контрагенту (ФТ-1.16…1.19) — плитки в шапке профиля. Путь строится
     как `/report/{uid}{to}`, поэтому у «Профиля контрагента» to пустой. */
 const REPORT_TILES = [
-  { to: '/egrul', label: 'Скачать ЕГРЮЛ', icon: IconFileDocument, title: 'Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)' },
-  { to: '', label: 'Скачать профиль', icon: IconFilePDF, title: 'Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)' },
-  { to: '/spark', label: 'Скачать СПАРК-Профиль', icon: IconDocExport, title: 'Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)' },
-  { to: '/spark-risks', label: 'Скачать СПАРК-Риски', icon: IconAlert, title: 'Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)' },
+  { to: '/egrul', label: 'Скачать ЕГРЮЛ', title: 'Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)' },
+  { to: '', label: 'Скачать профиль', title: 'Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)' },
+  { to: '/spark', label: 'Скачать СПАРК-Профиль', title: 'Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)' },
+  { to: '/spark-risks', label: 'Скачать СПАРК-Риски', title: 'Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)' },
 ];
 
 export function CounterpartyProfile() {
@@ -198,21 +195,30 @@ export function CounterpartyProfile() {
               номером ФТ — в подсказке. */}
           <div style={{ flex: 1, minWidth: 460, maxWidth: 620 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
-              {REPORT_TILES.map((r) => {
-                const TileIcon = r.icon;
-                return (
-                  <button
-                    key={r.to}
-                    onClick={() => navigate(`/report/${c.uid}${r.to}`)}
-                    title={r.title}
-                    className="pmrk-clickable"
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '2px solid var(--color-typo-brand)', borderRadius: 8, background: 'var(--color-bg-default)', cursor: 'pointer' }}
-                  >
-                    <TileIcon size="m" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
-                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, overflowWrap: 'anywhere' }}>{r.label}</div>
-                  </button>
-                );
-              })}
+              {REPORT_TILES.map((r) => (
+                <button
+                  key={r.to}
+                  onClick={() => navigate(`/report/${c.uid}${r.to}`)}
+                  title={r.title}
+                  className="pmrk-clickable"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '2px solid var(--color-typo-brand)', borderRadius: 8, background: 'var(--color-bg-default)', cursor: 'pointer' }}
+                >
+                  {/* PNG перекрашивается в фирменный цвет через CSS-маску:
+                      альфа-канал картинки задаёт форму, заливка — цвет */}
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 20, height: 20, flex: 'none', display: 'inline-block',
+                      background: '#0071b2',
+                      WebkitMaskImage: `url(${iconPdf})`, maskImage: `url(${iconPdf})`,
+                      WebkitMaskSize: 'contain', maskSize: 'contain',
+                      WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+                      WebkitMaskPosition: 'center', maskPosition: 'center',
+                    }}
+                  />
+                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, overflowWrap: 'anywhere' }}>{r.label}</div>
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -1715,7 +1721,6 @@ function LegalTab({ c }: { c: Counterparty }) {
 
 function CreditLimitTab({ c }: { c: Counterparty }) {
   const doLimits = useMemo(() => buildCreditLimitsByDo(c), [c.uid]);
-  const limitRequests = useMemo(() => LIMIT_REQUESTS.filter((r) => r.counterpartyUid === c.uid), [c.uid]);
   // Совокупный КЛ контрагента — сумма поля «Лимит» из таблицы ДО ниже: значение
   // и расчёт всегда согласованы по построению, а не «случайно совпадают».
   const groupAggregateLimit = useMemo(() => doLimits.reduce((sum, row) => sum + row.amountRub, 0), [doLimits]);
@@ -1802,47 +1807,6 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
         )}
       </ExtAccordion>
 
-      {/* Заявки на кредитный лимит (реестр заявок КК-ДО/КК-Блок, ФТ-1.7) —
-          не только утверждённые лимиты по ДО, но и то, что сейчас в работе. */}
-      <ExtAccordion
-        title="Заявки на кредитный лимит (Платформа)"
-        defaultOpen
-        extra={<DateActuality date={c.asOf['credit-limit']} source="Платформа КЛ" />}
-      >
-        {limitRequests.length === 0 ? (
-          <EmptyState text="Заявок на кредитный лимит по контрагенту нет." />
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <div className="pmrk-table" style={{ minWidth: 1090 }}>
-              <div className="pmrk-table__head">
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Номер заявки</div>
-                <div className="pmrk-th" style={{ flex: '0 0 200px', minWidth: 0, overflow: 'hidden' }}>Наименование ДО ГК ГПН</div>
-                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, overflow: 'hidden' }}>Действует</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Утверждённый кредитный лимит, руб.</div>
-                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, overflow: 'hidden' }}>Утверждённая отсрочка платежа, кол-во дней</div>
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Утверждённая дата начала действия КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Утверждённая дата окончания действия КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Статус заявки</div>
-              </div>
-              {limitRequests.map((r) => {
-                const approved = r.status === 'Утверждено';
-                return (
-                  <div key={r.id} className="pmrk-tr" style={{ cursor: 'default' }}>
-                    <div className="pmrk-td" style={{ flex: '0 0 130px', minWidth: 0, fontWeight: 600 }}>{r.number}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 200px', minWidth: 0, whiteSpace: 'normal' }}>{r.subsidiary}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 100px', minWidth: 0 }}>{approved ? 'Да' : 'Нет'}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 150px', minWidth: 0 }}>{approved ? money(r.requestedLimit, { unit: '' }) : '-'}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 100px', minWidth: 0 }}>{approved ? r.deferralDays : '-'}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 130px', minWidth: 0 }}>{approved ? dateRu(r.createdAt) : '-'}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 130px', minWidth: 0 }}>{'-'}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 150px', minWidth: 0 }}><StatusBadge status={r.status} /></div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </ExtAccordion>
     </>
   );
 }
