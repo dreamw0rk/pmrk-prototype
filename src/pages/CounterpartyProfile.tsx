@@ -115,10 +115,18 @@ export function CounterpartyProfile() {
   const cardActions = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 'none' }}>
       <Button size="s" view={fav ? 'primary' : 'ghost'} onlyIcon iconLeft={(fav ? IconFavoriteFilled : IconFavoriteStroked) as never} onClick={() => setFav((v) => !v)} title="В избранное" />
+    </div>
+  );
+
+  // CTA «Подписаться» вынесена из шапки профиля вниз вкладки «Общие сведения» —
+  // после всех блоков, у правого края, с тем же нижним отступом (16px), что у
+  // карточек-разделов.
+  const subscribeAction = (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 16 }}>
       {subscribed && (
         <span title='Ранее Вы уже подписались на уведомления по всем контрагентам Блока/БЕ или ДО. Изменить/отменить подписку по контрагентам можно в разделе «Мои оповещения»' style={{ color: 'var(--color-typo-secondary)', cursor: 'help', fontSize: 14 }}>ⓘ</span>
       )}
-      <Button size="s" view={subscribed ? 'primary' : 'secondary'} label={subscribed ? 'Вы подписаны' : 'Подписаться'} iconLeft={IconRing as never} onClick={() => setSubscribed((v) => !v)} />
+      <Button size="s" view={subscribed ? 'primary' : 'secondary'} label={subscribed ? 'Вы подписаны' : 'Подписаться на уведомления по контрагенту'} iconLeft={IconRing as never} onClick={() => setSubscribed((v) => !v)} />
     </div>
   );
 
@@ -198,7 +206,7 @@ export function CounterpartyProfile() {
                     onClick={() => navigate(`/report/${c.uid}${r.to}`)}
                     title={r.title}
                     className="pmrk-clickable"
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', cursor: 'pointer' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '2px solid var(--color-typo-brand)', borderRadius: 8, background: 'var(--color-bg-default)', cursor: 'pointer' }}
                   >
                     <TileIcon size="m" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
                     <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, overflowWrap: 'anywhere' }}>{r.label}</div>
@@ -235,6 +243,8 @@ export function CounterpartyProfile() {
         {aiOn && summary && <ProfileAiSummary uid={uid} summary={summary} />}
 
         <TabContent c={c} tab={tab} />
+
+        {tab === 'general' && subscribeAction}
 
         <AuditFooter createdBy="SYSTEM" createdAt="2025-03-12" modifiedBy="Соколова Е.В." modifiedAt={c.asOf.general ?? '2026-06-14'} />
       </div>
@@ -639,7 +649,7 @@ function RingArc({ r, c, from, sweep, color, width, round = true }: { r: number;
 
 /** Числовая шкала (ИДО, ИПД): разомкнутое снизу кольцо на 270°, заполнение — доля
     значения от максимума шкалы, число крупно в центре, диапазон подписью снизу. */
-function SparkGauge({ value, max, color, size = 66 }: { value: number; max: number; color: string; size?: number }) {
+function SparkGauge({ value, max, color, size = 48 }: { value: number; max: number; color: string; size?: number }) {
   const c = 50;
   const r = 40;
   const frac = Math.max(0, Math.min(1, value / max));
@@ -657,7 +667,7 @@ function SparkGauge({ value, max, color, size = 66 }: { value: number; max: numb
     высокий; активный залит цветом уровня. Порядок сегментов по часовой стрелке
     от левого нижнего, как ступени светофора: сегмент активного уровня подсказывает
     не только «какой риск», но и «насколько далеко до соседних». */
-function SparkLevelRing({ level, color, size = 66 }: { level: 'low' | 'medium' | 'high'; color: string; size?: number }) {
+function SparkLevelRing({ level, color, size = 48 }: { level: 'low' | 'medium' | 'high'; color: string; size?: number }) {
   const c = 50;
   const r = 40;
   const active = level === 'low' ? 0 : level === 'medium' ? 1 : 2;
@@ -686,33 +696,78 @@ function SparkLevelRing({ level, color, size = 66 }: { level: 'low' | 'medium' |
 /** Шкалы индикаторов раздела «1. Финансовые индикаторы риска СПАРК»: числовые
     показатели — с максимумом шкалы и её расшифровкой, уровневые — светофором.
     Индикаторы, которых здесь нет, выводятся обычной строкой с цветной точкой. */
-const SPARK_SCALES: Record<string, { kind: 'level' } | { kind: 'gauge'; max: number; scale: string }> = {
+const SPARK_SCALES: Record<string, { kind: 'level' } | { kind: 'gauge'; max: number }> = {
   'Сводный риск': { kind: 'level' },
   'Индекс финансового риска (ИФР)': { kind: 'level' },
-  'Индекс должной осмотрительности (ИДО)': { kind: 'gauge', max: 99, scale: '1–99 · выше — рискованнее' },
-  'Индекс платёжной дисциплины (ИПД)': { kind: 'gauge', max: 100, scale: 'Paydex 0–100 · выше — лучше' },
+  'Индекс должной осмотрительности (ИДО)': { kind: 'gauge', max: 99 },
+  'Индекс платёжной дисциплины (ИПД)': { kind: 'gauge', max: 100 },
 };
+
+/** Словесная трактовка уровня — под кольцом карточек с числовой шкалой (ИДО,
+    ИПД) выводится не легенда диапазона, а оценка значения теми же словами,
+    что у «Сводного риска» и ИФР. */
+const SPARK_LEVEL_WORD: Record<'low' | 'medium' | 'high', string> = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
 
 /** Визуальное представление значения индикатора в строке списка — цветная точка
     и значение. Крупные шкалы вынесены в сводку раздела (SparkIndicatorCard):
     в списке они дублировали бы её и растягивали строки. */
-function IndicatorVisual({ ind }: { ind: Indicator }) {
+function IndicatorVisual({ ind, hideDot }: { ind: Indicator; hideDot?: boolean }) {
   return (
-    <span style={{ fontWeight: 600, color: extLevelColor(ind.level), textAlign: 'right' }}>
-      {ind.level && <span className="pmrk-dot" style={{ background: extLevelColor(ind.level), marginRight: 6 }} />}
+    // inline-flex, а не inline: у inline-элемента .pmrk-dot (width/height 8px)
+    // не применялись размеры и точка была невидимой
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, fontWeight: 600, color: extLevelColor(ind.level) }}>
+      {ind.level && (ind.dot ?? !hideDot) && <span className="pmrk-dot" style={{ background: extLevelColor(ind.level) }} />}
       {ind.value}
+      {ind.link && (
+        <a href={ind.link} target="_blank" rel="noreferrer" style={{ fontWeight: 400, color: 'var(--color-typo-brand)' }}>(ссылка)</a>
+      )}
     </span>
   );
 }
 
-function IndRow({ ind }: { ind: Indicator }) {
+function IndRow({ ind, hideDot }: { ind: Indicator; hideDot?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--color-bg-border)', fontSize: 13 }}>
       <span style={{ flex: 1 }}>
         {ind.label}
         {ind.tip && <span title={ind.tip} style={{ marginLeft: 6, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 12 }}>ⓘ</span>}
       </span>
-      <IndicatorVisual ind={ind} />
+      <IndicatorVisual ind={ind} hideDot={hideDot} />
+    </div>
+  );
+}
+
+/** Иерархический вывод показателей. Группа первого уровня берётся из поля
+    `ind.group`, а если его нет — из части метки до первого « · » (раздел
+    «Внешние рейтинги и оценки»). Текст показателя (второй уровень) — часть
+    метки после первого « · », либо вся метка, если разделителя нет. Первый
+    уровень — плашка-заголовок с фоном шапки таблицы (.pmrk-table__head). */
+function GroupedIndicators({ indicators, hideDot }: { indicators: Indicator[]; hideDot?: boolean }) {
+  const groups: { name: string; items: { sub: string; ind: Indicator }[] }[] = [];
+  for (const ind of indicators) {
+    const sep = ind.label.indexOf(' · ');
+    const name = ind.group ?? (sep === -1 ? '—' : ind.label.slice(0, sep));
+    const sub = sep === -1 ? ind.label : ind.label.slice(sep + 3);
+    let group = groups.find((g) => g.name === name);
+    if (!group) { group = { name, items: [] }; groups.push(group); }
+    group.items.push({ sub, ind });
+  }
+  return (
+    <div style={{ border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius-lg)', overflow: 'hidden', marginTop: 4 }}>
+      {groups.map((g) => (
+        <Fragment key={g.name}>
+          <div className="pmrk-table__head" style={{ padding: '8px 12px' }}>{g.name}</div>
+          {g.items.map(({ sub, ind }, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: i === g.items.length - 1 ? 'none' : '1px solid var(--color-bg-border)', fontSize: 13 }}>
+              <span style={{ flex: 1 }}>
+                {sub}
+                {ind.tip && <span title={ind.tip} style={{ marginLeft: 6, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 12 }}>ⓘ</span>}
+              </span>
+              <IndicatorVisual ind={ind} hideDot={hideDot} />
+            </div>
+          ))}
+        </Fragment>
+      ))}
     </div>
   );
 }
@@ -735,7 +790,7 @@ function SparkIndicatorCard({ ind }: { ind: Indicator }) {
   const level = (ind.level ?? 'low') as 'low' | 'medium' | 'high';
   const numeric = Number(ind.value.split(' ')[0].replace(',', '.'));
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '9px 10px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', minWidth: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '7px 10px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', minWidth: 0 }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-typo-secondary)', textAlign: 'center' }}>
         {SHORT_LABEL[ind.label] ?? ind.label}
         {ind.tip && <span title={ind.tip} style={{ marginLeft: 4, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 11 }}>ⓘ</span>}
@@ -743,8 +798,9 @@ function SparkIndicatorCard({ ind }: { ind: Indicator }) {
       {scale && scale.kind === 'gauge' && Number.isFinite(numeric) ? (
         <>
           <SparkGauge value={numeric} max={scale.max} color={color} />
-          {/* число уже в центре шкалы — под ней только диапазон и направление шкалы */}
-          <span className="pmrk-muted" style={{ marginTop: 'auto', fontSize: 11, textAlign: 'center', lineHeight: 1.3 }}>{scale.scale}</span>
+          {/* под кольцом — словесная оценка значения, как у уровневых карточек
+              («Сводный риск», ИФР), а не легенда диапазона шкалы */}
+          <span style={{ marginTop: 'auto', fontSize: 13, fontWeight: 600, color, textAlign: 'center' }}>{SPARK_LEVEL_WORD[level]}</span>
         </>
       ) : (
         <>
@@ -772,26 +828,35 @@ function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
   );
 }
 
-function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, extra, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; extra?: React.ReactNode; children?: React.ReactNode }) {
+function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
-  const risky = indicators?.filter((i) => i.level === 'high' || i.level === 'medium').length ?? 0;
+  // collapsible={false} — тот же брендовый подблок, но без шеврона и клика:
+  // содержимое всегда раскрыто (таблицы раздела «Аффилированность»).
+  const isOpen = !collapsible || open;
   return (
     <div className="pmrk-card" style={{ marginBottom: 8, overflow: 'hidden' }}>
       {/* заголовок раздела — те же классы, что и у шапки SectionCard: разделы
           «Внешней информации» это такие же разделы, и брендовая плашка должна
           быть у них общая, а не своя разметка со своими отступами */}
-      <div className="pmrk-card__head pmrk-clickable" style={{ marginBottom: 0, cursor: 'pointer' }} onClick={() => setOpen((v) => !v)}>
+      <div
+        className={`pmrk-card__head${collapsible ? ' pmrk-clickable' : ''}`}
+        style={{ marginBottom: 0, cursor: collapsible ? 'pointer' : 'default' }}
+        onClick={collapsible ? () => setOpen((v) => !v) : undefined}
+      >
         <div className="pmrk-card__title" style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-          <span style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'currentColor', opacity: 0.8 }}>▸</span>
+          {collapsible && (
+            <span style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'currentColor', opacity: 0.8 }}>▸</span>
+          )}
           {title}
         </div>
-        {risky > 0 && <span className="pmrk-chip" style={{ background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3)', fontSize: 11 }}>{risky} сигнал.</span>}
         {extra && <div onClick={(e) => e.stopPropagation()}>{extra}</div>}
       </div>
-      {open && (
+      {isOpen && (
         <div style={{ padding: '10px 16px 12px' }}>
           {beforeIndicators}
-          {!hideList && indicators?.map((ind, i) => <IndRow key={i} ind={ind} />)}
+          {!hideList && indicators && (grouped
+            ? <GroupedIndicators indicators={indicators} hideDot={hideDot} />
+            : indicators.map((ind, i) => <IndRow key={i} ind={ind} hideDot={hideDot} />))}
           {children}
         </div>
       )}
@@ -807,7 +872,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
   return (
     <>
       <SectionCard title="Внешняя информация" extra={<DateActuality date={c.asOf.external} source="СПАРК / ФНС / ГПБ / Госзакупки" />}>
-        <div className="pmrk-muted" style={{ fontSize: 13, marginBottom: 12 }}>11 разделов внешних источников (СПАРК, ФНС, Газпромбанк, Госзакупки). Разделы раскрываются по запросу — сигналы видны сразу.</div>
+        <div className="pmrk-muted" style={{ fontSize: 13, marginBottom: 12 }}>11 разделов внешних источников (СПАРК, ФНС, Газпромбанк, Госзакупки). Разделы раскрываются по запросу — в заголовке каждого показана дата актуализации источника.</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
           {/* Все три карточки — на 3 строки (label / value / доп.информация через
               sub), а не вразнобой: раньше только у «Индекс РБ» была третья
@@ -844,35 +909,52 @@ function ExternalTab({ c }: { c: Counterparty }) {
             defaultOpen={['s1', 's2', 's4', 's6'].includes(s.key)}
             beforeIndicators={s.key === 's1' && s.indicators ? <RiskSummaryBar indicators={s.indicators} /> : undefined}
             hideList={s.key === 's1'}
+            hideDot={['s4', 's6'].includes(s.key)}
+            grouped={['s4', 's5', 's9'].includes(s.key)}
+            extra={<DateActuality date={s.asOf} source={s.source} />}
           >
-            {s.key === 's6' && ext.courtCases.length > 0 && (
+            {s.key === 's6' && ext.pledges.length > 0 && (
+              // «Выданные залоги» — отдельный сворачиваемый подблок раздела s6,
+              // а не строки общего списка судебных дел и исполнительных производств.
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 6 }}>Расшифровка судебных дел</div>
-                <div className="pmrk-table">
-                  <div className="pmrk-table__head">
-                    <div className="pmrk-th" style={{ flex: 1.5, minWidth: 0 }}>Истец</div>
-                    <div className="pmrk-th" style={{ flex: 1.1, minWidth: 0 }}>Номер дела</div>
-                    <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Категория</div>
-                    <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Состояние</div>
-                    <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Исход дела</div>
-                    <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата иска</div>
-                    <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма иска</div>
-                    <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма по решению</div>
-                  </div>
-                  {(allCases ? ext.courtCases : ext.courtCases.slice(0, 3)).map((cc, i) => (
-                    <div key={i} className="pmrk-tr" style={{ cursor: 'default' }}>
-                      <div className="pmrk-td" style={{ flex: 1.5, minWidth: 0 }}>{cc.plaintiff}</div>
-                      <div className="pmrk-td" style={{ flex: 1.1, minWidth: 0 }}>{cc.number}</div>
-                      <div className="pmrk-td" style={{ flex: 1.3, minWidth: 0 }}>{cc.category}</div>
-                      <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{cc.state}</div>
-                      <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{cc.outcome}</div>
-                      <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{dateRu(cc.date)}</div>
-                      <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{moneyCompact(cc.claim)}</div>
-                      <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{cc.decision ? moneyCompact(cc.decision) : '—'}</div>
+                <ExtAccordion title="Выданные залоги" defaultOpen>
+                  {ext.pledges.map((ind, i) => <IndRow key={i} ind={ind} hideDot />)}
+                </ExtAccordion>
+              </div>
+            )}
+            {s.key === 's6' && ext.courtCases.length > 0 && (
+              // «Расшифровка судебных дел» — вложенный сворачиваемый подблок
+              // раздела: тем же ExtAccordion, что и разделы «Внешней информации»,
+              // раскрыт по умолчанию, но его можно свернуть, оставив в разделе
+              // только сводные индикаторы.
+              <div style={{ marginTop: 10 }}>
+                <ExtAccordion title="Расшифровка судебных дел" defaultOpen>
+                  <div className="pmrk-table">
+                    <div className="pmrk-table__head">
+                      <div className="pmrk-th" style={{ flex: 1.5, minWidth: 0 }}>Истец</div>
+                      <div className="pmrk-th" style={{ flex: 1.1, minWidth: 0 }}>Номер дела</div>
+                      <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Категория</div>
+                      <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Состояние</div>
+                      <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Исход дела</div>
+                      <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата иска</div>
+                      <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма иска</div>
+                      <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма по решению</div>
                     </div>
-                  ))}
-                </div>
-                {ext.courtCases.length > 3 && <div style={{ marginTop: 6 }}><Button size="xs" view="ghost" label={allCases ? 'Свернуть' : 'Показать больше'} onClick={() => setAllCases((v) => !v)} /></div>}
+                    {(allCases ? ext.courtCases : ext.courtCases.slice(0, 3)).map((cc, i) => (
+                      <div key={i} className="pmrk-tr" style={{ cursor: 'default' }}>
+                        <div className="pmrk-td" style={{ flex: 1.5, minWidth: 0 }}>{cc.plaintiff}</div>
+                        <div className="pmrk-td" style={{ flex: 1.1, minWidth: 0 }}>{cc.number}</div>
+                        <div className="pmrk-td" style={{ flex: 1.3, minWidth: 0 }}>{cc.category}</div>
+                        <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{cc.state}</div>
+                        <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{cc.outcome}</div>
+                        <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{dateRu(cc.date)}</div>
+                        <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{moneyCompact(cc.claim)}</div>
+                        <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{cc.decision ? moneyCompact(cc.decision) : '—'}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {ext.courtCases.length > 3 && <div style={{ marginTop: 6 }}><Button size="xs" view="ghost" label={allCases ? 'Свернуть' : 'Показать больше'} onClick={() => setAllCases((v) => !v)} /></div>}
+                </ExtAccordion>
               </div>
             )}
           </ExtAccordion>
@@ -884,32 +966,39 @@ function ExternalTab({ c }: { c: Counterparty }) {
               title="Санкции по данным СПАРК"
               indicators={[{ label: 'Под санкциями', value: 'Да', level: 'high' }]}
               defaultOpen
+              extra={<DateActuality date={c.asOf.external} source="СПАРК · Санкции" />}
             >
+              {/* «Расшифровка санкций» — вложенный сворачиваемый подблок, тем же
+                  ExtAccordion, что и «Расшифровка судебных дел» в разделе s6:
+                  раскрыт по умолчанию, сворачивается, оставляя в разделе только
+                  сводный индикатор «Под санкциями». */}
               <div style={{ marginTop: 10 }}>
-                <div className="pmrk-table">
-                  <div className="pmrk-table__head">
-                    <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Категория ограничительных мер</div>
-                    <div className="pmrk-th" style={{ flex: 1.6, minWidth: 0 }}>Санкционный список</div>
-                    <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Санкционная программа</div>
-                    <div className="pmrk-th" style={{ flex: 1.8, minWidth: 0 }}>Причина включения</div>
-                    <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата включения</div>
-                    <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата исключения</div>
-                    <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Тип санкций</div>
-                    <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0 }}>Совладельцы</div>
-                  </div>
-                  {ext.sanctions.map((sd, i) => (
-                    <div key={i} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-                      <div className="pmrk-td" style={{ flex: 1.3, minWidth: 0, whiteSpace: 'normal' }}>{sd.category}</div>
-                      <div className="pmrk-td" style={{ flex: 1.6, minWidth: 0, fontWeight: 600, whiteSpace: 'normal' }}>{sd.list}</div>
-                      <div className="pmrk-td" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>{sd.program}</div>
-                      <div className="pmrk-td" style={{ flex: 1.8, minWidth: 0, whiteSpace: 'normal' }}>{sd.reason}</div>
-                      <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{dateRu(sd.from)}</div>
-                      <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{sd.to}</div>
-                      <div className="pmrk-td" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>{sd.type}</div>
-                      <div className="pmrk-td" style={{ flex: 1.2, minWidth: 0, whiteSpace: 'normal' }}>{sd.coOwners}</div>
+                <ExtAccordion title="Расшифровка санкций" defaultOpen>
+                  <div className="pmrk-table">
+                    <div className="pmrk-table__head">
+                      <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Категория ограничительных мер</div>
+                      <div className="pmrk-th" style={{ flex: 1.6, minWidth: 0 }}>Санкционный список</div>
+                      <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Санкционная программа</div>
+                      <div className="pmrk-th" style={{ flex: 1.8, minWidth: 0 }}>Причина включения</div>
+                      <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата включения</div>
+                      <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата исключения</div>
+                      <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Тип санкций</div>
+                      <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0 }}>Совладельцы</div>
                     </div>
-                  ))}
-                </div>
+                    {ext.sanctions.map((sd, i) => (
+                      <div key={i} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+                        <div className="pmrk-td" style={{ flex: 1.3, minWidth: 0, whiteSpace: 'normal' }}>{sd.category}</div>
+                        <div className="pmrk-td" style={{ flex: 1.6, minWidth: 0, fontWeight: 600, whiteSpace: 'normal' }}>{sd.list}</div>
+                        <div className="pmrk-td" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>{sd.program}</div>
+                        <div className="pmrk-td" style={{ flex: 1.8, minWidth: 0, whiteSpace: 'normal' }}>{sd.reason}</div>
+                        <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{dateRu(sd.from)}</div>
+                        <div className="pmrk-td" style={{ flex: 0.8, minWidth: 0 }}>{sd.to}</div>
+                        <div className="pmrk-td" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>{sd.type}</div>
+                        <div className="pmrk-td" style={{ flex: 1.2, minWidth: 0, whiteSpace: 'normal' }}>{sd.coOwners}</div>
+                      </div>
+                    ))}
+                  </div>
+                </ExtAccordion>
               </div>
             </ExtAccordion>
           )}
@@ -997,7 +1086,6 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
         {n.isDirector && <span title="Руководитель (ЕИО)" style={{ width: 8, height: 8, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none' }} />}
         <span style={{ fontWeight: 600 }}>{n.name}</span>
       </span>{' '}{n.underSanctions && <SanctionBadge />}
-      <div className="pmrk-muted" style={{ fontSize: 11 }}>{n.isPerson ? 'Физлицо' : 'ЮЛ'}{n.uid ? ' · есть в реестре →' : ''}</div>
     </div>
   );
 
@@ -1030,38 +1118,44 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
     );
   };
 
+  // Каждая таблица — несворачиваемый брендовый подблок (ExtAccordion
+  // collapsible={false}): единый визуальный язык с разделами «Внешней
+  // информации», но заголовок здесь не сворачивает содержимое.
   return (
     <div>
-      <div className="pmrk-table" style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, padding: '4px 12px 8px' }}>Структура собственников</div>
-        <div className="pmrk-table__head">
-          <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
-          <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-          <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
+      <ExtAccordion title="Структура собственников" collapsible={false}>
+        <div className="pmrk-table">
+          <div className="pmrk-table__head">
+            <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
+            <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+            <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
+          </div>
+          {owners.length ? owners.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
         </div>
-        {owners.length ? owners.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
-      </div>
+      </ExtAccordion>
 
-      <div className="pmrk-table" style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, padding: '4px 12px 8px' }}>Бенефициары</div>
-        <div className="pmrk-table__head">
-          <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
-          <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-          <div className="pmrk-th" style={{ flex: 0.9 }}>Признак конечного бенефициара</div>
-          <div className="pmrk-th" style={{ flex: 2 }}>Описание причины ненахождения конечного бенефициара</div>
+      <ExtAccordion title="Бенефициары" collapsible={false}>
+        <div className="pmrk-table">
+          <div className="pmrk-table__head">
+            <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
+            <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+            <div className="pmrk-th" style={{ flex: 0.9 }}>Признак конечного бенефициара</div>
+            <div className="pmrk-th" style={{ flex: 2 }}>Описание причины ненахождения конечного бенефициара</div>
+          </div>
+          {benef.length ? benef.map((n) => <BenefRow key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
         </div>
-        {benef.length ? benef.map((n) => <BenefRow key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
-      </div>
+      </ExtAccordion>
 
-      <div className="pmrk-table">
-        <div style={{ fontWeight: 600, fontSize: 13, padding: '4px 12px 8px' }}>Аффилированные и дочерние лица</div>
-        <div className="pmrk-table__head">
-          <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
-          <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-          <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
+      <ExtAccordion title="Аффилированные и дочерние лица" collapsible={false}>
+        <div className="pmrk-table">
+          <div className="pmrk-table__head">
+            <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
+            <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+            <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
+          </div>
+          {aff.length ? aff.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
         </div>
-        {aff.length ? aff.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
-      </div>
+      </ExtAccordion>
     </div>
   );
 }
@@ -1408,8 +1502,16 @@ function NewsTab({ c }: { c: Counterparty }) {
     <SectionCard title="Новости" extra={<DateActuality date={c.asOf.news} source="PRIMO" />}>
       {NEWS_SOURCES.map((src) => {
         const items = c.news.filter((n) => n.source === src);
+        // дата актуализации раздела-источника — по самой свежей новости из него,
+        // иначе общая дата вкладки «Новости»
+        const srcAsOf = items.reduce((m, n) => (n.date > m ? n.date : m), c.asOf.news ?? '');
         return (
-          <ExtAccordion key={src} title={NEWS_SOURCE_TITLE[src]} defaultOpen={items.length > 0}>
+          <ExtAccordion
+            key={src}
+            title={NEWS_SOURCE_TITLE[src]}
+            defaultOpen={items.length > 0}
+            extra={<DateActuality date={srcAsOf || undefined} source="PRIMO" />}
+          >
             {items.length === 0 ? (
               <div className="pmrk-muted" style={{ fontSize: 13, padding: '4px 0' }}>Новостей не найдено.</div>
             ) : items.map((n) => (
@@ -1644,7 +1746,11 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
           (реестр «Кредитные лимиты», ФТ-1.7) — раскладка агрегата из блока выше.
           Свой сворачиваемый блок, тем же ExtAccordion, что и разделы «Внешней
           информации» — вместо прежней вложенной секции внутри общей карточки. */}
-      <ExtAccordion title="Утверждённые кредитные лимиты аффилированных лиц по ГК Газпром нефть" defaultOpen>
+      <ExtAccordion
+        title="Утверждённые кредитные лимиты аффилированных лиц по ГК Газпром нефть"
+        defaultOpen
+        extra={<DateActuality date={c.asOf['credit-limit']} source="Реестр КЛ ГК ГПН" />}
+      >
         {doLimits.length === 0 ? (
           <EmptyState text="Действующих лимитов по ДО нет — заявка на открытие КЛ не подавалась или отклонена." />
         ) : (
@@ -1698,7 +1804,11 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
 
       {/* Заявки на кредитный лимит (реестр заявок КК-ДО/КК-Блок, ФТ-1.7) —
           не только утверждённые лимиты по ДО, но и то, что сейчас в работе. */}
-      <ExtAccordion title="Заявки на кредитный лимит (Платформа)" defaultOpen>
+      <ExtAccordion
+        title="Заявки на кредитный лимит (Платформа)"
+        defaultOpen
+        extra={<DateActuality date={c.asOf['credit-limit']} source="Платформа КЛ" />}
+      >
         {limitRequests.length === 0 ? (
           <EmptyState text="Заявок на кредитный лимит по контрагенту нет." />
         ) : (

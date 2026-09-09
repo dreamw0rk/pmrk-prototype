@@ -25,14 +25,37 @@ export function rbSignal(index: number) {
 }
 
 type Level = 'low' | 'medium' | 'high';
-export interface Indicator { label: string; value: string; level?: Level; tip?: string }
+export interface Indicator {
+  label: string; value: string; level?: Level; tip?: string;
+  /** Явно управляет цветной точкой (.pmrk-dot) конкретного показателя, минуя
+      настройку раздела: true — точка есть даже в разделе без точек, false —
+      точки нет даже там, где раздел их показывает. */
+  dot?: boolean;
+  /** Группа первого уровня для иерархического вывода раздела: показатели с
+      одинаковым `group` собираются под общей плашкой-заголовком, метка
+      показателя уходит на второй уровень. Альтернатива префиксу «<Группа> · »
+      в метке (раздел «Внешние рейтинги и оценки»). */
+  group?: string;
+  /** URL перехода к источнику показателя — рядом со значением рисуется
+      ссылка «(ссылка)». */
+  link?: string;
+}
 export interface SanctionDetail {
   category: string; list: string; program: string; reason: string; from: string; to: string; type: string; coOwners: string;
 }
 export interface CourtCaseDetail {
   plaintiff: string; number: string; category: string; state: string; outcome: string; date: string; claim: number; decision: number;
 }
-export interface ExternalSection { key: string; title: string; indicators?: Indicator[]; }
+export interface ExternalSection { key: string; title: string; indicators?: Indicator[]; asOf: string; source: string; }
+
+/* Источник данных для каждого раздела «Внешней информации» — свой: разделы
+   обновляются независимо, поэтому в заголовке раздела показывается не общая
+   дата вкладки, а собственная дата актуализации источника. */
+const SECTION_SOURCE: Record<string, string> = {
+  s1: 'СПАРК', s2: 'СПАРК', s3: 'СПАРК', s4: 'АКРА / Эксперт РА',
+  s5: 'ФНС', s6: 'СПАРК / ФССП', s7: 'ФАС · РНП', s9: 'Госзакупки',
+  s10: 'ФНС', s11: 'СПАРК',
+};
 
 const lvl = (g: number, invert = false): Level => {
   const base: Level = g <= 1 ? 'low' : g <= 2 ? 'low' : g === 3 ? 'medium' : 'high';
@@ -64,6 +87,17 @@ const SRO_POOL = [
   'АССОЦИАЦИЯ «ИНЖГЕОСТРОЙ»',
 ];
 
+/* Точечные корректировки индикаторов раздела «1. Финансовые индикаторы риска
+   СПАРК» по конкретным контрагентам — там, где срежиссированное по группе
+   значение расходится с фактической картиной из СПАРК. */
+const SPARK_SECTION1_OVERRIDES: Record<string, Record<string, { value: string; level: Level }>> = {
+  // ПАО «Газпром нефть»: ИДО — средний уровень, ИФР — высокий.
+  'cp-gpn': {
+    'Индекс должной осмотрительности (ИДО)': { value: '48', level: 'medium' },
+    'Индекс финансового риска (ИФР)': { value: 'Высокий', level: 'high' },
+  },
+};
+
 export function buildExternal(cp: Counterparty) {
   const g = cp.group;
   const seed = seedOf(cp.uid);
@@ -79,6 +113,14 @@ export function buildExternal(cp: Counterparty) {
     { label: 'Индекс финансового риска (ИФР)', value: g <= 2 ? 'Низкий' : g === 3 ? 'Средний' : 'Высокий', level: lvl(g), tip: 'ИФР отражает вероятность финансовых трудностей.' },
     { label: 'Индекс платёжной дисциплины (ИПД)', value: `${100 - pdz} / 100`, level: pdz > 20 ? 'high' : pdz > 8 ? 'medium' : 'low', tip: 'ИПД — средневзвешенный показатель оплаты счетов в срок (Paydex).' },
   ];
+
+  const s1Overrides = SPARK_SECTION1_OVERRIDES[cp.uid];
+  if (s1Overrides) {
+    for (const ind of section1) {
+      const o = s1Overrides[ind.label];
+      if (o) { ind.value = o.value; ind.level = o.level; }
+    }
+  }
 
   const section2: Indicator[] = [
     { label: 'Факторы риска', value: g >= 3 ? `${g} активных` : 'не выявлено', level: lvl(g) },
@@ -127,23 +169,28 @@ export function buildExternal(cp: Counterparty) {
     ]),
   ];
 
+  const NEG_REGISTRIES = 'Негативные реестры по данным ФНС';
+  const FTS_DEBT = 'Задолженность перед ФНС';
   const section5: Indicator[] = [
-    { label: 'Дисквалифицированные лица в составе исполнительных органов', value: g === 4 ? '1 лицо' : 'Нет', level: g === 4 ? 'high' : 'low' },
-    { label: 'Дата сведений о недоимке и задолженности по пеням и штрафам', value: '01.08.2026' },
-    { label: 'Сумма недоимки по налогам и сборам', value: g >= 3 ? money(enforcement || 1_200_000) : '0 ₽', level: g >= 3 ? 'medium' : 'low' },
-    { label: 'Задолженность по пеням и штрафам', value: g >= 3 ? money(340_000) : '0 ₽' },
-    { label: 'Дата сведений о сумме налоговых правонарушений', value: '31.12.2023' },
-    { label: 'Сумма штрафов', value: g >= 3 ? money(180_000) : '0 ₽' },
-    { label: 'Руководитель контрагента включён в реестр ФНС как массовый', value: 'Нет', level: 'low' },
+    { group: NEG_REGISTRIES, label: 'Дисквалифицированные лица в составе исполнительных органов', value: g === 4 ? '1 лицо' : 'Нет', level: g === 4 ? 'high' : 'low' },
+    { group: NEG_REGISTRIES, label: 'Руководитель контрагента включён в реестр ФНС как массовый', value: 'Нет', level: 'low' },
+    { group: FTS_DEBT, label: 'Дата сведений о недоимке и задолженности по пеням и штрафам', value: '01.08.2026' },
+    { group: FTS_DEBT, label: 'Сумма недоимки по налогам и сборам', value: g >= 3 ? money(enforcement || 1_200_000) : '0 ₽', level: g >= 3 ? 'medium' : 'low', dot: false },
+    { group: FTS_DEBT, label: 'Задолженность по пеням и штрафам', value: g >= 3 ? money(340_000) : '0 ₽' },
+    { group: FTS_DEBT, label: 'Дата сведений о сумме налоговых правонарушений', value: '31.12.2023' },
+    { group: FTS_DEBT, label: 'Сумма штрафов', value: g >= 3 ? money(180_000) : '0 ₽' },
   ];
 
   const section6: Indicator[] = [
     { label: 'Количество судебных дел (ответчик), с начала предыдущего года', value: String(lawsuits.length), level: lawsuits.length ? 'medium' : 'low' },
-    { label: 'Отчётная дата', value: cp.asOf.external ? dateRu(cp.asOf.external) : '—' },
     { label: 'Сумма исков (ответчик), с начала предыдущего года', value: money(lawsuits.reduce((s, c) => s + c.amount, 0)) },
     { label: 'Сумма решений по искам за последние 2 года (ответчик)', value: money(Math.round(lawsuits.reduce((s, c) => s + c.amount, 0) * 0.15)) },
     { label: 'Сумма активных исполнительных производств', value: enforcement ? money(enforcement) : '0 ₽', level: enforcement ? 'medium' : 'low' },
-    { label: 'Судебные дела о банкротстве (ответчик)', value: hasBankruptcyCase ? 'Да' : 'Нет', level: hasBankruptcyCase ? 'high' : 'low' },
+    { label: 'Судебные дела о банкротстве (ответчик)', value: hasBankruptcyCase ? 'Да' : 'Нет', level: hasBankruptcyCase ? 'high' : 'low', dot: true },
+  ];
+  // «Залоги выданные» и их описание — отдельный подблок раздела s6, а не строки
+  // общего списка судебных дел / исполнительных производств.
+  const pledges: Indicator[] = [
     { label: 'Залоги выданные', value: g <= 2 ? 'Нет' : '1 предмет залога' },
     { label: 'Описание выданных залогов', value: g <= 2 ? '—' : 'Описание отсутствует' },
   ];
@@ -159,14 +206,17 @@ export function buildExternal(cp: Counterparty) {
     { label: 'Планируемая дата исключения из РНП', value: g === 4 ? '—' : 'Нет данных' },
   ];
 
+  const GZ_REGISTRY = 'Единая информационная система в сфере закупок (Госзакупки)';
+  const FAS_REGISTRY = 'Федеральная антимонопольная служба (ФАС)';
+  const MCHS_REGISTRY = 'МЧС России';
+  const SRO_REGISTRY = 'Единый реестр членов СРО';
   const section9: Indicator[] = [
-    { label: 'Привлечение к административной ответственности за незаконное вознаграждение', value: 'Нет', level: 'low' },
-    { label: 'Госзакупки · Реестр контрактов', value: '34 контракта' },
-    { label: 'Госзакупки · Реестр жалоб', value: g >= 3 ? '2 жалобы' : 'нет' },
-    { label: 'ФАС · Реестр субъектов естественных монополий', value: 'не входит' },
-    { label: 'МЧС · Реестр лицензий', value: 'не выявлено' },
-    { label: 'Единый реестр членов СРО', value: g <= 2 ? 'входит в состав СРО' : 'не входит' },
-    { label: 'Реестр лицензий Ростехнадзор', value: 'Нет данных' },
+    { group: GZ_REGISTRY, label: 'Привлечение к административной ответственности за незаконное вознаграждение', value: 'Нет', level: 'low' },
+    { group: GZ_REGISTRY, label: 'Госзакупки · Реестр контрактов', value: '34 контракта', link: 'https://zakupki.gov.ru/epz/contract/search/results.html' },
+    { group: GZ_REGISTRY, label: 'Госзакупки · Реестр жалоб', value: g >= 3 ? '2 жалобы' : 'нет' },
+    { group: FAS_REGISTRY, label: 'ФАС · Реестр субъектов естественных монополий', value: 'не входит' },
+    { group: MCHS_REGISTRY, label: 'МЧС · Реестр лицензий', value: 'не выявлено' },
+    { group: SRO_REGISTRY, label: 'Контрагент входит в состав СРО', value: 'Нет данных' },
   ];
 
   const section10: Indicator[] = [
@@ -212,6 +262,15 @@ export function buildExternal(cp: Counterparty) {
     { label: 'Исключение из ЕГРЮЛ', value: cp.status === 'Ликвидация' ? 'предстоящее исключение недействующего юрлица' : 'Нет данных' },
   ];
 
+  // Дата актуализации раздела — на несколько дней раньше базовой даты вкладки,
+  // детерминированно от uid и ключа раздела: источники обновляются вразнобой.
+  const extAsOf = cp.asOf.external ?? cp.asOf.general ?? '2026-06-01';
+  const sectionAsOf = (key: string): string => {
+    const d = new Date(extAsOf);
+    d.setDate(d.getDate() - (seedOf(cp.uid + key) % 21));
+    return d.toISOString().slice(0, 10);
+  };
+
   return {
     sections: [
       { key: 's1', title: 'Финансовые индикаторы риска СПАРК', indicators: section1 },
@@ -224,9 +283,10 @@ export function buildExternal(cp: Counterparty) {
       { key: 's9', title: 'Реестры государственных служб', indicators: section9 },
       { key: 's10', title: 'Налоги и взносы', indicators: section10 },
       { key: 's11', title: 'Признаки хозяйственной деятельности', indicators: section11 },
-    ] as ExternalSection[],
+    ].map((s): ExternalSection => ({ ...s, source: SECTION_SOURCE[s.key] ?? 'СПАРК', asOf: sectionAsOf(s.key) })),
     sanctions,
     courtCases,
+    pledges,
   };
 }
 

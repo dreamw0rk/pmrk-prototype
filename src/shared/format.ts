@@ -58,8 +58,9 @@ export function ago(iso: string | Date): string {
   return dateRu(d);
 }
 
+/** ИНН выводится сплошной строкой цифр, без разделителей. */
 export function inn(value: string): string {
-  return value.replace(/(\d{4})(\d{2})(\d+)/, '$1 $2 $3');
+  return value;
 }
 
 /** Дельта срока для задач: «−2 дн.» (просрочено), «через 1 дн.», «сегодня». */
