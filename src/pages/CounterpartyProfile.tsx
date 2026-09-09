@@ -16,7 +16,7 @@ import {
   EmptyState, AuditFooter, severityColor, SEVERITY_LABEL, CalcStamp, Segmented,
 } from '@/shared/ui/kit';
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
-import iconPdf from '@/assets/icon-pdf.png';
+import iconPdf from '@/assets/icons/icon-pdf.png';
 import { LineChart } from '@/shared/ui/MiniChart';
 import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, FINAL_BENEFICIARY_THRESHOLD, isFinalBeneficiary, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
 import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
@@ -137,14 +137,18 @@ export function CounterpartyProfile() {
           скролле — когда карточки уезжают под панель. */}
       <div
         style={{
-          position: 'sticky', top: 0, zIndex: 3,
+          position: 'sticky', top: 0, zIndex: 3, width: '100%',
           background: 'var(--color-bg-default)',
           borderBottom: '1px solid var(--color-bg-border)',
           boxShadow: scrolled ? 'var(--pmrk-shadow-2)' : 'none',
           transition: 'box-shadow .15s',
         }}
       >
-      <div style={{ maxWidth: 'var(--pmrk-content-max)', margin: '0 auto', padding: '14px 14px 0' }}>
+      {/* width: 100% — без него внутренняя обёртка сжималась по содержимому и
+          шапка оказывалась уже колонки контента; maxWidth + margin auto держат
+          её по центру. Ширина шапки — своя переменная (--pmrk-cp-header-max),
+          независимая от колонки контента (--pmrk-content-max у .pmrk-page). */}
+      <div style={{ width: '100%', maxWidth: 'var(--pmrk-cp-header-max)', margin: '0 auto', padding: '14px 14px 0' }}>
         {skin !== 'sfk' && (
           <div className="pmrk-breadcrumbs">
             <a onClick={() => navigate('/registry')} style={{ cursor: 'pointer' }}>Реестр контрагентов</a> / {c.shortName}
@@ -193,9 +197,14 @@ export function CounterpartyProfile() {
               шапки, не растягивая её. Слово «Скачать» в названии — кнопка формирует
               файл, а не открывает раздел; полное название отчёта с форматом и
               номером ФТ — в подсказке. */}
-          <div style={{ flex: 1, minWidth: 460, maxWidth: 620 }}>
+          <div style={{ flex: 1, minWidth: 460, maxWidth: 700 }}>
+            {/* Четыре кнопки равной ширины: minmax(0, 1fr) — нижняя граница
+                столбца 0, верхняя — равная доля контейнера. Подпись в две строки:
+                «Скачать» сверху, название отчёта под ним. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
-              {REPORT_TILES.map((r) => (
+              {REPORT_TILES.map((r) => {
+                const [verb, ...rest] = r.label.split(' ');
+                return (
                 <button
                   key={r.to}
                   onClick={() => navigate(`/report/${c.uid}${r.to}`)}
@@ -216,9 +225,15 @@ export function CounterpartyProfile() {
                       WebkitMaskPosition: 'center', maskPosition: 'center',
                     }}
                   />
-                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, overflowWrap: 'anywhere' }}>{r.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
+                    {/* «Скачать» — всегда отдельной строкой; название отчёта под
+                        ним переносится, если не помещается в ширину кнопки */}
+                    <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{verb}</span>
+                    <span style={{ display: 'block', overflowWrap: 'anywhere' }}>{rest.join(' ')}</span>
+                  </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -230,7 +245,7 @@ export function CounterpartyProfile() {
               key={t.key}
               onClick={() => navigate(`/counterparties/${uid}/${t.key}`)}
               style={{
-                padding: '9px 12px', fontSize: 13, whiteSpace: 'nowrap', cursor: 'pointer',
+                padding: '9px 7px', fontSize: 13, whiteSpace: 'nowrap', cursor: 'pointer',
                 borderBottom: tab === t.key ? '2px solid var(--color-bg-brand)' : '2px solid transparent',
                 color: tab === t.key ? 'var(--color-typo-primary)' : 'var(--color-typo-secondary)',
                 fontWeight: tab === t.key ? 600 : 400,
