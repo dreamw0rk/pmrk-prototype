@@ -1476,31 +1476,42 @@ function AssessmentTab({ c }: { c: Counterparty }) {
         <Button size="xs" view="ghost" label="Подробнее" onClick={() => navigate(`/assessments/${c.assessments[0]?.id ?? c.uid}`)} />
       </div>
 
-      <div style={{ fontWeight: 600, fontSize: 13, marginTop: 16, marginBottom: 6 }}>Все экспресс-оценки</div>
-      {history.length === 0 ? (
-        <EmptyState text={`По направлению «${r.short}» сохранённых оценок ещё нет — показан предварительный расчёт по текущим данным.`} />
-      ) : (
-        <div className="pmrk-table">
-          <div className="pmrk-table__head">
-            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Дата оценки</div>
-            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Период отчётности</div>
-            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Группа (1–4)</div>
-            <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит</div>
-            <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end' }}>Скоринг-балл</div>
-            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Категория</div>
-          </div>
-          {history.map((x) => (
-            <div key={x.id} className="pmrk-tr" style={{ cursor: 'pointer' }} onClick={() => navigate(`/assessments/${x.id}`)}>
-              <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.date)}</div>
-              <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.reportPeriod)}</div>
-              <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{x.group}</div>
-              <div className="pmrk-td pmrk-tnum" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.limit ? moneyCompact(x.limit) : '—'}</div>
-              <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.score}</div>
-              <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{r.category}</div>
+      {/* стиль подблока «Аффилированные и дочерние лица»: несворачиваемая
+          мягкая плашка, таблица во всю карточку с числом строк в чипе */}
+      <div style={{ marginTop: 16 }}>
+      <ExtAccordion
+        title="Все экспресс-оценки"
+        collapsible={false}
+        flush
+        softHead
+        extra={<span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{history.length}</span>}
+      >
+        {history.length === 0 ? (
+          <EmptyState text={`По направлению «${r.short}» сохранённых оценок ещё нет — показан предварительный расчёт по текущим данным.`} />
+        ) : (
+          <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+            <div className="pmrk-table__head" style={{ position: 'static' }}>
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Дата оценки</div>
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Период отчётности</div>
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Группа (1–4)</div>
+              <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит</div>
+              <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end' }}>Скоринг-балл</div>
+              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Категория</div>
             </div>
-          ))}
-        </div>
-      )}
+            {history.map((x) => (
+              <div key={x.id} className="pmrk-tr" style={{ cursor: 'pointer' }} onClick={() => navigate(`/assessments/${x.id}`)}>
+                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.date)}</div>
+                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.reportPeriod)}</div>
+                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{x.group}</div>
+                <div className="pmrk-td pmrk-tnum" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.limit ? moneyCompact(x.limit) : '—'}</div>
+                <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.score}</div>
+                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{r.category}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ExtAccordion>
+      </div>
     </SectionCard>
   );
 }
@@ -1768,14 +1779,17 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
       <ExtAccordion
         title="Утверждённые кредитные лимиты аффилированных лиц по ГК Газпром нефть"
         defaultOpen
+        flush
         extra={<DateActuality date={c.asOf['credit-limit']} source="Реестр КЛ ГК ГПН" />}
       >
         {doLimits.length === 0 ? (
           <EmptyState text="Действующих лимитов по ДО нет — заявка на открытие КЛ не подавалась или отклонена." />
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <div className="pmrk-table" style={{ minWidth: 1680 }}>
-              <div className="pmrk-table__head">
+          /* paddingBottom — под горизонтальную прокрутку: при flush (padding: 0
+             у тела) полоса прокрутки прижималась к нижнему краю блока */
+          <div style={{ overflowX: 'auto', paddingBottom: 10 }}>
+            <div className="pmrk-table" style={{ minWidth: 1680, border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)' }}>
+              <div className="pmrk-table__head" style={{ position: 'static' }}>
                 {/* minWidth: 0 — без него длинные заголовки распирают свою ячейку сверх
                     flex-доли по min-content самого длинного слова. overflow: hidden —
                     у .pmrk-th (в отличие от .pmrk-td) его нет по умолчанию, поэтому
