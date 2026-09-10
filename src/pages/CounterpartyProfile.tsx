@@ -377,19 +377,31 @@ function AdditionalOkvedsCard({ c }: { c: Counterparty }) {
     : okveds;
 
   return (
-    <SubSection title="Дополнительные виды деятельности" count={okveds.length}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', marginBottom: 12, maxWidth: 420, border: '1px solid var(--color-bg-border)', borderRadius: 10, background: 'var(--color-bg-default)' }}>
-        <IconSearchStroked size="xs" className="pmrk-muted" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Код или наименование вида деятельности"
-          style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--color-typo-primary)' }}
-        />
+    // тот же стиль подблока, что у «Изменений в наименовании…»: мягкая плашка
+    // заголовка, таблица во всю карточку с липкой шапкой, счётчик — чипом в extra
+    <div style={{ marginTop: 16 }}>
+    <ExtAccordion
+      title="Дополнительные виды деятельности"
+      flush
+      softHead
+      extra={<span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{okveds.length}</span>}
+    >
+      {/* строка поиска — полосой между заголовком подблока и шапкой таблицы,
+          фон в цвет шапки таблицы (сливается с плашкой заголовка) */}
+      <div style={{ padding: '10px 16px', background: '#f0f5fd' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', maxWidth: 420, border: '1px solid var(--color-bg-border)', borderRadius: 10, background: 'var(--color-bg-default)' }}>
+          <IconSearchStroked size="xs" className="pmrk-muted" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Код или наименование вида деятельности"
+            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--color-typo-primary)' }}
+          />
+        </div>
       </div>
 
-      <div className="pmrk-table">
-        <div className="pmrk-table__head">
+      <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+        <div className="pmrk-table__head" style={{ position: 'static' }}>
           <div className="pmrk-th" style={{ flex: 0.6 }}>Код ОКВЭД</div>
           <div className="pmrk-th" style={{ flex: 2.4 }}>Вид деятельности</div>
         </div>
@@ -401,7 +413,8 @@ function AdditionalOkvedsCard({ c }: { c: Counterparty }) {
         ))}
       </div>
       {!filtered.length && <EmptyState text="Ничего не найдено по запросу." />}
-    </SubSection>
+    </ExtAccordion>
+    </div>
   );
 }
 
@@ -412,10 +425,19 @@ function NameChangesCard({ c }: { c: Counterparty }) {
   const changes = useMemo(() => buildNameChanges(c), [c.uid]);
 
   return (
-    <SubSection title="Изменения в наименовании и организационно-правовой форме" count={changes.length}>
+    // тот же стиль подблока, что у «Расшифровки санкций»: мягкая плашка
+    // заголовка, таблица во всю карточку с липкой шапкой; счётчик строк —
+    // чипом в правой части заголовка (extra)
+    <div style={{ marginTop: 16 }}>
+    <ExtAccordion
+      title="Изменения в наименовании и организационно-правовой форме"
+      flush
+      softHead
+      extra={<span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{changes.length}</span>}
+    >
       {changes.length ? (
-        <div className="pmrk-table">
-          <div className="pmrk-table__head">
+        <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+          <div className="pmrk-table__head" style={{ position: 'static' }}>
             <div className="pmrk-th" style={{ flex: 0.7 }}>Дата изменений</div>
             <div className="pmrk-th" style={{ flex: 2.4 }}>Название</div>
             <div className="pmrk-th" style={{ flex: 0.8 }}>ИНН</div>
@@ -435,7 +457,8 @@ function NameChangesCard({ c }: { c: Counterparty }) {
       ) : (
         <EmptyState text="По данным ЕГРЮЛ наименование и организационно-правовая форма не менялись." />
       )}
-    </SubSection>
+    </ExtAccordion>
+    </div>
   );
 }
 
@@ -867,18 +890,19 @@ function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
   );
 }
 
-function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, valueLeft, indicatorsInline, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; valueLeft?: boolean; indicatorsInline?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
+function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, valueLeft, indicatorsInline, flush, softHead, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; valueLeft?: boolean; indicatorsInline?: boolean; flush?: boolean; softHead?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   // collapsible={false} — тот же брендовый подблок, но без шеврона и клика:
   // содержимое всегда раскрыто (таблицы раздела «Аффилированность»).
   const isOpen = !collapsible || open;
   return (
+    // flush — содержимое (таблица) занимает карточку целиком, без внутренних полей.
     <div className="pmrk-card" style={{ marginBottom: 8, overflow: 'hidden' }}>
       {/* заголовок раздела — те же классы, что и у шапки SectionCard: разделы
           «Внешней информации» это такие же разделы, и брендовая плашка должна
           быть у них общая, а не своя разметка со своими отступами */}
       <div
-        className={`pmrk-card__head${collapsible ? ' pmrk-clickable' : ''}`}
+        className={`pmrk-card__head${collapsible ? ' pmrk-clickable' : ''}${softHead ? ' pmrk-card__head--soft' : ''}`}
         style={{ marginBottom: 0, cursor: collapsible ? 'pointer' : 'default' }}
         onClick={collapsible ? () => setOpen((v) => !v) : undefined}
       >
@@ -891,7 +915,7 @@ function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideLi
         {extra && <div onClick={(e) => e.stopPropagation()}>{extra}</div>}
       </div>
       {isOpen && (
-        <div style={{ padding: '10px 16px 12px' }}>
+        <div style={{ padding: flush ? 0 : '10px 16px 12px' }}>
           {beforeIndicators}
           {!hideList && indicators && (grouped
             ? <GroupedIndicators indicators={indicators} hideDot={hideDot} left={valueLeft} />
@@ -963,7 +987,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
               // «Выданные залоги» — отдельный сворачиваемый подблок раздела s6,
               // а не строки общего списка судебных дел и исполнительных производств.
               <div style={{ marginTop: 10 }}>
-                <ExtAccordion title="Выданные залоги" defaultOpen>
+                <ExtAccordion title="Выданные залоги" defaultOpen softHead>
                   {ext.pledges.map((ind, i) => <IndRow key={i} ind={ind} hideDot left />)}
                 </ExtAccordion>
               </div>
@@ -974,9 +998,17 @@ function ExternalTab({ c }: { c: Counterparty }) {
               // раскрыт по умолчанию, но его можно свернуть, оставив в разделе
               // только сводные индикаторы.
               <div style={{ marginTop: 10 }}>
-                <ExtAccordion title="Расшифровка судебных дел" defaultOpen>
-                  <div className="pmrk-table">
-                    <div className="pmrk-table__head">
+                <ExtAccordion
+                  title="Расшифровка судебных дел"
+                  flush
+                  softHead
+                  extra={<span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{ext.courtCases.length}</span>}
+                >
+                  {/* таблица во всю карточку (без рамки и полей), шапка липнет
+                      прямо под заголовком подблока (top = высота плашки);
+                      сверху — разделитель между заголовком подблока и таблицей */}
+                  <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+                    <div className="pmrk-table__head" style={{ position: 'static' }}>
                       <div className="pmrk-th" style={{ flex: 1.5, minWidth: 0 }}>Истец</div>
                       <div className="pmrk-th" style={{ flex: 1.1, minWidth: 0 }}>Номер дела</div>
                       <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Категория</div>
@@ -999,7 +1031,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
                       </div>
                     ))}
                   </div>
-                  {ext.courtCases.length > 3 && <div style={{ marginTop: 6 }}><Button size="xs" view="ghost" label={allCases ? 'Свернуть' : 'Показать больше'} onClick={() => setAllCases((v) => !v)} /></div>}
+                  {ext.courtCases.length > 3 && <div style={{ margin: '6px 16px 8px' }}><Button size="xs" view="ghost" label={allCases ? 'Свернуть' : 'Показать больше'} onClick={() => setAllCases((v) => !v)} /></div>}
                 </ExtAccordion>
               </div>
             )}
@@ -1020,9 +1052,17 @@ function ExternalTab({ c }: { c: Counterparty }) {
                   раскрыт по умолчанию, сворачивается, оставляя в разделе только
                   сводный индикатор «Под санкциями». */}
               <div style={{ marginTop: 10 }}>
-                <ExtAccordion title="Расшифровка санкций" defaultOpen>
-                  <div className="pmrk-table">
-                    <div className="pmrk-table__head">
+                <ExtAccordion
+                  title="Расшифровка санкций"
+                  flush
+                  softHead
+                  extra={<span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{ext.sanctions.length}</span>}
+                >
+                  {/* таблица во всю карточку (без рамки и полей), шапка липнет
+                      прямо под заголовком подблока (top = высота плашки);
+                      сверху — разделитель между заголовком подблока и таблицей */}
+                  <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+                    <div className="pmrk-table__head" style={{ position: 'static' }}>
                       <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Категория ограничительных мер</div>
                       <div className="pmrk-th" style={{ flex: 1.6, minWidth: 0 }}>Санкционный список</div>
                       <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Санкционная программа</div>
@@ -1143,14 +1183,16 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
     </div>
   );
 
-  // Каждая таблица — несворачиваемый брендовый подблок (ExtAccordion
-  // collapsible={false}): единый визуальный язык с разделами «Внешней
-  // информации», но заголовок здесь не сворачивает содержимое.
+  // Каждая таблица — несворачиваемый подблок в стиле «Изменений в наименовании…»:
+  // мягкая плашка заголовка, таблица во всю карточку с липкой шапкой, счётчик
+  // строк чипом; collapsible={false} — заголовок не сворачивает содержимое.
+  const chip = (n: number) => <span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{n}</span>;
   return (
     <div>
-      <ExtAccordion title="Структура собственников" collapsible={false}>
-        <div className="pmrk-table">
-          <div className="pmrk-table__head">
+      <div style={{ marginTop: 16 }}>
+      <ExtAccordion title="Структура собственников" collapsible={false} flush softHead extra={chip(owners.length)}>
+        <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+          <div className="pmrk-table__head" style={{ position: 'static' }}>
             <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
             <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
             <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
@@ -1158,10 +1200,12 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
           {owners.length ? owners.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
         </div>
       </ExtAccordion>
+      </div>
 
-      <ExtAccordion title="Аффилированные и дочерние лица" collapsible={false}>
-        <div className="pmrk-table">
-          <div className="pmrk-table__head">
+      <div style={{ marginTop: 16 }}>
+      <ExtAccordion title="Аффилированные и дочерние лица" collapsible={false} flush softHead extra={chip(aff.length)}>
+        <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+          <div className="pmrk-table__head" style={{ position: 'static' }}>
             <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
             <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
             <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
@@ -1169,6 +1213,7 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
           {aff.length ? aff.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
         </div>
       </ExtAccordion>
+      </div>
     </div>
   );
 }
