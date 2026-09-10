@@ -756,7 +756,7 @@ const SPARK_SCALES: Record<string, { kind: 'level' } | { kind: 'gauge'; max: num
 const SPARK_LEVEL_WORD: Record<'low' | 'medium' | 'high', string> = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
 
 /** Визуальное представление значения индикатора в строке списка — цветная точка
-    и значение. Крупные шкалы вынесены в сводку раздела (SparkIndicatorCard):
+    и значение. Крупные шкалы вынесены в сводку раздела (RiskSummaryList):
     в списке они дублировали бы её и растягивали строки. */
 function IndicatorVisual({ ind, hideDot, left }: { ind: Indicator; hideDot?: boolean; left?: boolean }) {
   return (
@@ -774,22 +774,9 @@ function IndicatorVisual({ ind, hideDot, left }: { ind: Indicator; hideDot?: boo
   );
 }
 
-function IndRow({ ind, hideDot, left, inline }: { ind: Indicator; hideDot?: boolean; left?: boolean; inline?: boolean }) {
-  // inline — значение стоит вплотную к подписи слева («Под санкциями  ● Да»),
-  // а не отдельной колонкой у другого края строки.
-  if (inline) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--color-bg-border)', fontSize: 13 }}>
-        <span>
-          {ind.label}
-          {ind.tip && <span title={ind.tip} style={{ marginLeft: 6, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 12 }}>ⓘ</span>}
-        </span>
-        <IndicatorVisual ind={ind} hideDot={hideDot} />
-      </div>
-    );
-  }
+function IndRow({ ind, hideDot, left, noBorder }: { ind: Indicator; hideDot?: boolean; left?: boolean; noBorder?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: left ? 'flex-start' : 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--color-bg-border)', fontSize: 13 }}>
+    <div style={{ display: 'flex', alignItems: left ? 'flex-start' : 'center', gap: 12, padding: '8px 0', borderBottom: noBorder ? 'none' : '1px solid var(--color-bg-border)', fontSize: 13 }}>
       <span style={{ flex: 1 }}>
         {ind.label}
         {ind.tip && <span title={ind.tip} style={{ marginLeft: 6, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 12 }}>ⓘ</span>}
@@ -834,63 +821,46 @@ function GroupedIndicators({ indicators, hideDot, left }: { indicators: Indicato
   );
 }
 
-/** Короткие подписи для сводки — полные названия там не нужны. */
-const SHORT_LABEL: Record<string, string> = {
-  'Сводный риск': 'Сводный риск',
-  'Индекс должной осмотрительности (ИДО)': 'ИДО',
-  'Индекс финансового риска (ИФР)': 'ИФР',
-  'Индекс платёжной дисциплины (ИПД)': 'ИПД',
-};
-
-/** Карточка одного индикатора в сводке: подпись, круговая шкала СПАРК, значение
-    словами и расшифровка шкалы. У ИПД значение приходит как «{N} / 100» — в
-    кольцо идёт только числитель, постоянный знаменатель на каждой шкале ничего
-    не сообщает и не поместился бы читаемо. */
-function SparkIndicatorCard({ ind }: { ind: Indicator }) {
+/** Одна ячейка сводки «Финансовые индикаторы риска СПАРК»: индикатор слева,
+    справа в столбик полное наименование показателя и значение словом. Без рамки. */
+function SparkIndicatorInline({ ind }: { ind: Indicator }) {
   const scale = SPARK_SCALES[ind.label];
   const color = extLevelColor(ind.level);
   const level = (ind.level ?? 'low') as 'low' | 'medium' | 'high';
   const numeric = Number(ind.value.split(' ')[0].replace(',', '.'));
+  const word = scale?.kind === 'gauge' && Number.isFinite(numeric) ? SPARK_LEVEL_WORD[level] : ind.value;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '7px 10px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', minWidth: 0 }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-typo-secondary)', textAlign: 'center' }}>
-        {SHORT_LABEL[ind.label] ?? ind.label}
-        {ind.tip && <span title={ind.tip} style={{ marginLeft: 4, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 11 }}>ⓘ</span>}
-      </span>
-      {scale && scale.kind === 'gauge' && Number.isFinite(numeric) ? (
-        <>
-          <SparkGauge value={numeric} max={scale.max} color={color} />
-          {/* под кольцом — словесная оценка значения, как у уровневых карточек
-              («Сводный риск», ИФР), а не легенда диапазона шкалы */}
-          <span style={{ marginTop: 'auto', fontSize: 13, fontWeight: 600, color, textAlign: 'center' }}>{SPARK_LEVEL_WORD[level]}</span>
-        </>
-      ) : (
-        <>
-          <SparkLevelRing level={level} color={color} />
-          {/* marginTop: auto — подписи всех карточек ряда стоят на одной линии,
-              независимо от того, в сколько строк уложилась расшифровка шкалы */}
-          <span style={{ marginTop: 'auto', fontSize: 13, fontWeight: 600, color, textAlign: 'center' }}>{ind.value}</span>
-        </>
-      )}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+      <div style={{ flex: 'none' }}>
+        {scale && scale.kind === 'gauge' && Number.isFinite(numeric)
+          ? <SparkGauge value={numeric} max={scale.max} color={color} />
+          : <SparkLevelRing level={level} color={color} />}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <span style={{ fontSize: 12, color: 'var(--color-typo-secondary)', lineHeight: 1.3 }}>
+          {ind.label}
+          {ind.tip && <span title={ind.tip} style={{ marginLeft: 4, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 11 }}>ⓘ</span>}
+        </span>
+        <span style={{ fontSize: 14, fontWeight: 700, color, lineHeight: 1.2, whiteSpace: 'nowrap' }}>{word}</span>
+      </div>
     </div>
   );
 }
 
-/** Сводка раздела «1. Финансовые индикаторы риска СПАРК» — четыре ключевых
-    показателя карточками со шкалами в стилистике источника, над списком
-    остальных значений раздела. Значения те же, что в списке ниже; карточки
-    дают быстрый ответ «как дела», список — полную расшифровку. */
-function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
+/** Сводка раздела «Финансовые индикаторы риска СПАРК» — показатели идут друг за
+    другом равной ширины (грид 1fr), без рамок; у каждого индикатор слева,
+    полное наименование и значение — справа в столбик. */
+function RiskSummaryList({ indicators }: { indicators: Indicator[] }) {
   const cards = indicators.filter((ind) => SPARK_SCALES[ind.label]);
   if (cards.length === 0) return null;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))`, gap: 8, padding: '8px 0 0' }}>
-      {cards.map((ind, i) => <SparkIndicatorCard key={i} ind={ind} />)}
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))`, gap: 24, padding: '14px 0 0' }}>
+      {cards.map((ind, i) => <SparkIndicatorInline key={i} ind={ind} />)}
     </div>
   );
 }
 
-function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, valueLeft, indicatorsInline, flush, softHead, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; valueLeft?: boolean; indicatorsInline?: boolean; flush?: boolean; softHead?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
+function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, valueLeft, flush, softHead, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; valueLeft?: boolean; flush?: boolean; softHead?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   // collapsible={false} — тот же брендовый подблок, но без шеврона и клика:
   // содержимое всегда раскрыто (таблицы раздела «Аффилированность»).
@@ -919,7 +889,7 @@ function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideLi
           {beforeIndicators}
           {!hideList && indicators && (grouped
             ? <GroupedIndicators indicators={indicators} hideDot={hideDot} left={valueLeft} />
-            : indicators.map((ind, i) => <IndRow key={i} ind={ind} hideDot={hideDot} left={valueLeft} inline={indicatorsInline} />))}
+            : indicators.map((ind, i) => <IndRow key={i} ind={ind} hideDot={hideDot} left={valueLeft} />))}
           {children}
         </div>
       )}
@@ -976,7 +946,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
             title={s.title}
             indicators={s.indicators}
             defaultOpen={['s1', 's2', 's4', 's6'].includes(s.key)}
-            beforeIndicators={s.key === 's1' && s.indicators ? <RiskSummaryBar indicators={s.indicators} /> : undefined}
+            beforeIndicators={s.key === 's1' && s.indicators ? <RiskSummaryList indicators={s.indicators} /> : undefined}
             hideList={s.key === 's1'}
             hideDot={['s4', 's6'].includes(s.key)}
             grouped={['s4', 's5', 's9'].includes(s.key)}
@@ -1042,15 +1012,15 @@ function ExternalTab({ c }: { c: Counterparty }) {
           {s.key === 's2' && ext.sanctions.length > 0 && (
             <ExtAccordion
               title="Санкции по данным СПАРК"
-              indicators={[{ label: 'Под санкциями', value: 'Да', level: 'high' }]}
               defaultOpen
-              indicatorsInline
               extra={<DateActuality date={c.asOf.external} source="СПАРК · Санкции" />}
             >
+              {/* показатель «Под санкциями» — обычной строкой, как в других
+                  блоках (значение слева); без нижней границы, чтобы не двоить
+                  разделитель перед подблоком «Расшифровка санкций» */}
+              <IndRow ind={{ label: 'Под санкциями', value: 'Да', level: 'high' }} left noBorder />
               {/* «Расшифровка санкций» — вложенный сворачиваемый подблок, тем же
-                  ExtAccordion, что и «Расшифровка судебных дел» в разделе s6:
-                  раскрыт по умолчанию, сворачивается, оставляя в разделе только
-                  сводный индикатор «Под санкциями». */}
+                  ExtAccordion, что и «Расшифровка судебных дел» в разделе s6. */}
               <div style={{ marginTop: 10 }}>
                 <ExtAccordion
                   title="Расшифровка санкций"
