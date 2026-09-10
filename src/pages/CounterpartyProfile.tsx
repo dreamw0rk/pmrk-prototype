@@ -18,7 +18,7 @@ import {
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
 import iconPdf from '@/assets/icons/icon-pdf.png';
 import { LineChart } from '@/shared/ui/MiniChart';
-import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, FINAL_BENEFICIARY_THRESHOLD, isFinalBeneficiary, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
+import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
 import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
 import { useMockQuery } from '@/shared/mock/useMockQuery';
@@ -115,15 +115,17 @@ export function CounterpartyProfile() {
     </div>
   );
 
-  // CTA «Подписаться» вынесена из шапки профиля вниз вкладки «Общие сведения» —
-  // после всех блоков, у правого края, с тем же нижним отступом (16px), что у
-  // карточек-разделов.
+  // CTA «Подписаться» — в шапке профиля, сразу под строкой чипов состояния
+  // («Действующее» / «Особый контроль» / «Под санкциями»): это действие над
+  // контрагентом в целом, поэтому оно в шапке и видно на всех вкладках. Ширину
+  // кнопке задаёт колонка-обёртка ниже (по ряду чипов) — width:full растягивает
+  // её ровно на эту ширину.
   const subscribeAction = (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Button size="s" width="full" style={{ flex: 1, minWidth: 0 }} view={subscribed ? 'primary' : 'secondary'} label={subscribed ? 'Вы подписаны' : 'Подписаться на уведомления по контрагенту'} iconLeft={IconRing as never} onClick={() => setSubscribed((v) => !v)} />
       {subscribed && (
-        <span title='Ранее Вы уже подписались на уведомления по всем контрагентам Блока/БЕ или ДО. Изменить/отменить подписку по контрагентам можно в разделе «Мои оповещения»' style={{ color: 'var(--color-typo-secondary)', cursor: 'help', fontSize: 14 }}>ⓘ</span>
+        <span title='Ранее Вы уже подписались на уведомления по всем контрагентам Блока/БЕ или ДО. Изменить/отменить подписку по контрагентам можно в разделе «Мои оповещения»' style={{ color: 'var(--color-typo-secondary)', cursor: 'help', fontSize: 14, flex: 'none' }}>ⓘ</span>
       )}
-      <Button size="s" view={subscribed ? 'primary' : 'secondary'} label={subscribed ? 'Вы подписаны' : 'Подписаться на уведомления по контрагенту'} iconLeft={IconRing as never} onClick={() => setSubscribed((v) => !v)} />
     </div>
   );
 
@@ -179,13 +181,20 @@ export function CounterpartyProfile() {
                 состояние контрагента, и в шапке они спорили со статусом за
                 внимание. Обе остались там, где читаются в контексте: Индекс РБ —
                 во «Внешней информации», группа со скорингом — в «Оценке». */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span title="Статус по данным СПАРК"><StatusBadge status={c.status} /></span>
-              {c.specialControl && <StatusBadge status="Особый контроль" />}
-              {c.underSanctions && <SanctionBadge />}
-              {/* в скине СФК заголовка на странице нет (он в топбаре оболочки),
-                  поэтому кнопки карточки остаются в строке бейджей */}
-              {skin === 'sfk' && <div style={{ marginLeft: 'auto' }}>{cardActions}</div>}
+            {/* Чипы состояния и кнопка «Подписаться» — в общей колонке-обёртке
+                (inline-flex): она сжимается по ширине самого широкого ряда чипов,
+                а кнопка ниже тянется ровно на ту же ширину — визуально один блок,
+                кнопка не длиннее чипов. */}
+            <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 10, marginTop: 10, maxWidth: '100%' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span title="Статус по данным СПАРК"><StatusBadge status={c.status} /></span>
+                {c.specialControl && <StatusBadge status="Особый контроль" />}
+                {c.underSanctions && <SanctionBadge />}
+                {/* в скине СФК заголовка на странице нет (он в топбаре оболочки),
+                    поэтому кнопки карточки остаются в строке бейджей */}
+                {skin === 'sfk' && <div style={{ marginLeft: 'auto' }}>{cardActions}</div>}
+              </div>
+              {subscribeAction}
             </div>
           </div>
           {/* Панель документов (ФТ-1.16…1.19) — четыре плитки в один ряд в правой
@@ -210,7 +219,7 @@ export function CounterpartyProfile() {
                   onClick={() => navigate(`/report/${c.uid}${r.to}`)}
                   title={r.title}
                   className="pmrk-clickable"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '2px solid var(--color-typo-brand)', borderRadius: 8, background: 'var(--color-bg-default)', cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-typo-brand)', borderRadius: 8, background: 'var(--color-bg-default)', cursor: 'pointer' }}
                 >
                   {/* PNG перекрашивается в фирменный цвет через CSS-маску:
                       альфа-канал картинки задаёт форму, заливка — цвет */}
@@ -238,18 +247,14 @@ export function CounterpartyProfile() {
           </div>
         </div>
 
-        {/* Вкладки — sticky навигация */}
-        <div style={{ display: 'flex', gap: 2, overflowX: 'auto', borderBottom: '1px solid var(--color-bg-border)' }}>
+        {/* Вкладки — навигация в несколько рядов (без бокового скролла),
+            выбранная подсвечена фирменной заливкой */}
+        <div className="pmrk-cptabs">
           {visibleTabs.map((t) => (
             <div
               key={t.key}
               onClick={() => navigate(`/counterparties/${uid}/${t.key}`)}
-              style={{
-                padding: '9px 7px', fontSize: 13, whiteSpace: 'nowrap', cursor: 'pointer',
-                borderBottom: tab === t.key ? '2px solid var(--color-bg-brand)' : '2px solid transparent',
-                color: tab === t.key ? 'var(--color-typo-primary)' : 'var(--color-typo-secondary)',
-                fontWeight: tab === t.key ? 600 : 400,
-              }}
+              className={tab === t.key ? 'pmrk-cptab pmrk-cptab--active' : 'pmrk-cptab'}
             >
               {t.label}
             </div>
@@ -264,8 +269,6 @@ export function CounterpartyProfile() {
         {aiOn && summary && <ProfileAiSummary uid={uid} summary={summary} />}
 
         <TabContent c={c} tab={tab} />
-
-        {tab === 'general' && subscribeAction}
 
         <AuditFooter createdBy="SYSTEM" createdAt="2025-03-12" modifiedBy="Соколова Е.В." modifiedAt={c.asOf.general ?? '2026-06-14'} />
       </div>
@@ -748,7 +751,20 @@ function IndicatorVisual({ ind, hideDot, left }: { ind: Indicator; hideDot?: boo
   );
 }
 
-function IndRow({ ind, hideDot, left }: { ind: Indicator; hideDot?: boolean; left?: boolean }) {
+function IndRow({ ind, hideDot, left, inline }: { ind: Indicator; hideDot?: boolean; left?: boolean; inline?: boolean }) {
+  // inline — значение стоит вплотную к подписи слева («Под санкциями  ● Да»),
+  // а не отдельной колонкой у другого края строки.
+  if (inline) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--color-bg-border)', fontSize: 13 }}>
+        <span>
+          {ind.label}
+          {ind.tip && <span title={ind.tip} style={{ marginLeft: 6, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 12 }}>ⓘ</span>}
+        </span>
+        <IndicatorVisual ind={ind} hideDot={hideDot} />
+      </div>
+    );
+  }
   return (
     <div style={{ display: 'flex', alignItems: left ? 'flex-start' : 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--color-bg-border)', fontSize: 13 }}>
       <span style={{ flex: 1 }}>
@@ -851,7 +867,7 @@ function RiskSummaryBar({ indicators }: { indicators: Indicator[] }) {
   );
 }
 
-function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, valueLeft, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; valueLeft?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
+function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideList, hideDot, grouped, valueLeft, indicatorsInline, extra, collapsible = true, children }: { title: string; indicators?: Indicator[]; defaultOpen?: boolean; beforeIndicators?: React.ReactNode; hideList?: boolean; hideDot?: boolean; grouped?: boolean; valueLeft?: boolean; indicatorsInline?: boolean; extra?: React.ReactNode; collapsible?: boolean; children?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   // collapsible={false} — тот же брендовый подблок, но без шеврона и клика:
   // содержимое всегда раскрыто (таблицы раздела «Аффилированность»).
@@ -879,7 +895,7 @@ function ExtAccordion({ title, indicators, defaultOpen, beforeIndicators, hideLi
           {beforeIndicators}
           {!hideList && indicators && (grouped
             ? <GroupedIndicators indicators={indicators} hideDot={hideDot} left={valueLeft} />
-            : indicators.map((ind, i) => <IndRow key={i} ind={ind} hideDot={hideDot} left={valueLeft} />))}
+            : indicators.map((ind, i) => <IndRow key={i} ind={ind} hideDot={hideDot} left={valueLeft} inline={indicatorsInline} />))}
           {children}
         </div>
       )}
@@ -996,7 +1012,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
               title="Санкции по данным СПАРК"
               indicators={[{ label: 'Под санкциями', value: 'Да', level: 'high' }]}
               defaultOpen
-              valueLeft
+              indicatorsInline
               extra={<DateActuality date={c.asOf.external} source="СПАРК · Санкции" />}
             >
               {/* «Расшифровка санкций» — вложенный сворачиваемый подблок, тем же
@@ -1045,7 +1061,7 @@ function AffiliationTabView({ c }: { c: Counterparty }) {
   const graph = GRAPHS[c.uid];
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<'diagram' | 'table'>('diagram');
-  const [filters, setFilters] = useState<DiagramFilters>({ types: new Set<AffiliationLinkType>(['owner', 'beneficiary', 'subsidiary', 'affiliate']), minDirect: 0, maxLevel: 3 });
+  const [filters, setFilters] = useState<DiagramFilters>({ types: new Set<AffiliationLinkType>(['owner', 'subsidiary', 'affiliate']), minDirect: 0, maxLevel: 3 });
   const groupRisk = AI_GROUP_RISK[c.uid];
 
   if (!graph) {
@@ -1081,9 +1097,9 @@ function AffiliationTabView({ c }: { c: Counterparty }) {
 
         {/* фильтры */}
         <div className="pmrk-filterbar">
-          {(['owner', 'beneficiary', 'subsidiary', 'affiliate'] as AffiliationLinkType[]).map((t) => (
+          {(['owner', 'subsidiary', 'affiliate'] as AffiliationLinkType[]).map((t) => (
             <div key={t} className={`pmrk-filterchip ${filters.types.has(t) ? 'pmrk-filterchip--active' : ''}`} onClick={() => toggleType(t)}>
-              {t === 'owner' ? 'Собственники' : t === 'beneficiary' ? 'Бенефициары' : t === 'subsidiary' ? 'Дочерние' : 'Аффилированные'}
+              {t === 'owner' ? 'Собственники' : t === 'subsidiary' ? 'Дочерние' : 'Аффилированные'}
             </div>
           ))}
         </div>
@@ -1107,7 +1123,6 @@ function AffiliationTabView({ c }: { c: Counterparty }) {
 function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[string]; search: string; onOpen: (uid: string) => void }) {
   const q = search.trim().toLowerCase();
   const owners = graph.nodes.filter((n) => n.linkType === 'owner');
-  const benef = graph.nodes.filter((n) => n.linkType === 'beneficiary');
   const aff = graph.nodes.filter((n) => n.linkType === 'affiliate' || n.linkType === 'subsidiary');
   const hit = (n: AffiliationNode) => !!q && (n.name.toLowerCase().includes(q) || (n.inn ?? '').includes(q));
 
@@ -1128,27 +1143,6 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
     </div>
   );
 
-  // Раздел «Бенефициары» в исходной системе — отдельный реестр (BeneficiarsList)
-  // со своим набором колонок: не «Описание связи» (оно у собственников/
-  // аффилированных лиц), а «Признак конечного бенефициара» — Да, если доля
-  // владения по цепочке достигает 25%, иначе Нет с описанием причины.
-  const BenefRow = ({ n }: { n: AffiliationNode }) => {
-    const share = n.directShare ?? n.indirectShare ?? 0;
-    const isFinal = isFinalBeneficiary(n);
-    return (
-      <div className={`pmrk-tr ${hit(n) ? 'pmrk-search-hit' : ''}`} style={{ cursor: n.uid ? 'pointer' : 'default', alignItems: 'flex-start' }} onClick={() => n.uid && onOpen(n.uid)}>
-        <NameCell n={n} />
-        <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{n.inn ?? '—'}</div>
-        <div className="pmrk-td" style={{ flex: 0.9 }}>
-          <span style={{ color: isFinal ? 'var(--pmrk-risk-1)' : 'var(--pmrk-risk-3)', fontWeight: 600 }}>{isFinal ? 'Да' : 'Нет'}</span>
-        </div>
-        <div className="pmrk-td pmrk-muted" style={{ flex: 2, whiteSpace: 'normal' }}>
-          {isFinal ? '—' : `Доля владения по цепочке (${share}%) ниже порога признания конечным бенефициаром (${FINAL_BENEFICIARY_THRESHOLD}%)`}
-        </div>
-      </div>
-    );
-  };
-
   // Каждая таблица — несворачиваемый брендовый подблок (ExtAccordion
   // collapsible={false}): единый визуальный язык с разделами «Внешней
   // информации», но заголовок здесь не сворачивает содержимое.
@@ -1162,18 +1156,6 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
             <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
           </div>
           {owners.length ? owners.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
-        </div>
-      </ExtAccordion>
-
-      <ExtAccordion title="Бенефициары" collapsible={false}>
-        <div className="pmrk-table">
-          <div className="pmrk-table__head">
-            <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
-            <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-            <div className="pmrk-th" style={{ flex: 0.9 }}>Признак конечного бенефициара</div>
-            <div className="pmrk-th" style={{ flex: 2 }}>Описание причины ненахождения конечного бенефициара</div>
-          </div>
-          {benef.length ? benef.map((n) => <BenefRow key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
         </div>
       </ExtAccordion>
 

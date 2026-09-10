@@ -283,6 +283,38 @@
   position: relative;
 }
 
+/* --- Вкладки карточки контрагента --- */
+/* Переносятся в несколько рядов вместо бокового скролла: при нехватке ширины
+   строка вкладок продолжается на следующей. Выбранная вкладка залита фирменным
+   цветом — сразу видно, с каким разделом работаешь. */
+.pmrk-cptabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 0 10px;
+}
+.pmrk-cptab {
+  padding: 6px 12px;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  color: var(--color-typo-secondary);
+  transition: background 0.1s, color 0.1s;
+}
+.pmrk-cptab:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-typo-primary);
+}
+.pmrk-cptab--active,
+.pmrk-cptab--active:hover {
+  background: var(--color-bg-brand);
+  color: #fff;
+  font-weight: 600;
+}
+
 /* --- Чипы-фильтры --- */
 .pmrk-filterbar {
   display: flex;

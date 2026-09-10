@@ -6,12 +6,14 @@ import type { AffiliationGraph, AffiliationNode, AffiliationLinkType } from '@/s
 
 /* Диаграмма связей (ФТ-4.2). SVG (не canvas): нужны клики, тултипы, доступность.
    Компоновка — ЯРУСНАЯ ИЕРАРХИЯ (как в СПАРК): анализируемая компания слева,
-   справа — ярусы-полосы по типу связи (собственник / бенефициар / дочернее /
-   аффилированное), внутри полосы — карточки сеткой; стрелки от корня к полосам.
+   справа — ярусы-полосы по типу связи (собственник / дочернее / аффилированное),
+   под заголовком яруса — критерий отнесения к нему; внутри полосы — карточки
+   сеткой; стрелки от корня к полосам.
    - доля владения вынесена в «пилюлю» в углу карточки (белая — прямое, жёлтая —
      косвенное), чтобы не налезать на наименование (ФТ-4.2);
-   - оранжевая обводка + клик, если ИНН есть в реестре (→ профиль связанного);
-   - красная полоса слева — под санкциями; легенда — НАД диаграммой;
+   - оранжевая обводка + клик, если у лица есть опыт сотрудничества с ГК ГПН
+     (карточка в реестре ПМРК → профиль связанного);
+   - красная обводка — под санкциями; легенда — НАД диаграммой;
    - подсветка результата поиска — оранжевым (ФТ-4.3). */
 
 export interface DiagramFilters {
@@ -20,11 +22,22 @@ export interface DiagramFilters {
   maxLevel: number;
 }
 
-const TIERS: { type: AffiliationLinkType; label: string }[] = [
-  { type: 'owner', label: 'СОБСТВЕННИК (УЧАСТНИК / АКЦИОНЕР)' },
-  { type: 'beneficiary', label: 'КОНЕЧНЫЙ БЕНЕФИЦИАР' },
-  { type: 'subsidiary', label: 'ДОЧЕРНЕЕ / ЗАВИСИМОЕ ОБЩЕСТВО' },
-  { type: 'affiliate', label: 'АФФИЛИРОВАННОЕ ЛИЦО' },
+const TIERS: { type: AffiliationLinkType; label: string; desc: [string, string] }[] = [
+  {
+    type: 'owner',
+    label: 'СОБСТВЕННИК (УЧАСТНИК / АКЦИОНЕР)',
+    desc: ['Участники и акционеры с прямым владением долями', 'или акциями анализируемой компании.'],
+  },
+  {
+    type: 'subsidiary',
+    label: 'ДОЧЕРНЕЕ / ЗАВИСИМОЕ ОБЩЕСТВО',
+    desc: ['Компании под контролем анализируемой: дочерние —', 'доля > 50%, зависимые — от 20 до 50%.'],
+  },
+  {
+    type: 'affiliate',
+    label: 'АФФИЛИРОВАННОЕ ЛИЦО',
+    desc: ['Лица, способные влиять на решения компании: общий', 'контроль, органы управления, группа лиц (135-ФЗ).'],
+  },
 ];
 
 const ROLE_SHORT: Record<AffiliationLinkType, string> = {
@@ -93,9 +106,9 @@ const ROOT_H = 74;
 const BAND_X = 270;
 const BAND_W = W - BAND_X - 18; // 752
 const BAND_PAD = 14;
-const BAND_HEADER_H = 30;
+const BAND_HEADER_H = 58; // заголовок яруса + двухстрочное описание группы
 const CARD_W = 226;
-const CARD_H = 74;
+const CARD_H = 84; // имя (до 2 строк) + строка ИНН + строка типа лица под ней
 const CARD_GAP = 14;
 const BAND_GAP = 16;
 const COLS = Math.max(1, Math.floor((BAND_W - 2 * BAND_PAD + CARD_GAP) / (CARD_W + CARD_GAP)));
@@ -106,6 +119,7 @@ interface Placed extends AffiliationNode {
 }
 interface Band {
   label: string;
+  desc: [string, string];
   x: number;
   y: number;
   w: number;
@@ -177,7 +191,7 @@ export function AffiliationDiagram(props: {
         const c = i % COLS;
         placed.push({ ...n, _x: BAND_X + BAND_PAD + c * (CARD_W + CARD_GAP), _y: y + BAND_HEADER_H + r * (CARD_H + CARD_GAP) });
       });
-      bands.push({ label: tier.label, x: BAND_X, y, w: BAND_W, h });
+      bands.push({ label: tier.label, desc: tier.desc, x: BAND_X, y, w: BAND_W, h });
       y += h + BAND_GAP;
     }
     const totalH = Math.max(y - BAND_GAP + 16, 220);
@@ -209,8 +223,7 @@ export function AffiliationDiagram(props: {
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 18px', marginBottom: 10, fontSize: 12, padding: '10px 14px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius)' }}>
         <Legend swatch="#ffffff" border="#cfd6e0" label="Владение (доля): прямое / косвенное" pill />
         <Legend swatch={DIRECTOR_COLOR} border={DIRECTOR_COLOR} label="Руководитель (ЕИО)" dot />
-        <Legend swatch="#ffffff" border="#9aa7b8" label="Бенефициар не признан конечным (доля < 25%)" dashed />
-        <Legend swatch="#ffffff" border="#ff7a00" label="Есть в реестре — кликабельно" thick />
+        <Legend swatch="#ffffff" border="#ff7a00" label="Имеется опыт сотрудничества с ГК ГПН" thick />
         <Legend swatch="#ffffff" border="var(--pmrk-risk-4)" label="Под санкциями" thick />
         <Button
           size="xs"
@@ -248,17 +261,10 @@ export function AffiliationDiagram(props: {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '1.5px dashed #9aa7b8', flex: 'none', marginTop: 2 }} />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Бенефициар не признан конечным</div>
-                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Доля владения по всей цепочке ниже порога {FINAL_BENEFICIARY_THRESHOLD}%, при котором лицо признаётся конечным бенефициаром (Признак конечного бенефициара = Нет). Полная формулировка причины — в подсказке при наведении и в разделе «Таблица» (вкладка «Бенефициары»).</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '2px solid #ff7a00', flex: 'none', marginTop: 2 }} />
               <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Есть в реестре — кликабельно</div>
-                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>У этого лица есть собственная карточка в реестре ПМРК. Клик по карточке открывает его профиль.</div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>Имеется опыт сотрудничества с ГК ГПН</div>
+                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>У этого лица есть опыт сотрудничества с ГК «Газпром нефть» и собственная карточка в реестре ПМРК — клик по карточке открывает его профиль.</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -272,7 +278,7 @@ export function AffiliationDiagram(props: {
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Ярусы диаграммы</div>
             <div className="pmrk-muted" style={{ fontSize: 12.5 }}>
-              Связанные лица сгруппированы по типу связи с анализируемой компанией — собственники и акционеры, конечный бенефициар, дочерние/зависимые общества, аффилированные лица. Оранжевая подсветка карточки — совпадение с поисковым запросом. Полное текстовое описание связи (как в примере ниже) — при наведении на карточку и в разделе «Таблица».
+              Связанные лица сгруппированы по типу связи с анализируемой компанией — собственники и акционеры, дочерние/зависимые общества, аффилированные лица; под заголовком каждого яруса указан критерий отнесения к нему. Оранжевая подсветка карточки — совпадение с поисковым запросом. Полное текстовое описание связи (как в примере ниже) — при наведении на карточку и в разделе «Таблица».
             </div>
           </div>
         </div>
@@ -316,13 +322,16 @@ export function AffiliationDiagram(props: {
               );
             })()}
 
-            {/* ярусы-полосы (фон + заголовок) */}
+            {/* ярусы-полосы (фон + заголовок + описание группы) */}
             {bands.map((b, i) => (
               <g key={`b-${i}`}>
                 <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={12} fill="var(--color-bg-default)" stroke="var(--color-bg-border)" />
-                <text x={b.x + 16} y={b.y + 20} fontSize={11} fontWeight={700} letterSpacing={0.5} fill="var(--color-typo-secondary)">
+                <text x={b.x + 16} y={b.y + 19} fontSize={11} fontWeight={700} letterSpacing={0.5} fill="var(--color-typo-secondary)">
                   {b.label}
                 </text>
+                {/* критерий отнесения к группе — под заголовком яруса */}
+                <text x={b.x + 16} y={b.y + 36} fontSize={10.5} fill="#8a94a6">{b.desc[0]}</text>
+                <text x={b.x + 16} y={b.y + 50} fontSize={10.5} fill="#8a94a6">{b.desc[1]}</text>
               </g>
             ))}
 
@@ -347,12 +356,13 @@ export function AffiliationDiagram(props: {
               const clickable = n.inRegistry && !!n.uid;
               const border = hl ? '#ff7a00' : n.inRegistry ? '#ff7a00' : n.underSanctions ? 'var(--pmrk-risk-4)' : '#d4dae3';
               const bw = hl ? 2.5 : n.inRegistry || n.underSanctions ? 2 : 1;
-              const notFinalBenef = n.linkType === 'beneficiary' && !isFinalBeneficiary(n);
               const share = n.directShare ?? n.indirectShare;
               const [l1, l2] = wrap2(n.name, 19);
               const pillFill = n.directShare != null ? '#ffffff' : '#fff3c4';
               const pillStroke = n.directShare != null ? '#cfd6e0' : '#e6cf6a';
-              const sub = n.isPerson ? 'Физ. лицо' : n.inn ? `ИНН ${n.inn}` : 'Юр. лицо';
+              // Тип лица показываем всегда: у юрлица с ИНН — отдельной строкой
+              // под ИНН, иначе (физлицо / юрлицо без ИНН) — единственной строкой.
+              const typeLabel = n.isPerson ? 'Физ. лицо' : 'Юр. лицо';
               return (
                 <g
                   key={n.id}
@@ -361,10 +371,17 @@ export function AffiliationDiagram(props: {
                   onMouseEnter={() => setHover(n)}
                   onMouseLeave={() => setHover(null)}
                 >
-                  <rect x={n._x} y={n._y} width={CARD_W} height={CARD_H} rx={11} fill="url(#aff-card)" stroke={border} strokeWidth={bw} strokeDasharray={notFinalBenef ? '5 3' : undefined} />
+                  <rect x={n._x} y={n._y} width={CARD_W} height={CARD_H} rx={11} fill="url(#aff-card)" stroke={border} strokeWidth={bw} />
                   <text x={n._x + 15} y={n._y + 25} fontSize={12.5} fontWeight={700} fill="#15233b">{l1}</text>
                   {l2 && <text x={n._x + 15} y={n._y + 42} fontSize={12.5} fontWeight={700} fill="#15233b">{l2}</text>}
-                  <text x={n._x + 15} y={n._y + 62} fontSize={10.5} fill="#6b7689">{sub}</text>
+                  {n.inn ? (
+                    <>
+                      <text x={n._x + 15} y={n._y + 60} fontSize={10.5} fill="#6b7689">ИНН {n.inn}</text>
+                      <text x={n._x + 15} y={n._y + 74} fontSize={10.5} fill="#8a94a6">{typeLabel}</text>
+                    </>
+                  ) : (
+                    <text x={n._x + 15} y={n._y + 60} fontSize={10.5} fill="#6b7689">{typeLabel}</text>
+                  )}
                   {n.isDirector && (
                     <>
                       <circle cx={n._x + CARD_W - 15} cy={n._y + 15} r={9} fill={DIRECTOR_COLOR} />
@@ -387,10 +404,10 @@ export function AffiliationDiagram(props: {
           <div style={{ position: 'absolute', right: 16, top: 16, background: 'var(--color-bg-default)', border: '1px solid var(--color-bg-border)', borderRadius: 8, boxShadow: 'var(--pmrk-shadow-2)', padding: '8px 12px', fontSize: 12, maxWidth: 268, pointerEvents: 'none' }}>
             <b>{hover.name}</b>
             <div className="pmrk-muted" style={{ marginTop: 4 }}>
-              {ROLE_SHORT[hover.linkType]}{hover.inn ? ` · ИНН ${hover.inn}` : hover.isPerson ? ' · физлицо' : ''}
+              {ROLE_SHORT[hover.linkType]} · {hover.isPerson ? 'физлицо' : hover.inn ? `юрлицо · ИНН ${hover.inn}` : 'юрлицо'}
             </div>
             <div style={{ marginTop: 4 }}>{describeAffiliation(hover)}</div>
-            {hover.inRegistry && <div style={{ color: '#ff7a00', marginTop: 4 }}>Есть в реестре ПМРК → клик откроет профиль</div>}
+            {hover.inRegistry && <div style={{ color: '#ff7a00', marginTop: 4 }}>Имеется опыт сотрудничества с ГК ГПН → клик откроет профиль</div>}
             {hover.underSanctions && <div style={{ color: 'var(--pmrk-risk-4)', marginTop: 4 }}>Под санкциями</div>}
           </div>
         )}
