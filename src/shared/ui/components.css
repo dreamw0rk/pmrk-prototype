@@ -63,6 +63,12 @@
   color: rgb(61 113 173);
 }
 
+/* Кнопки-отчёты в шапке профиля контрагента — просто тень снизу. */
+.pmrk-report-tile {
+  background: var(--color-bg-default);
+  box-shadow: 0 4px 10px rgba(16, 33, 60, 0.12);
+}
+
 /* --- Заголовок страницы --- */
 /* Поля рабочей области — 14px, тот же шаг, что и внутренние поля левой панели
    (.pmrk-sidebar). Так расстояние «пункт меню → край панели» совпадает с
@@ -304,7 +310,7 @@
   padding: 2px 0 10px;
 }
 .pmrk-cptab {
-  padding: 6px 12px;
+  padding: 6px 5px;
   font-size: 13px;
   line-height: 1.2;
   white-space: nowrap;

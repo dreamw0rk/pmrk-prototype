@@ -183,17 +183,15 @@ export function buildExternal(cp: Counterparty) {
     { group: FTS_DEBT, label: 'Сумма штрафов', value: g >= 3 ? money(180_000) : '0 ₽' },
   ];
 
+  const S6_SUMMARY = 'Сводная информация из СПАРК';
+  const S6_PLEDGES = 'Залоги выданные по данным СПАРК';
   const section6: Indicator[] = [
-    { label: 'Количество судебных дел (ответчик), с начала предыдущего года', value: String(lawsuits.length), level: lawsuits.length ? 'medium' : 'low' },
-    { label: 'Сумма исков (ответчик), с начала предыдущего года', value: money(lawsuits.reduce((s, c) => s + c.amount, 0)) },
-    { label: 'Сумма решений по искам за последние 2 года (ответчик)', value: money(Math.round(lawsuits.reduce((s, c) => s + c.amount, 0) * 0.15)) },
-    { label: 'Сумма активных исполнительных производств', value: enforcement ? money(enforcement) : '0 ₽', level: enforcement ? 'medium' : 'low' },
-    { label: 'Судебные дела о банкротстве (ответчик)', value: hasBankruptcyCase ? 'Да' : 'Нет', level: hasBankruptcyCase ? 'high' : 'low', dot: true },
-  ];
-  // «Залоги выданные» — отдельный подблок раздела s6, а не строка общего списка
-  // судебных дел / исполнительных производств.
-  const pledges: Indicator[] = [
-    { label: 'Залоги выданные', value: g <= 2 ? 'Нет' : '1 предмет залога' },
+    { group: S6_SUMMARY, label: 'Количество судебных дел (ответчик), с начала предыдущего года', value: String(lawsuits.length), level: lawsuits.length ? 'medium' : 'low' },
+    { group: S6_SUMMARY, label: 'Сумма исков (ответчик), с начала предыдущего года', value: money(lawsuits.reduce((s, c) => s + c.amount, 0)) },
+    { group: S6_SUMMARY, label: 'Сумма решений по искам за последние 2 года (ответчик)', value: money(Math.round(lawsuits.reduce((s, c) => s + c.amount, 0) * 0.15)) },
+    { group: S6_SUMMARY, label: 'Сумма активных исполнительных производств', value: enforcement ? money(enforcement) : '0 ₽', level: enforcement ? 'medium' : 'low' },
+    { group: S6_SUMMARY, label: 'Судебные дела о банкротстве (ответчик)', value: hasBankruptcyCase ? 'Да' : 'Нет', level: hasBankruptcyCase ? 'high' : 'low', dot: true },
+    { group: S6_PLEDGES, label: 'Залоги выданные', value: g <= 2 ? 'Нет' : '1 предмет залога' },
   ];
   const courtCases: CourtCaseDetail[] = lawsuits.map((c, i) => ({
     plaintiff: i === 0 ? 'ООО «ТЭК-Снаб»' : 'ООО «Поставщик-' + (100 + i) + '»', number: `А56-${10000 + i * 137}/2026`, category: 'Экономические споры', state: c.status, outcome: c.status.includes('производ') ? 'рассматривается' : 'в работе', date: c.date, claim: c.amount, decision: 0,
@@ -319,7 +317,6 @@ export function buildExternal(cp: Counterparty) {
     ].map((s): ExternalSection => ({ ...s, source: SECTION_SOURCE[s.key] ?? 'СПАРК', asOf: sectionAsOf(s.key) })),
     sanctions,
     courtCases,
-    pledges,
   };
 }
 

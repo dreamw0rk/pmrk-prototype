@@ -218,8 +218,8 @@ export function CounterpartyProfile() {
                   key={r.to}
                   onClick={() => navigate(`/report/${c.uid}${r.to}`)}
                   title={r.title}
-                  className="pmrk-clickable"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-typo-brand)', borderRadius: 8, background: 'var(--color-bg-default)', cursor: 'pointer' }}
+                  className="pmrk-clickable pmrk-report-tile"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-typo-brand)', borderRadius: 8, cursor: 'pointer' }}
                 >
                   {/* PNG перекрашивается в фирменный цвет через CSS-маску:
                       альфа-канал картинки задаёт форму, заливка — цвет */}
@@ -949,19 +949,10 @@ function ExternalTab({ c }: { c: Counterparty }) {
             beforeIndicators={s.key === 's1' && s.indicators ? <RiskSummaryList indicators={s.indicators} /> : undefined}
             hideList={s.key === 's1'}
             hideDot={['s4', 's6'].includes(s.key)}
-            grouped={['s4', 's5', 's9'].includes(s.key)}
+            grouped={['s4', 's5', 's6', 's9'].includes(s.key)}
             valueLeft
             extra={<DateActuality date={s.asOf} source={s.source} />}
           >
-            {s.key === 's6' && ext.pledges.length > 0 && (
-              // «Выданные залоги» — отдельный сворачиваемый подблок раздела s6,
-              // а не строки общего списка судебных дел и исполнительных производств.
-              <div style={{ marginTop: 10 }}>
-                <ExtAccordion title="Выданные залоги" defaultOpen softHead>
-                  {ext.pledges.map((ind, i) => <IndRow key={i} ind={ind} hideDot left />)}
-                </ExtAccordion>
-              </div>
-            )}
             {s.key === 's6' && ext.courtCases.length > 0 && (
               // «Расшифровка судебных дел» — вложенный сворачиваемый подблок
               // раздела: тем же ExtAccordion, что и разделы «Внешней информации»,
