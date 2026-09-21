@@ -2,19 +2,22 @@ import type { Counterparty } from './types';
 import { buildAdditionalOkveds } from './okved';
 
 /* «Взаимодействие контрагента с ГК Газпром нефть» + смежные блоки на вкладке
-   «Общие сведения» (номер в SAP, статус контрагента, деловая репутация,
+   «Общие сведения» (статус контрагента, деловая репутация,
    платформа деловых отзывов) — поля сверены с реальным порталом. Это derived
    мок (как buildDoLinks/buildCreditLimitsByDo): не хранится на Counterparty,
    считается детерминированно по uid и уже известным полям контрагента. */
 
 export interface InteractionInfo {
-  sapNumber: string;
   /** Статус контрагента в ПМРК (Потенциальный/Действующий) — отдельно от
       статуса по данным СПАРК (c.status), который про само юрлицо, а не про
       факт работы с ГК. */
   pmrkStatus: 'Потенциальный' | 'Действующий';
   gpnAffiliationFlag: string;
   hasCollateral: boolean;
+  /** «Контроль ЛФП» (КТ-555): подлежит ли контролю по сумме договора и/или
+      отсрочке платежа и по сумме аванса — два независимых признака */
+  lfpContractControl: boolean;
+  lfpAdvanceControl: boolean;
   hasNegativeSecurityInfo: boolean;
   experience: string;
   paymentDiscipline: string;
@@ -42,10 +45,12 @@ export function buildInteractionInfo(c: Counterparty): InteractionInfo {
   const paymentDiscipline = c.group === 1 ? DISCIPLINE[0] : c.group === 2 ? DISCIPLINE[seed % 2] : DISCIPLINE[2];
 
   return {
-    sapNumber: String(1_000_000 + (seed % 8_999_999)),
     pmrkStatus: c.creditLimit > 0 ? 'Действующий' : 'Потенциальный',
     gpnAffiliationFlag: seed % 5 === 0 ? 'ВЗЛ ГПН' : 'Не аффилирован',
     hasCollateral: seed % 4 === 0,
+    // крупный договор/лимит — почти всегда подлежит контролю; аванс — реже
+    lfpContractControl: c.creditLimit >= 300_000_000 || seed % 3 === 0,
+    lfpAdvanceControl: seed % 5 < 2,
     hasNegativeSecurityInfo: c.group === 4 && seed % 2 === 0,
     experience,
     paymentDiscipline,

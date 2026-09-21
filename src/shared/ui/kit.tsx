@@ -8,7 +8,7 @@ import type { RiskGroup, SignalSeverity, ApprovalStep, Kri } from '@/shared/mock
 /* ============================ Базовые примитивы ============================ */
 
 export function PageHeader(props: {
-  title: React.ReactNode;
+  title?: React.ReactNode;
   subtitle?: React.ReactNode;
   breadcrumbs?: { label: string; to?: string }[];
   actions?: React.ReactNode;
@@ -30,7 +30,7 @@ export function PageHeader(props: {
             ))}
           </div>
         )}
-        <h1 className="pmrk-pagehead__title" style={{ margin: 0, fontWeight: 700, lineHeight: 1.2 }}>{props.title}</h1>
+        {props.title && <h1 className="pmrk-pagehead__title" style={{ margin: 0, fontWeight: 700, lineHeight: 1.2 }}>{props.title}</h1>}
         {props.subtitle && (
           <div className="pmrk-muted" style={{ marginTop: 4, fontSize: 13 }}>
             {props.subtitle}
@@ -153,7 +153,7 @@ const GROUP_COLOR: Record<RiskGroup, { c: string; bg: string; label: string }> =
 export function GroupBadge({ group, withScore }: { group: RiskGroup; withScore?: number }) {
   const g = GROUP_COLOR[group];
   return (
-    <span className="pmrk-chip" style={{ background: g.bg, color: g.c }} title={`Кредитоспособность — ${g.label}`}>
+    <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-primary)' }} title={`Кредитоспособность — ${g.label}`}>
       <span className="pmrk-dot" style={{ background: g.c }} />
       {g.label}
       {withScore != null && <span style={{ opacity: 0.8 }}>· {withScore}</span>}
@@ -176,7 +176,7 @@ export function RbIndicator({ value }: { value: number }) {
 
 export function SanctionBadge() {
   return (
-    <span className="pmrk-chip" style={{ background: 'var(--pmrk-risk-4-bg)', color: 'var(--pmrk-risk-4)' }}>
+    <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-primary)' }}>
       <span className="pmrk-dot" style={{ background: 'var(--pmrk-risk-4)' }} />
       Под санкциями
     </span>
@@ -185,7 +185,7 @@ export function SanctionBadge() {
 
 export function RnpUnscrupulous() {
   return (
-    <span className="pmrk-chip" style={{ background: 'var(--pmrk-risk-1-bg)', color: 'var(--pmrk-risk-1)' }}>
+    <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-primary)' }}>
       <span className="pmrk-dot" style={{ background: 'var(--pmrk-risk-1)' }} />
       Не выявлено
     </span>
@@ -211,7 +211,7 @@ const STATUS_TONE: Record<string, string> = {
 export function StatusBadge({ status }: { status: string }) {
   const c = STATUS_TONE[status] ?? 'var(--color-typo-secondary)';
   return (
-    <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: c }}>
+    <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-primary)' }}>
       <span className="pmrk-dot" style={{ background: c }} />
       {status}
     </span>
@@ -299,7 +299,7 @@ export function KriList({ items }: { items: Kri[] }) {
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px solid var(--color-bg-border)' : 'none' }}>
           <span className="pmrk-dot" style={{ background: dot(k.tone) }} />
           <span style={{ flex: 1, fontSize: 13 }}>{k.label}{k.hint && <span className="pmrk-muted" style={{ fontSize: 11 }}> · {k.hint}</span>}</span>
-          <b className="pmrk-tnum" style={{ fontSize: 14, color: k.tone === 'bad' ? 'var(--pmrk-risk-4)' : undefined, whiteSpace: 'nowrap' }}>{k.value}</b>
+          <b className="pmrk-tnum" style={{ fontSize: 14, whiteSpace: 'nowrap' }}>{k.value}</b>
         </div>
       ))}
     </div>

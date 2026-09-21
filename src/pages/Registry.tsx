@@ -163,7 +163,7 @@ const COLUMNS: Column<Counterparty>[] = [
   { key: 'group', title: 'Группа', width: 116, sortable: true, sortValue: (c) => c.group, render: (c) => <GroupBadge group={c.group} /> },
   { key: 'score', title: 'Балл', width: 64, align: 'right', sortable: true, sortValue: (c) => c.score, render: (c) => <b className="pmrk-tnum">{c.score}</b> },
   { key: 'rb', title: 'Индекс РБ', width: 124, sortable: true, sortValue: (c) => c.rbIndex, render: (c) => <RbIndicator value={c.rbIndex} /> },
-  { key: 'limit', title: 'Действующий КЛ', width: 132, align: 'right', sortable: true, sortValue: (c) => c.creditLimit, render: (c) => <span className="pmrk-tnum">{c.creditLimit ? moneyCompact(c.creditLimit) : '—'}</span> },
+  { key: 'limit', title: 'Действующий КЛ, ₽', width: 132, align: 'right', sortable: true, sortValue: (c) => c.creditLimit, render: (c) => <span className="pmrk-tnum">{c.creditLimit ? moneyCompact(c.creditLimit) : '—'}</span> },
   { key: 'status', title: 'Статус', width: 150, sortable: true, sortValue: (c) => c.status, render: (c) => (
     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
       {c.underSanctions ? <SanctionBadge /> : <StatusBadge status={c.status} />}

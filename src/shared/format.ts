@@ -3,27 +3,44 @@
 const RUB = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 const RUB2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/* Соглашение о валюте: знак рубля в ячейках и значениях НЕ пишется — число идёт
+   просто числом, а «₽» стоит в названии (заголовке колонки, подписи поля,
+   карточки), например «Сумма иска, ₽». Исключение — сумма внутри связного
+   текста (новость, подпись без названия): там нужны moneyText/moneyCompactText. */
+
 export function money(amount: number, opts?: { unit?: 'руб.' | 'тыс. руб.' | 'млн руб.' | ''; frac?: boolean }): string {
-  const unit = opts?.unit ?? 'руб.';
+  const unit = opts?.unit ?? '';
   const fmt = opts?.frac ? RUB2 : RUB;
   return unit ? `${fmt.format(amount)} ${unit}` : fmt.format(amount);
 }
 
-/** Компактная подача больших сумм для плотных таблиц/карточек. */
+/** Сумма для связного текста (без отдельного названия): «1 234 567 ₽». */
+export function moneyText(amount: number): string {
+  return `${RUB.format(amount)} ₽`;
+}
+
+/** Компактная подача больших сумм для плотных таблиц/карточек: «5,00 млрд»,
+    «212 млн» — масштаб есть, знака рубля нет (он в названии). */
 export function moneyCompact(amount: number): string {
   const { value, unit } = moneyCompactParts(amount);
-  return `${value} ${unit}`;
+  return unit ? `${value} ${unit}` : value;
+}
+
+/** Компактная сумма для связного текста: «5,00 млрд ₽». */
+export function moneyCompactText(amount: number): string {
+  const { value, unit } = moneyCompactParts(amount);
+  return `${value} ${unit ? unit + ' ' : ''}₽`;
 }
 
 /** То же самое, но число и единица измерения отдельно — чтобы можно было
     визуально выделить размером именно число, а не всю строку целиком
-    (крупная цифра, мельче — «млрд ₽» рядом). */
+    (крупная цифра, мельче — «млрд» рядом). */
 export function moneyCompactParts(amount: number): { value: string; unit: string } {
   const abs = Math.abs(amount);
-  if (abs >= 1_000_000_000) return { value: RUB2.format(amount / 1_000_000_000), unit: 'млрд ₽' };
-  if (abs >= 1_000_000) return { value: RUB2.format(amount / 1_000_000), unit: 'млн ₽' };
-  if (abs >= 1_000) return { value: RUB.format(Math.round(amount / 1_000)), unit: 'тыс. ₽' };
-  return { value: RUB.format(amount), unit: '₽' };
+  if (abs >= 1_000_000_000) return { value: RUB2.format(amount / 1_000_000_000), unit: 'млрд' };
+  if (abs >= 1_000_000) return { value: RUB2.format(amount / 1_000_000), unit: 'млн' };
+  if (abs >= 1_000) return { value: RUB.format(Math.round(amount / 1_000)), unit: 'тыс.' };
+  return { value: RUB.format(amount), unit: '' };
 }
 
 export function pct(value: number, frac = 1): string {

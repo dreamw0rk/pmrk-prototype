@@ -5,7 +5,7 @@ import { Modal } from '@consta/uikit/Modal';
 import { IconAdd } from '@consta/icons/IconAdd';
 import { IconForward } from '@consta/icons/IconForward';
 import { PageHeader, SectionCard, StatusBadge, KeyValue, FileDrop } from '@/shared/ui/kit';
-import { dateRu, moneyCompact } from '@/shared/format';
+import { dateRu, moneyCompact, moneyCompactText } from '@/shared/format';
 
 /* Протоколы КО (ФТ-6.9/6.10). Мастер-детейл: реестр слева → выбранный протокол
    справа (параметры + принятые решения по КЛ). Связь «заявка → протокол → лимит»
@@ -74,7 +74,7 @@ const DECISION_COLOR: Record<DecisionStatus, string> = {
 function DecisionBadge({ status }: { status: DecisionStatus }) {
   const c = DECISION_COLOR[status];
   return (
-    <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: c }}>
+    <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-primary)' }}>
       <span className="pmrk-dot" style={{ background: c }} />
       {status}
     </span>
@@ -149,7 +149,7 @@ export function Protocols() {
                 <div className="pmrk-th" style={{ flex: 1 }}>Заявка</div>
                 <div className="pmrk-th" style={{ flex: 1.8 }}>Контрагент</div>
                 <div className="pmrk-th" style={{ flex: 1.1 }}>Действие</div>
-                <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Лимит</div>
+                <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Лимит, ₽</div>
                 <div className="pmrk-th" style={{ flex: 1.1 }}>Решение</div>
               </div>
               {proto.decisions.map((d, i) => (
@@ -176,7 +176,7 @@ export function Protocols() {
               <div className="pmrk-route__step pmrk-route__step--done" style={{ cursor: dec.lrId ? 'pointer' : 'default' }} onClick={() => dec.lrId && navigate(`/limit-requests/${dec.lrId}`)}>
                 <div className="pmrk-route__num">Источник · заявка</div>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{dec.ref} {dec.lrId && <IconForward size="xs" style={{ verticalAlign: 'middle' }} />}</div>
-                <div className="pmrk-muted" style={{ fontSize: 11 }}>{dec.counterparty} · {dec.action} · {dec.limit ? moneyCompact(dec.limit) : '—'}</div>
+                <div className="pmrk-muted" style={{ fontSize: 11 }}>{dec.counterparty} · {dec.action} · {dec.limit ? moneyCompactText(dec.limit) : '—'}</div>
               </div>
               <div className="pmrk-route__step pmrk-route__step--current">
                 <div className="pmrk-route__num">Решение · протокол</div>
@@ -192,7 +192,7 @@ export function Protocols() {
                   {dec.status === 'Утверждено' ? 'Лимит утверждён' : dec.status === 'Согласовано' ? 'Согласовано' : dec.status === 'Отклонено' ? 'Отклонено' : 'На рассмотрении КК'}
                 </div>
                 <div className="pmrk-muted" style={{ fontSize: 11 }}>
-                  {dec.status === 'Утверждено' ? `${moneyCompact(dec.limit)} · действует` : dec.status === 'Согласовано' ? 'ожидает утверждения КО' : dec.status === 'Отклонено' ? 'лимит не установлен' : 'решение не принято'}
+                  {dec.status === 'Утверждено' ? `${moneyCompactText(dec.limit)} · действует` : dec.status === 'Согласовано' ? 'ожидает утверждения КО' : dec.status === 'Отклонено' ? 'лимит не установлен' : 'решение не принято'}
                 </div>
               </div>
             </div>

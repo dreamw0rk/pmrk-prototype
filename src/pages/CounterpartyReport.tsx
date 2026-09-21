@@ -116,7 +116,7 @@ export function CounterpartyReport() {
               ['Основной ОКВЭД', `${c.okvedCode} — ${c.okved}`],
               ['Регион регистрации', c.region],
               ['Дата регистрации', dateRu(c.registered)],
-              ['Выручка (последний год)', moneyCompact(c.revenue)],
+              ['Выручка (последний год), ₽', moneyCompact(c.revenue)],
               ['Численность', `${c.employees.toLocaleString('ru-RU')} чел.`],
               ['Работает с ДО', c.subsidiary],
             ]}
@@ -155,9 +155,9 @@ export function CounterpartyReport() {
         <Section title="3. Кредитный лимит">
           <Grid
             pairs={[
-              ['Действующий КЛ', c.creditLimit ? moneyCompact(c.creditLimit) : 'не установлен'],
+              ['Действующий КЛ, ₽', c.creditLimit ? moneyCompact(c.creditLimit) : 'не установлен'],
               ['Использование лимита', c.creditLimit ? pct(c.limitUtilization) : '—'],
-              ['Совокупный лимит группы', c.groupAggregateLimit ? moneyCompact(c.groupAggregateLimit) : '—'],
+              ['Совокупный лимит группы, ₽', c.groupAggregateLimit ? moneyCompact(c.groupAggregateLimit) : '—'],
             ]}
           />
         </Section>
@@ -166,10 +166,10 @@ export function CounterpartyReport() {
           {lastDebt ? (
             <Grid
               pairs={[
-                ['Дебиторская задолженность (ДЗ)', moneyCompact(lastDebt.dz)],
-                ['Просроченная ДЗ (ПДЗ)', `${moneyCompact(lastDebt.pdz)} · ${pct(lastDebt.pdz / Math.max(1, lastDebt.dz))}`],
-                ['Выданные авансы', moneyCompact(lastDebt.advance)],
-                ['Кредиторская задолженность (КЗ)', moneyCompact(lastDebt.payable)],
+                ['Дебиторская задолженность (ДЗ), ₽', moneyCompact(lastDebt.dz)],
+                ['Просроченная ДЗ (ПДЗ), ₽', `${moneyCompact(lastDebt.pdz)} · ${pct(lastDebt.pdz / Math.max(1, lastDebt.dz))}`],
+                ['Выданные авансы, ₽', moneyCompact(lastDebt.advance)],
+                ['Кредиторская задолженность (КЗ), ₽', moneyCompact(lastDebt.payable)],
                 ['Актуальность раздела', c.asOf.debt ? dateRu(c.asOf.debt) : '—'],
               ]}
             />
@@ -240,7 +240,7 @@ export function CounterpartyReport() {
                 <tr>
                   <th>Тип</th>
                   <th>Роль</th>
-                  <th>Сумма</th>
+                  <th>Сумма, ₽</th>
                   <th>Дата</th>
                   <th>Статус</th>
                   <th>Предмет</th>

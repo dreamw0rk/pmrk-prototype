@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@consta/uikit/Button';
 import { IconAdd } from '@consta/icons/IconAdd';
@@ -92,7 +92,7 @@ function userVerdict(c: Counterparty): { tone: Tone; label: string } {
 function VerdictPill({ tone, label }: { tone: Tone; label: string }) {
   const t = VERDICT_TONE[tone];
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 13px', borderRadius: 999, background: t.bg, color: t.color, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 13px', borderRadius: 999, background: 'var(--color-bg-secondary)', color: 'var(--color-typo-primary)', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
       <span style={{ width: 9, height: 9, borderRadius: '50%', background: t.color, flex: 'none' }} />
       {label}
     </span>
@@ -120,40 +120,68 @@ function CompanyRow({ c, simple, onClick, hideBadge, compact }: { c: Counterpart
   );
 }
 
+/** Подсветка совпадения запроса внутри строки (частичное совпадение). */
+function Highlight({ text, query }: { text: string; query: string }) {
+  const i = query ? text.toLowerCase().indexOf(query) : -1;
+  if (i < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark style={{ background: 'var(--pmrk-risk-3-bg)', color: 'inherit', borderRadius: 3, padding: '0 1px' }}>{text.slice(i, i + query.length)}</mark>
+      {text.slice(i + query.length)}
+    </>
+  );
+}
+
 export function Home() {
   const navigate = useNavigate();
   const { role } = useApp();
   const simple = ROLES[role].profile === 'light';
 
   const [q, setQ] = useState('');
+  const [focused, setFocused] = useState(false);
+  const [active, setActive] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
   const term = q.trim();
   const query = term.toLowerCase();
 
+  // Совпадение по части или целиком: по наименованию (без учёта регистра) и по ИНН.
   const results = useMemo(() => {
-    if (query.length < 2) return [];
+    if (!query) return [];
     return REGISTRY.filter((c) => c.name.toLowerCase().includes(query) || c.inn.includes(query)).slice(0, 8);
   }, [query]);
 
-  const searched = query.length >= 2;
+  const recent = useMemo(() => RECENT_UIDS.map((uid) => BY_UID.get(uid)).filter((c): c is Counterparty => !!c), []);
+
+  const searched = query.length > 0;
   const nothingFound = searched && results.length === 0;
   const looksLikeInn = /^\d{5,}$/.test(term);
+  const options = searched ? results : recent;
+  const showDropdown = focused && (options.length > 0 || nothingFound);
 
   const open = (uid: string) => navigate(`/counterparties/${uid}/general`);
   const requestCard = () => navigate(`/counterparties/request?q=${encodeURIComponent(term)}`);
 
-  // Enter: точное совпадение по ИНН или единственный результат открываем сразу;
-  // если не нашли ничего — сразу ведём в заявку, чтобы не заставлять целиться в кнопку.
+  // Enter: выбранный в списке вариант; иначе точное совпадение по ИНН или
+  // единственный результат; если не нашли ничего — сразу ведём в заявку.
   const submit = () => {
+    if (active >= 0 && options[active]) return open(options[active].uid);
     const exact = REGISTRY.find((c) => c.inn === term);
     if (exact) return open(exact.uid);
     if (results.length === 1) return open(results[0].uid);
     if (nothingFound) requestCard();
   };
 
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(a + 1, options.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, -1)); }
+    else if (e.key === 'Escape') { setFocused(false); inputRef.current?.blur(); }
+    else if (e.key === 'Enter') submit();
+  };
+
   return (
     <div className="pmrk-page">
       <PageHeader
-        title="Кредитный контроль ГК"
         subtitle={
           simple
             ? 'Узнайте, можно ли работать с компанией — введите её название или ИНН.'
@@ -162,56 +190,76 @@ export function Home() {
         actions={<Button size="s" view="ghost" label="Обучение работе на Платформе" iconLeft={IconBook as never} onClick={() => navigate('/help')} />}
       />
 
-      {/* Поиск — единственное действие экрана */}
-      <SectionCard>
+      {/* Поиск — единственное действие экрана. Выпадающий список: при фокусе —
+          недавние контрагенты, при вводе — подходящие по части или целому
+          названию/ИНН; если ничего нет — предложение завести карточку.
+          overflow: visible — иначе список обрезался бы границей карточки. */}
+      <SectionCard style={{ overflow: 'visible', position: 'relative', zIndex: 5 }}>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, height: 52, padding: '0 16px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)' }}>
-            <IconSearchStroked size="s" className="pmrk-muted" />
-            <input
-              autoFocus
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder="Наименование или ИНН контрагента"
-              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 16, color: 'var(--color-typo-primary)' }}
-            />
+          <div style={{ flex: 1, position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 52, padding: '0 16px', border: `1px solid ${focused ? 'var(--color-typo-brand)' : 'var(--color-bg-border)'}`, borderRadius: 12, background: 'var(--color-bg-default)' }}>
+              <IconSearchStroked size="s" className="pmrk-muted" />
+              <input
+                ref={inputRef}
+                autoFocus
+                value={q}
+                onChange={(e) => { setQ(e.target.value); setActive(-1); setFocused(true); }}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                onKeyDown={onKeyDown}
+                placeholder="Наименование или ИНН контрагента"
+                style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 16, color: 'var(--color-typo-primary)' }}
+              />
+            </div>
+
+            {showDropdown && (
+              <div
+                // mousedown не должен уводить фокус из поля — иначе список закроется до клика
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--color-bg-default)', border: '1px solid var(--color-bg-border)', borderRadius: 12, boxShadow: 'var(--pmrk-shadow-pop)', padding: 6, maxHeight: 420, overflowY: 'auto' }}
+              >
+                {options.length > 0 && (
+                  <div className="pmrk-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 10px 4px' }}>
+                    {searched ? 'Найденные контрагенты' : 'Недавние контрагенты'}
+                  </div>
+                )}
+                {options.map((c, i) => {
+                  const v = userVerdict(c);
+                  return (
+                    <div
+                      key={c.uid}
+                      onClick={() => open(c.uid)}
+                      onMouseEnter={() => setActive(i)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 10px', borderRadius: 8, cursor: 'pointer', background: i === active ? 'var(--color-bg-secondary)' : 'transparent' }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600 }} className="pmrk-truncate"><Highlight text={c.name} query={query} /></div>
+                        <div className="pmrk-muted pmrk-truncate" style={{ fontSize: 12, marginTop: 2 }}>ИНН <Highlight text={c.inn} query={query} /> · {c.region}</div>
+                      </div>
+                      {searched && (simple ? <VerdictPill tone={v.tone} label={v.label} /> : <GroupBadge group={c.group} withScore={c.score} />)}
+                    </div>
+                  );
+                })}
+
+                {nothingFound && (
+                  <div style={{ padding: '10px 10px 8px' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>Ничего не найдено по запросу «{term}»</div>
+                    <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 4 }}>
+                      {looksLikeInn ? 'Проверьте ИНН — в нём 10 цифр у организации и 12 у ИП.' : 'Проверьте написание или введите ИНН.'}{' '}
+                      Контрагента ещё нет в ПМРК? Оформите заявку на создание карточки — реквизиты, ОКВЭД и связи подтянутся из СПАРК и ЕГРЮЛ.
+                    </div>
+                    <div style={{ marginTop: 10 }}>
+                      <Button size="s" label="Создать заявку на карточку" iconLeft={IconAdd as never} onClick={requestCard} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <Button size="l" label={simple ? 'Проверить' : 'Найти'} onClick={submit} />
         </div>
         <div className="pmrk-muted" style={{ fontSize: 12, marginTop: 8 }}>Например: «Газпром нефть» или 5504036333</div>
       </SectionCard>
-
-      {/* Нашли — показываем карточки */}
-      {searched && results.length > 0 && (
-        <SectionCard title="Найденные контрагенты">
-          <div className="pmrk-stack" style={{ gap: 8 }}>
-            {results.map((c) => (
-              <CompanyRow key={c.uid} c={c} simple={simple} onClick={() => open(c.uid)} />
-            ))}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* Не нашли — здесь и сейчас предлагаем завести карточку заявкой */}
-      {nothingFound && (
-        <SectionCard title="Карточка не найдена">
-          <div className="pmrk-muted" style={{ fontSize: 13 }}>
-            По запросу «{term}» в реестре ПМРК ничего нет.{' '}
-            {looksLikeInn ? 'Проверьте ИНН — в нём 10 цифр у организации и 12 у ИП.' : 'Проверьте написание или введите ИНН.'}
-          </div>
-
-          <div style={{ marginTop: 14, padding: 16, border: '1px dashed var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-secondary)' }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Контрагента ещё нет в ПМРК?</div>
-            <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 4, maxWidth: 520 }}>
-              Оформите заявку на создание карточки: профиль заводится по ИНН, реквизиты, ОКВЭД и связи
-              подтянутся из СПАРК и ЕГРЮЛ при ближайшей синхронизации.
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <Button size="m" label="Создать заявку на карточку" iconLeft={IconAdd as never} onClick={requestCard} />
-            </div>
-          </div>
-        </SectionCard>
-      )}
 
       {/* Поиск ещё не начат — недавние контрагенты, действия и дашборды в один ряд.
           Пропорции: «Действия» — главный блок стартового экрана (12 плиток в три
@@ -220,17 +268,8 @@ export function Home() {
           ряд не перекосило: «Действия» выросли ровно на то, что уступили «Недавние».
           Минимумы minmax подобраны так, чтобы ряд помещался без горизонтальной
           прокрутки на рабочем разрешении. */}
-      {!searched && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.75fr) minmax(480px, 1.65fr) minmax(260px, 0.9fr)', gap: 16, alignItems: 'stretch' }}>
-          <SectionCard title="Недавние контрагенты" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="pmrk-stack" style={{ gap: 8, flex: 1, justifyContent: 'center' }}>
-              {RECENT_UIDS.map((uid) => {
-                const c = BY_UID.get(uid);
-                return c ? <CompanyRow key={uid} c={c} simple={simple} onClick={() => open(uid)} hideBadge compact /> : null;
-              })}
-            </div>
-          </SectionCard>
-
+      {(
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(480px, 1.65fr) minmax(260px, 0.9fr)', gap: 16, alignItems: 'stretch' }}>
           {/* Плитки действий из ЕОЛ: три смысловые колонки с иконками. */}
           <SectionCard title="Действия" style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>

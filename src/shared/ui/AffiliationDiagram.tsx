@@ -160,7 +160,9 @@ export function AffiliationDiagram(props: {
   graph: AffiliationGraph;
   search?: string;
   filters: DiagramFilters;
-  onOpenCounterparty?: (uid: string) => void;
+  /** клик по карточке связанного лица: есть в реестре → его профиль, нет →
+      заявка на создание карточки (решает вызывающая сторона) */
+  onOpenNode?: (n: AffiliationNode) => void;
   onOpenGeneral?: () => void;
   height?: number;
 }) {
@@ -292,7 +294,7 @@ export function AffiliationDiagram(props: {
         onMouseUp={() => (drag.current = null)}
         onMouseLeave={() => { drag.current = null; setHover(null); }}
       >
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H}>
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="xMinYMin meet">
           <defs>
             <marker id="aff-arr" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto">
               <path d="M0,0 L6.5,3 L0,6 Z" fill="#9aa7b8" />
@@ -353,7 +355,7 @@ export function AffiliationDiagram(props: {
             {/* карточки связанных лиц */}
             {placed.map((n) => {
               const hl = matches(n);
-              const clickable = n.inRegistry && !!n.uid;
+              const clickable = true; // кликабельны все карточки: профиль или заявка на карточку
               const border = hl ? '#ff7a00' : n.inRegistry ? '#ff7a00' : n.underSanctions ? 'var(--pmrk-risk-4)' : '#d4dae3';
               const bw = hl ? 2.5 : n.inRegistry || n.underSanctions ? 2 : 1;
               const share = n.directShare ?? n.indirectShare;
@@ -367,7 +369,7 @@ export function AffiliationDiagram(props: {
                 <g
                   key={n.id}
                   style={{ cursor: clickable ? 'pointer' : 'default' }}
-                  onClick={() => { if (clickable && !moved.current) props.onOpenCounterparty?.(n.uid!); }}
+                  onClick={() => { if (!moved.current) props.onOpenNode?.(n); }}
                   onMouseEnter={() => setHover(n)}
                   onMouseLeave={() => setHover(null)}
                 >
@@ -407,7 +409,9 @@ export function AffiliationDiagram(props: {
               {ROLE_SHORT[hover.linkType]} · {hover.isPerson ? 'физлицо' : hover.inn ? `юрлицо · ИНН ${hover.inn}` : 'юрлицо'}
             </div>
             <div style={{ marginTop: 4 }}>{describeAffiliation(hover)}</div>
-            {hover.inRegistry && <div style={{ color: '#ff7a00', marginTop: 4 }}>Имеется опыт сотрудничества с ГК ГПН → клик откроет профиль</div>}
+            {hover.inRegistry
+              ? <div style={{ color: '#ff7a00', marginTop: 4 }}>Имеется опыт сотрудничества с ГК ГПН → клик откроет карточку компании</div>
+              : <div className="pmrk-muted" style={{ marginTop: 4 }}>Карточки в ПМРК нет → клик откроет заявку на её создание</div>}
             {hover.underSanctions && <div style={{ color: 'var(--pmrk-risk-4)', marginTop: 4 }}>Под санкциями</div>}
           </div>
         )}

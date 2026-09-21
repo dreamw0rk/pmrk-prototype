@@ -28,7 +28,9 @@ function IndicatorRows({ items }: { items: Indicator[] }) {
       {items.map((x, i) => (
         <div key={i} className="sprep-cell" title={x.tip}>
           <div className="sprep-k">{x.label}</div>
-          <div className={`sprep-v ${x.level ? LEVEL_CLASS[x.level] : ''}`}>{x.value}</div>
+          <div className={`sprep-v ${x.level ? LEVEL_CLASS[x.level] : ''}`}>
+            {x.rows ? x.rows.map((r, k) => <div key={k}>{r.amount} — {r.name}</div>) : x.value}
+          </div>
         </div>
       ))}
     </div>
@@ -90,7 +92,7 @@ export function SparkProfileReport() {
               ['Дата регистрации', dateRu(c.registered)],
               ['Регион регистрации', c.region],
               ['Основной ОКВЭД', `${c.okvedCode} — ${c.okved}`],
-              ['Выручка (последний год)', moneyCompact(c.revenue)],
+              ['Выручка (последний год), ₽', moneyCompact(c.revenue)],
             ] as [string, React.ReactNode][]).map(([k, v], i) => (
               <div key={i} className="sprep-cell">
                 <div className="sprep-k">{k}</div>
@@ -133,7 +135,7 @@ export function SparkProfileReport() {
           {ext.courtCases.length ? (
             <table className="sprep-table">
               <thead>
-                <tr><th>Истец</th><th>Номер дела</th><th>Категория</th><th>Состояние</th><th>Дата</th><th>Сумма иска</th></tr>
+                <tr><th>Истец</th><th>Номер дела</th><th>Категория</th><th>Состояние</th><th>Дата</th><th>Сумма иска, ₽</th></tr>
               </thead>
               <tbody>
                 {ext.courtCases.map((x, i) => (

@@ -149,7 +149,7 @@ export function StatementsEditor(props: { onValidChange?: (valid: boolean) => vo
                   </div>
                   <div className="pmrk-td" style={{ flex: 1, justifyContent: 'flex-end', display: 'flex' }}>
                     {isTotal ? (
-                      <span className="pmrk-tnum">{money(r.value, { unit: 'тыс. руб.' })}</span>
+                      <span className="pmrk-tnum">{money(r.value)}</span>
                     ) : (
                       <input type="number" value={r.value || ''} onChange={(e) => setVal(i, Number(e.target.value))} placeholder="0" style={{ width: 140, textAlign: 'right', height: 28, border: `1px solid ${r.uncertain ? '#e6c200' : 'var(--color-bg-border)'}`, borderRadius: 6, padding: '0 8px', background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)', outline: 'none', fontVariantNumeric: 'tabular-nums' }} />
                     )}

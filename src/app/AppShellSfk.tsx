@@ -7,6 +7,7 @@ import { useApp } from './AppContext';
 import { usePageMetaValue } from './PageMeta';
 import { NAV, visibleNav } from './nav';
 import { CommandPalette } from './CommandPalette';
+import { ScrollTopButton } from './ScrollTopButton';
 import { ROLES, ROLE_ORDER } from '@/shared/roles';
 import { SIGNALS, TASKS } from '@/shared/mock/data';
 
@@ -141,6 +142,7 @@ export function AppShellSfk() {
         <Outlet />
       </section>
 
+      <ScrollTopButton />
       <CommandPalette />
     </div>
   );

@@ -13,7 +13,7 @@ import { TaskRow } from '@/shared/ui/TaskRow';
 import { Sparkline } from '@/shared/ui/MiniChart';
 import { AI_DIGEST } from '@/shared/mock/ai';
 import { SIGNALS, TASKS, LIMIT_REQUESTS, FAVORITES, BY_UID, REGISTRY, KRI, REPORTING_PERIOD } from '@/shared/mock/data';
-import { ago, moneyCompact, dateRu } from '@/shared/format';
+import { ago, moneyCompact, moneyCompactText, dateRu } from '@/shared/format';
 
 const DASHBOARDS = [
   { title: 'Риск-индикаторы по контрагентам ГК ГПН', suid: 'СУИД: PMRK_DASH_RISK', trend: [4, 5, 6, 5, 7, 8, 9], color: 'var(--pmrk-risk-3)' },
@@ -65,7 +65,7 @@ export function CommandCenter() {
           <Stat label="Контрагентов в реестре" value={REGISTRY.length.toLocaleString('ru-RU')} sub="из 200 тыс. (демо-срез)" asOf="2026-06-15" calcLabel="обновлено" calcSource="реестр" />
           <Stat label="Требуют внимания" value={AI_DIGEST.items.length} sub="по сигналам мониторинга" tone="risk" asOf={AI_DIGEST.asOf} calcSource="AI-ранжирование" />
           <Stat label="Заявки на КЛ в работе" value={myRequests.length} sub="на проверке/утверждении" asOf="2026-06-15" calcLabel="обновлено" calcSource="limit-workflow" />
-          <Stat label="Совокупный КЛ группы" value={moneyCompact(1_250_000_000)} sub="РН-Снабжение" asOf="2026-06-14" calcSource="агрегат лимитов" />
+          <Stat label="Совокупный КЛ группы, ₽" value={moneyCompact(1_250_000_000)} sub="РН-Снабжение" asOf="2026-06-14" calcSource="агрегат лимитов" />
         </div>
       )}
 
@@ -121,7 +121,7 @@ export function CommandCenter() {
                     <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>{s.detail}</div>
                     <div className="pmrk-muted" style={{ fontSize: 11.5, marginTop: 4 }}>{s.category} · {s.type} · {ago(s.date)}</div>
                   </div>
-                  {s.amount && <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>{moneyCompact(s.amount)}</div>}
+                  {s.amount && <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>{moneyCompactText(s.amount)}</div>}
                 </div>
               ))}
             </div>

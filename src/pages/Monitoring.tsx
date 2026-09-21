@@ -9,7 +9,7 @@ import { PageHeader, SectionCard, GroupBadge, EmptyState, severityColor, SEVERIT
 import { TaskRow } from '@/shared/ui/TaskRow';
 import { SIGNALS, TASKS, BY_UID, REGISTRY, SUBS, BLOCK_NAMES } from '@/shared/mock/data';
 import type { SignalSeverity } from '@/shared/mock/types';
-import { ago, moneyCompact } from '@/shared/format';
+import { ago, moneyCompactText } from '@/shared/format';
 
 /* ----------------------------- Лента сигналов ----------------------------- */
 
@@ -55,7 +55,7 @@ export function NotificationFeed() {
         <div className="pmrk-ai-surface pmrk-ai" style={{ marginBottom: 16 }}>
           <div className="pmrk-ai-accentbar" />
           <div className="pmrk-ai__head"><span className="pmrk-ai__badge">✦ AI</span><span style={{ fontWeight: 600 }}>Суммаризация ленты (AI-6/AI-7)</span></div>
-          <div style={{ fontSize: 13 }}>Из {signals.length} событий значимых — {signals.filter((s) => s.severity === 'critical' || s.severity === 'high').length}. Топ-приоритет: 2 критических (иск + банкротство), общий объём под риском — {moneyCompact(34_200_000 + 88_000_000)}. Остальное — фоновый шум, свёрнут.</div>
+          <div style={{ fontSize: 13 }}>Из {signals.length} событий значимых — {signals.filter((s) => s.severity === 'critical' || s.severity === 'high').length}. Топ-приоритет: 2 критических (иск + банкротство), общий объём под риском — {moneyCompactText(34_200_000 + 88_000_000)}. Остальное — фоновый шум, свёрнут.</div>
         </div>
       )}
 
@@ -117,7 +117,7 @@ export function NotificationFeed() {
               <div className="pmrk-muted" style={{ fontSize: 11.5, marginTop: 4 }}>{s.category} · {s.type} · {ago(s.date)}</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-              {s.amount && <b style={{ fontSize: 13 }}>{moneyCompact(s.amount)}</b>}
+              {s.amount && <b style={{ fontSize: 13 }}>{moneyCompactText(s.amount)}</b>}
               {!s.read && <Button size="xs" view="clear" label="Прочитано" onClick={() => markRead(s.id)} />}
             </div>
           </div>

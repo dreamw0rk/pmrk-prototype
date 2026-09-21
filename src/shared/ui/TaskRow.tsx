@@ -54,7 +54,7 @@ export function TaskRow({ task, compact }: { task: Task; compact?: boolean }) {
           {task.dueInDays != null && task.status !== 'completed' && <><span>·</span><DueChip days={task.dueInDays} /></>}
         </div>
       </div>
-      <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: badge.color, flex: 'none' }}>
+      <span className="pmrk-chip" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-primary)', flex: 'none' }}>
         <span className="pmrk-dot" style={{ background: badge.color }} />
         {badge.label}
       </span>

@@ -98,3 +98,20 @@ export function buildAdditionalOkveds(cp: Counterparty): OkvedItem[] {
   }
   return items.sort((a, b) => a.code.localeCompare(b.code));
 }
+
+/* Краткий «Вид деятельности» — отраслевая формулировка по разделу (первые две
+   цифры) основного ОКВЭД: в отличие от самого кода с полным названием, читается
+   с одного взгляда. Для неизвестного раздела — название основного ОКВЭД. */
+const ACTIVITY_KIND: Record<string, string> = {
+  '06': 'Нефтедобыча',
+  '19': 'Нефтепереработка и производство нефтепродуктов',
+  '46': 'Оптовая торговля',
+  '49': 'Автомобильные грузоперевозки',
+  '52': 'Транспортная логистика и складское хозяйство',
+  '68': 'Операции с недвижимостью',
+  '71': 'Инжиниринг и технические испытания',
+};
+
+export function activityKind(c: Pick<Counterparty, 'okvedCode' | 'okved'>): string {
+  return ACTIVITY_KIND[c.okvedCode.slice(0, 2)] ?? c.okved;
+}

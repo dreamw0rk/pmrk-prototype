@@ -8,6 +8,7 @@ import { IconUser } from '@consta/icons/IconUser';
 import { useApp } from './AppContext';
 import { visibleNav } from './nav';
 import { CommandPalette } from './CommandPalette';
+import { ScrollTopButton } from './ScrollTopButton';
 import { PageMetaProvider } from './PageMeta';
 import { AppShellSfk } from './AppShellSfk';
 import { ROLES, ROLE_ORDER } from '@/shared/roles';
@@ -141,6 +142,7 @@ function AppShellPmrk() {
         </main>
       </div>
 
+      <ScrollTopButton />
       <CommandPalette />
     </div>
   );

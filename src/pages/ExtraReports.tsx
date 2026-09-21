@@ -236,7 +236,7 @@ export function SparkRisksReport() {
           {ext.courtCases.length ? (
             <table className="xrep-table">
               <thead>
-                <tr><th>Истец</th><th>Номер дела</th><th>Состояние</th><th>Дата</th><th>Сумма иска</th></tr>
+                <tr><th>Истец</th><th>Номер дела</th><th>Состояние</th><th>Дата</th><th>Сумма иска, ₽</th></tr>
               </thead>
               <tbody>
                 {ext.courtCases.map((x, i) => (
