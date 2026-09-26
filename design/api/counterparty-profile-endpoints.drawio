@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" modified="2026-09-26T00:00:00.000Z" agent="claude-code" version="24.7.5" type="device">
   <diagram name="Профиль контрагента — эндпойнты" id="cp-profile-endpoints">
-    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+    <mxGraphModel dx="1400" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1120" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -9,32 +9,26 @@
         <mxCell id="title1" value="Профиль контрагента — эндпойнты вкладки «Общие сведения»" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#12294D;" vertex="1" parent="1">
           <mxGeometry x="40" y="16" width="820" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="title2" value="Схема строится от GET /counterparties/{uid}/profile/general — остальные эндпойнты вызываются с тем же uid" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#57625C;" vertex="1" parent="1">
+        <mxCell id="title2" value="Схема строится от GET /counterparties/{uid}/profile/general — 7 эндпойнтов, каждый вызывается с тем же uid" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#57625C;" vertex="1" parent="1">
           <mxGeometry x="40" y="42" width="820" height="20" as="geometry" />
         </mxCell>
 
         <!-- ===== Legend ===== -->
-        <mxCell id="legend" value="&lt;b&gt;Условные обозначения&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#A9691F&quot;&gt;―――▶&lt;/font&gt; uid — тот же контрагент (эндпойнт 1 → эндпойнты 2-5)&lt;br&gt;&lt;font color=&quot;#57625C&quot;&gt;―――▶&lt;/font&gt; состав ответа (корневой БО → вложенный массив)&lt;br&gt;&lt;font color=&quot;#999999&quot;&gt;- - -▶&lt;/font&gt; ссылка на справочник (вне контура эндпойнтов)" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#C4CBC1;fontSize=11;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="1140" y="16" width="380" height="90" as="geometry" />
+        <mxCell id="legend" value="&lt;b&gt;Условные обозначения&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#A9691F&quot;&gt;―――▶&lt;/font&gt; uid — тот же контрагент, единственный ключ ответа&lt;br&gt;&lt;font color=&quot;#5B7A9A&quot;&gt;- - -▶&lt;/font&gt; тот же контрагент, но только через параметр пути (справочник, uid в теле не нужен)&lt;br&gt;&lt;font color=&quot;#57625C&quot;&gt;―――▶&lt;/font&gt; состав ответа (корневой БО → вложенный массив)&lt;br&gt;&lt;font color=&quot;#999999&quot;&gt;- - -▶&lt;/font&gt; ссылка на справочник вне контура эндпойнтов" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#C4CBC1;fontSize=11;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="16" width="400" height="110" as="geometry" />
         </mxCell>
 
-        <!-- ===== Endpoint 1 ===== -->
+        <!-- ===== Endpoint 1 (hub) ===== -->
         <mxCell id="ep1" value="Эндпойнт 1 · GET /counterparties/{uid}/profile/general" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
-          <mxGeometry x="40" y="150" width="300" height="440" as="geometry" />
+          <mxGeometry x="40" y="430" width="280" height="210" as="geometry" />
         </mxCell>
         <mxCell id="e1bo1" value="&lt;b&gt;PMRK-ID.BO.19.1&lt;/b&gt;&lt;br&gt;&lt;i&gt;Организация — «Общие сведения»&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;&lt;b&gt;inn&lt;/b&gt; — UN_1, string&lt;br&gt;+ 17 полей (name, kpp, ogrn, registered, region, address, okopf, ownershipForm, website, director, companySize, employees, taxRegime, okvedCode, okved, activityKind, asOf)" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep1">
-          <mxGeometry x="20" y="46" width="260" height="140" as="geometry" />
-        </mxCell>
-        <mxCell id="e1bo2" value="&lt;b&gt;PMRK-ID.BO.19.2&lt;/b&gt;&lt;br&gt;&lt;i&gt;Доп. вид деятельности (ОКВЭД)&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;code&lt;/b&gt; — UN_1, string&lt;br&gt;name — string&lt;br&gt;&lt;i&gt;справочник ОКВЭД — без uid&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#F5F5F5;strokeColor=#999999;dashed=1;fontSize=11;spacing=6;" vertex="1" parent="ep1">
-          <mxGeometry x="20" y="202" width="260" height="96" as="geometry" />
-        </mxCell>
-        <mxCell id="e1bo3" value="&lt;b&gt;PMRK-ID.BO.19.3&lt;/b&gt;&lt;br&gt;&lt;i&gt;Изменение наименования / ОПФ&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;date&lt;/b&gt; — UN_1, ISO-дата&lt;br&gt;name, inn, ogrn, okopf — string" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8AA0C0;fontSize=11;spacing=6;" vertex="1" parent="ep1">
-          <mxGeometry x="20" y="314" width="260" height="100" as="geometry" />
+          <mxGeometry x="20" y="46" width="240" height="150" as="geometry" />
         </mxCell>
 
-        <!-- ===== Endpoint 2 ===== -->
+        <!-- ===== Endpoint 2 · Interaction ===== -->
         <mxCell id="ep2" value="Эндпойнт 2 · GET /counterparties/{uid}/profile/interaction" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
-          <mxGeometry x="440" y="60" width="300" height="340" as="geometry" />
+          <mxGeometry x="420" y="60" width="300" height="330" as="geometry" />
         </mxCell>
         <mxCell id="e2bo4" value="&lt;b&gt;PMRK-ID.BO.19.4&lt;/b&gt;&lt;br&gt;&lt;i&gt;Взаимодействие с ГК ГПН&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;+ 10 полей (pmrkStatus, gpnAffiliationFlag, hasCollateral, hasNegativeSecurityInfo, lfpContractControl, lfpAdvanceControl, experience, paymentDiscipline, doLinks[], asOf)" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep2">
           <mxGeometry x="20" y="46" width="260" height="150" as="geometry" />
@@ -43,17 +37,17 @@
           <mxGeometry x="20" y="212" width="260" height="116" as="geometry" />
         </mxCell>
 
-        <!-- ===== Endpoint 3 ===== -->
+        <!-- ===== Endpoint 3 · Reviews ===== -->
         <mxCell id="ep3" value="Эндпойнт 3 · GET /counterparties/{uid}/profile/reviews" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
-          <mxGeometry x="800" y="60" width="300" height="220" as="geometry" />
+          <mxGeometry x="780" y="60" width="300" height="220" as="geometry" />
         </mxCell>
         <mxCell id="e3bo6" value="&lt;b&gt;PMRK-ID.BO.19.6&lt;/b&gt;&lt;br&gt;&lt;i&gt;Мнения (рейтинги)&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;orgType, activities, region,&lt;br&gt;reviewsCount, avgRating, link, updatedAt" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep3">
           <mxGeometry x="20" y="46" width="260" height="160" as="geometry" />
         </mxCell>
 
-        <!-- ===== Endpoint 4 ===== -->
+        <!-- ===== Endpoint 4 · PD forecast ===== -->
         <mxCell id="ep4" value="Эндпойнт 4 · GET /counterparties/{uid}/profile/pd-forecast" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
-          <mxGeometry x="440" y="440" width="300" height="290" as="geometry" />
+          <mxGeometry x="420" y="430" width="300" height="290" as="geometry" />
         </mxCell>
         <mxCell id="e4bo7agg" value="&lt;b&gt;PMRK-ID.BO.19.7.AGG&lt;/b&gt;&lt;br&gt;&lt;i&gt;Прогноз PD — ответ&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;horizons[] — array · 19.7&lt;br&gt;asOf — string" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep4">
           <mxGeometry x="20" y="46" width="260" height="110" as="geometry" />
@@ -62,44 +56,68 @@
           <mxGeometry x="20" y="172" width="260" height="96" as="geometry" />
         </mxCell>
 
-        <!-- ===== Endpoint 5 ===== -->
+        <!-- ===== Endpoint 5 · Special control ===== -->
         <mxCell id="ep5" value="Эндпойнт 5 · GET /counterparties/{uid}/profile/special-control" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
-          <mxGeometry x="800" y="440" width="300" height="220" as="geometry" />
+          <mxGeometry x="780" y="430" width="300" height="220" as="geometry" />
         </mxCell>
         <mxCell id="e5bo8" value="&lt;b&gt;PMRK-ID.BO.19.8&lt;/b&gt;&lt;br&gt;&lt;i&gt;Под особым контролем&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;specialControl, reason, comment,&lt;br&gt;hasFedresursRecord, fedresursLink, asOf" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep5">
           <mxGeometry x="20" y="46" width="260" height="160" as="geometry" />
         </mxCell>
 
-        <!-- ===== Dictionary (outside endpoints) ===== -->
-        <mxCell id="dictblock" value="&lt;b&gt;Справочник блоков ГК&lt;/b&gt;&lt;hr size=&quot;1&quot;/&gt;БРД · БЛПС · БЭФ · БЦТ · АУ" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#F5F5F5;strokeColor=#999999;dashed=1;fontSize=11;spacing=6;" vertex="1" parent="1">
-          <mxGeometry x="1140" y="180" width="220" height="70" as="geometry" />
+        <!-- ===== Endpoint 6 · Доп. ОКВЭД (справочник) ===== -->
+        <mxCell id="ep6" value="Эндпойнт 6 · GET /counterparties/{uid}/profile/okveds" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="420" y="800" width="300" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="e6bo2" value="&lt;b&gt;PMRK-ID.BO.19.2&lt;/b&gt;&lt;br&gt;&lt;i&gt;Доп. вид деятельности (ОКВЭД)&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;code&lt;/b&gt; — UN_1, string&lt;br&gt;name — string&lt;br&gt;&lt;i&gt;справочник — без uid в теле, ответ = массив&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#F5F5F5;strokeColor=#999999;dashed=1;fontSize=11;spacing=6;" vertex="1" parent="ep6">
+          <mxGeometry x="20" y="46" width="260" height="110" as="geometry" />
         </mxCell>
 
-        <!-- ===== uid-propagation edges: endpoint 1 is the source of uid for all others ===== -->
-        <mxCell id="uidedge1" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e2bo4">
+        <!-- ===== Endpoint 7 · Изменения наименования / ОПФ ===== -->
+        <mxCell id="ep7" value="Эндпойнт 7 · GET /counterparties/{uid}/profile/name-changes" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="780" y="800" width="300" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="e7bo3agg" value="&lt;b&gt;PMRK-ID.BO.19.3.AGG&lt;/b&gt;&lt;br&gt;&lt;i&gt;Изменения ОПФ — ответ&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;nameChanges[] — array · 19.3" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep7">
+          <mxGeometry x="20" y="46" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="e7bo3" value="&lt;b&gt;PMRK-ID.BO.19.3&lt;/b&gt;&lt;br&gt;&lt;i&gt;Изменение наименования / ОПФ — элемент&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;date&lt;/b&gt; — UN_1, ISO-дата&lt;br&gt;name, inn, ogrn, okopf — string" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8AA0C0;fontSize=11;spacing=6;" vertex="1" parent="ep7">
+          <mxGeometry x="20" y="162" width="260" height="106" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Dictionary (outside endpoints) ===== -->
+        <mxCell id="dictblock" value="&lt;b&gt;Справочник блоков ГК&lt;/b&gt;&lt;hr size=&quot;1&quot;/&gt;БРД · БЛПС · БЭФ · БЦТ · АУ" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#F5F5F5;strokeColor=#999999;dashed=1;fontSize=11;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="330" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===== uid-propagation edges: endpoint 1 is the source of uid for all singleton endpoints ===== -->
+        <mxCell id="uidedge1" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e2bo4">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="uidedge2" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e3bo6">
+        <mxCell id="uidedge2" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e3bo6">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="uidedge3" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e4bo7agg">
+        <mxCell id="uidedge3" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e4bo7agg">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="uidedge4" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.9;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e5bo8">
+        <mxCell id="uidedge4" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.65;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e5bo8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="uidedge5" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e7bo3agg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== path-only edge: dictionary endpoint scoped by {uid} in path, no uid field in body ===== -->
+        <mxCell id="pathedge1" value="{uid} пути" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5B7A9A;strokeWidth=2;fontColor=#5B7A9A;fontSize=11;dashed=1;endArrow=block;exitX=1;exitY=0.95;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e6bo2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
         <!-- ===== composition edges (root BO -> nested array within the same endpoint) ===== -->
-        <mxCell id="compedge1" value="additionalOkveds[]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#57625C;fontColor=#57625C;fontSize=10;endArrow=open;" edge="1" parent="1" source="e1bo1" target="e1bo2">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="compedge2" value="nameChanges[]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#57625C;fontColor=#57625C;fontSize=10;endArrow=open;" edge="1" parent="1" source="e1bo1" target="e1bo3">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="compedge3" value="doLinks[]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#57625C;fontColor=#57625C;fontSize=10;endArrow=open;" edge="1" parent="1" source="e2bo4" target="e2bo5">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="compedge4" value="horizons[]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#57625C;fontColor=#57625C;fontSize=10;endArrow=open;" edge="1" parent="1" source="e4bo7agg" target="e4bo7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="compedge5" value="nameChanges[]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#57625C;fontColor=#57625C;fontSize=10;endArrow=open;" edge="1" parent="1" source="e7bo3agg" target="e7bo3">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
