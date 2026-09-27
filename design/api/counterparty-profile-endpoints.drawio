@@ -22,7 +22,7 @@
         <mxCell id="ep1" value="Эндпойнт 1 · GET /counterparties/{uid}/profile/general" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
           <mxGeometry x="40" y="430" width="280" height="210" as="geometry" />
         </mxCell>
-        <mxCell id="e1bo1" value="&lt;b&gt;PMRK-ID.BO.19.1&lt;/b&gt;&lt;br&gt;&lt;i&gt;Организация — «Общие сведения»&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;&lt;b&gt;inn&lt;/b&gt; — UN_1, string&lt;br&gt;+ 17 полей (name, kpp, ogrn, registered, region, address, okopf, ownershipForm, website, director, companySize, employees, taxRegime, okvedCode, okved, activityKind, asOf)" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep1">
+        <mxCell id="e1bo1" value="&lt;b&gt;PMRK-ID.BO.19.1&lt;/b&gt;&lt;br&gt;&lt;i&gt;Организация — «Общие сведения»&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;&lt;b&gt;inn&lt;/b&gt; — UN_1, string&lt;br&gt;+ 17 полей (name, kpp, ogrn, registered, region, address, okopf, ownershipForm, website, director, companySize, employees, taxRegime, okvedCode, okved, activityKind, updatedAt)" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep1">
           <mxGeometry x="20" y="46" width="240" height="150" as="geometry" />
         </mxCell>
 
@@ -30,7 +30,7 @@
         <mxCell id="ep2" value="Эндпойнт 2 · GET /counterparties/{uid}/profile/interaction" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
           <mxGeometry x="420" y="60" width="300" height="210" as="geometry" />
         </mxCell>
-        <mxCell id="e2bo4" value="&lt;b&gt;PMRK-ID.BO.19.4&lt;/b&gt;&lt;br&gt;&lt;i&gt;Взаимодействие с ГК ГПН&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;+ 9 полей (pmrkStatus, gpnAffiliationFlag, hasCollateral, hasNegativeSecurityInfo, lfpContractControl, lfpAdvanceControl, experience, paymentDiscipline, asOf)" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep2">
+        <mxCell id="e2bo4" value="&lt;b&gt;PMRK-ID.BO.19.4&lt;/b&gt;&lt;br&gt;&lt;i&gt;Взаимодействие с ГК ГПН&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;+ 9 полей (pmrkStatus, gpnAffiliationFlag, hasCollateral, hasNegativeSecurityInfo, lfpContractControl, lfpAdvanceControl, experience, paymentDiscipline, updatedAt)" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep2">
           <mxGeometry x="20" y="46" width="260" height="150" as="geometry" />
         </mxCell>
 
@@ -54,7 +54,7 @@
         <mxCell id="ep5" value="Эндпойнт 5 · GET /counterparties/{uid}/profile/special-control" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
           <mxGeometry x="780" y="430" width="300" height="220" as="geometry" />
         </mxCell>
-        <mxCell id="e5bo8" value="&lt;b&gt;PMRK-ID.BO.19.8&lt;/b&gt;&lt;br&gt;&lt;i&gt;Под особым контролем&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;specialControl, reason, comment,&lt;br&gt;hasFedresursRecord, fedresursLink, asOf" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep5">
+        <mxCell id="e5bo8" value="&lt;b&gt;PMRK-ID.BO.19.8&lt;/b&gt;&lt;br&gt;&lt;i&gt;Под особым контролем&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;specialControl, reason, comment,&lt;br&gt;hasFedresursRecord, fedresursLink, updatedAt" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep5">
           <mxGeometry x="20" y="46" width="260" height="160" as="geometry" />
         </mxCell>
 
