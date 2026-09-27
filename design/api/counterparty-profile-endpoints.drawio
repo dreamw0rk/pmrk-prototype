@@ -44,13 +44,10 @@
 
         <!-- ===== Endpoint 4 · PD forecast ===== -->
         <mxCell id="ep4" value="Эндпойнт 4 · GET /counterparties/{uid}/profile/pd-forecast" style="swimlane;rounded=1;whiteSpace=wrap;html=1;startSize=34;fillColor=#EDF1F8;strokeColor=#1D3E72;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;" vertex="1" parent="1">
-          <mxGeometry x="420" y="430" width="300" height="290" as="geometry" />
+          <mxGeometry x="420" y="430" width="300" height="180" as="geometry" />
         </mxCell>
-        <mxCell id="e4bo7agg" value="&lt;b&gt;PMRK-ID.BO.19.7.AGG&lt;/b&gt;&lt;br&gt;&lt;i&gt;Прогноз PD — ответ&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;horizons[] — array · 19.7&lt;br&gt;asOf — string" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep4">
+        <mxCell id="e4bo7" value="&lt;b&gt;PMRK-ID.BO.19.7&lt;/b&gt;&lt;br&gt;&lt;i&gt;Прогноз PD&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;uid&lt;/b&gt; — PK, uuid&lt;br&gt;pd1m, pd3m, pd6m — number, %&lt;br&gt;updatedAt — string" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#1D3E72;strokeWidth=2;fontSize=11;spacing=6;" vertex="1" parent="ep4">
           <mxGeometry x="20" y="46" width="260" height="110" as="geometry" />
-        </mxCell>
-        <mxCell id="e4bo7" value="&lt;b&gt;PMRK-ID.BO.19.7&lt;/b&gt;&lt;br&gt;&lt;i&gt;Прогноз PD — элемент&lt;/i&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;horizon&lt;/b&gt; — UN_1, string enum&lt;br&gt;pd — number, %" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8AA0C0;fontSize=11;spacing=6;" vertex="1" parent="ep4">
-          <mxGeometry x="20" y="172" width="260" height="96" as="geometry" />
         </mxCell>
 
         <!-- ===== Endpoint 5 · Special control ===== -->
@@ -103,7 +100,7 @@
         <mxCell id="uidedge2" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e3bo6">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="uidedge3" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.45;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e4bo7agg">
+        <mxCell id="uidedge3" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.45;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e4bo7">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="uidedge4" value="uid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A9691F;strokeWidth=2;fontColor=#A9691F;fontSize=11;endArrow=block;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="e1bo1" target="e5bo8">
@@ -122,9 +119,6 @@
         </mxCell>
 
         <!-- ===== composition edges (root BO -> nested array within the same endpoint) ===== -->
-        <mxCell id="compedge4" value="horizons[]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#57625C;fontColor=#57625C;fontSize=10;endArrow=open;" edge="1" parent="1" source="e4bo7agg" target="e4bo7">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="compedge5" value="nameChanges[]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#57625C;fontColor=#57625C;fontSize=10;endArrow=open;" edge="1" parent="1" source="e7bo3agg" target="e7bo3">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
