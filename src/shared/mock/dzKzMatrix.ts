@@ -98,20 +98,20 @@ interface MetricDef {
 }
 
 const METRICS: MetricDef[] = [
-  { key: 'dzTotal', label: 'Дебиторская Задолженность Общая, ₽', indent: 0, activity: 0.3, base: (t) => t.dz },
-  { key: 'dzCurrent', label: 'Задолженность Текущая, ₽', indent: 1, activity: 0.3, base: (t) => t.dz - t.pdz },
-  { key: 'dzOverdue', label: 'Задолженность Просроченная, ₽', indent: 1, activity: 0.3, base: (t) => t.pdz },
-  { key: 'dzOverdue5', label: 'Задолженность просроченная до 5 дней, ₽', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.35) },
-  { key: 'dzOverdue30', label: 'Задолженность просроченная от 6 до 30 дней, ₽', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.4) },
-  { key: 'dzOverdueMore', label: 'Задолженность просроченная более 30 дней, ₽', indent: 2, activity: 0.15, base: (t) => t.pdz - Math.round(t.pdz * 0.35) - Math.round(t.pdz * 0.4) },
-  { key: 'claims', label: 'Выставленные претензии и штрафы в адрес контрагента, ₽', indent: 1, activity: 0.08, base: (t) => Math.round(t.pdz * 0.06) },
-  { key: 'dzCollateral', label: 'Сумма обеспечения дебиторской задолженности, ₽', indent: 0, activity: 0.1, base: () => 0 },
-  { key: 'advanceTotal', label: 'Авансы Сумма на конец периода, ₽ (без отрицательных сальдо)', indent: 0, activity: 0.35, base: (t) => t.advance },
-  { key: 'advanceCollateral', label: 'Аванс Сумма обеспечения, ₽', indent: 0, activity: 0.05, base: () => 0 },
-  { key: 'reservesDz', label: 'Сумма резервов по сомнительным долгам по ДЗ на конец периода, ₽', indent: 0, activity: 0.1, base: (t) => Math.round(t.pdz * 0.07) },
-  { key: 'reservesAdvance', label: 'Сумма резервов по сомнительным долгам по авансам на конец периода, ₽', indent: 0, activity: 0.05, base: (t) => Math.round(t.advance * 0.015) },
-  { key: 'payable', label: 'Кредиторская задолженность, ₽', indent: 0, activity: 0.4, base: (t) => t.payable },
-  { key: 'otherCollateral', label: 'Сумма прочего обеспечения, ₽', indent: 0, activity: 0.05, base: () => 0 },
+  { key: 'dzTotal', label: 'Дебиторская Задолженность Общая, руб.', indent: 0, activity: 0.3, base: (t) => t.dz },
+  { key: 'dzCurrent', label: 'Задолженность Текущая, руб.', indent: 1, activity: 0.3, base: (t) => t.dz - t.pdz },
+  { key: 'dzOverdue', label: 'Задолженность Просроченная, руб.', indent: 1, activity: 0.3, base: (t) => t.pdz },
+  { key: 'dzOverdue5', label: 'Задолженность просроченная до 5 дней, руб.', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.35) },
+  { key: 'dzOverdue30', label: 'Задолженность просроченная от 6 до 30 дней, руб.', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.4) },
+  { key: 'dzOverdueMore', label: 'Задолженность просроченная более 30 дней, руб.', indent: 2, activity: 0.15, base: (t) => t.pdz - Math.round(t.pdz * 0.35) - Math.round(t.pdz * 0.4) },
+  { key: 'claims', label: 'Выставленные претензии и штрафы в адрес контрагента, руб.', indent: 1, activity: 0.08, base: (t) => Math.round(t.pdz * 0.06) },
+  { key: 'dzCollateral', label: 'Сумма обеспечения дебиторской задолженности, руб.', indent: 0, activity: 0.1, base: () => 0 },
+  { key: 'advanceTotal', label: 'Авансы Сумма на конец периода, руб. (без отрицательных сальдо)', indent: 0, activity: 0.35, base: (t) => t.advance },
+  { key: 'advanceCollateral', label: 'Аванс Сумма обеспечения, руб.', indent: 0, activity: 0.05, base: () => 0 },
+  { key: 'reservesDz', label: 'Сумма резервов по сомнительным долгам по ДЗ на конец периода, руб.', indent: 0, activity: 0.1, base: (t) => Math.round(t.pdz * 0.07) },
+  { key: 'reservesAdvance', label: 'Сумма резервов по сомнительным долгам по авансам на конец периода, руб.', indent: 0, activity: 0.05, base: (t) => Math.round(t.advance * 0.015) },
+  { key: 'payable', label: 'Кредиторская задолженность, руб.', indent: 0, activity: 0.4, base: (t) => t.payable },
+  { key: 'otherCollateral', label: 'Сумма прочего обеспечения, руб.', indent: 0, activity: 0.05, base: () => 0 },
 ];
 
 function fallbackTotals(c: Counterparty): Totals {

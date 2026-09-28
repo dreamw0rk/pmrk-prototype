@@ -272,7 +272,7 @@ export function Subscriptions() {
                       <span style={{ flex: 1, fontSize: 13 }}>{t}</span>
                       {cat.threshold && (
                         <label style={{ fontSize: 12, color: 'var(--color-typo-secondary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          порог <input type="text" defaultValue="1 млн ₽" style={{ width: 90, height: 28, border: '1px solid var(--color-bg-border)', borderRadius: 6, padding: '0 8px', background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)' }} />
+                          порог <input type="text" defaultValue="1 млн руб." style={{ width: 90, height: 28, border: '1px solid var(--color-bg-border)', borderRadius: 6, padding: '0 8px', background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)' }} />
                         </label>
                       )}
                       <select

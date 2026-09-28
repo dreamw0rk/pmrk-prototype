@@ -92,7 +92,7 @@ export function SparkProfileReport() {
               ['Дата регистрации', dateRu(c.registered)],
               ['Регион регистрации', c.region],
               ['Основной ОКВЭД', `${c.okvedCode} — ${c.okved}`],
-              ['Выручка (последний год), ₽', moneyCompact(c.revenue)],
+              ['Выручка (последний год), руб.', moneyCompact(c.revenue)],
             ] as [string, React.ReactNode][]).map(([k, v], i) => (
               <div key={i} className="sprep-cell">
                 <div className="sprep-k">{k}</div>
@@ -135,7 +135,7 @@ export function SparkProfileReport() {
           {ext.courtCases.length ? (
             <table className="sprep-table">
               <thead>
-                <tr><th>Истец</th><th>Номер дела</th><th>Категория</th><th>Состояние</th><th>Дата</th><th>Сумма иска, ₽</th></tr>
+                <tr><th>Истец</th><th>Номер дела</th><th>Категория</th><th>Состояние</th><th>Дата</th><th>Сумма иска, руб.</th></tr>
               </thead>
               <tbody>
                 {ext.courtCases.map((x, i) => (

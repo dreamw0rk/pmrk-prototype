@@ -83,7 +83,7 @@ export interface Counterparty {
   specialControl: boolean;
   isForeign: boolean;
   registered: string; // дата регистрации
-  revenue: number; // выручка, ₽
+  revenue: number; // выручка, руб.
   employees: number;
   // агрегаты для профиля
   creditLimit: number; // действующий КЛ

@@ -40,6 +40,9 @@ export interface Indicator {
       заголовке группы: «Информация актуальна на …». Достаточно у одного из
       показателей группы. */
   groupAsOf?: string;
+  /** Дата расчёта самого показателя (дд.мм.гггг) — отдельной колонкой справа
+      в строке (индикаторы Газпромбанка, рейтинги АКРА / «Эксперт РА»). */
+  calcDate?: string;
   /** Значение-таблица «сумма | название» (например, разбивка по видам налогов):
       если задано, вместо текста value рисуются две колонки — суммы и названия. */
   rows?: { amount: string; name: string }[];
@@ -153,21 +156,29 @@ export function buildExternal(cp: Counterparty) {
       })
     : [];
 
-  // «Реестры СПАРК» — отдельный раздел в реальной системе (SparkRisk, статус
-  // контрагента по данным СПАРК и нейтральные/рисковые реестры), у нас раньше
-  // не выделялся вовсе.
+  // «Реестры СПАРК» — в разделе только нейтральные/рисковые реестры со
+  // светофором: не выявлено — зелёный, только нейтральные реестры — жёлтый,
+  // есть рисковый реестр — красный. SparkRisk и статус по СПАРК отсюда убраны.
   const section3: Indicator[] = [
-    { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: g >= 3 ? 'Реестр экспедиторов; Участник Хартии АПК' : 'не выявлено' },
-    { label: 'SparkRisk', value: g <= 2 ? 'Низкий' : g === 3 ? 'Средний' : 'Высокий', level: lvl(g) },
-    { label: 'Статус контрагента по данным СПАРК', value: cp.status },
+    g === 4
+      ? { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: 'Реестр недобросовестных поставщиков; Реестр экспедиторов', level: 'high' }
+      : g === 3
+        ? { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: 'Реестр экспедиторов; Участник Хартии АПК', level: 'medium' }
+        : { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: 'не выявлено', level: 'low' },
   ];
 
   const section4Base: Indicator[] = [
-    { label: 'Оценка СПАРК · Кредитный лимит, ₽', value: cp.creditLimit ? moneyCompact(cp.creditLimit) : '—' },
-    { label: 'Газпромбанк · Индекс Риска бизнеса', value: `${cp.rbIndex} / 14 — ${rbSignal(cp.rbIndex).desc}`, level: rbSignal(cp.rbIndex).color === 'green' ? 'low' : rbSignal(cp.rbIndex).color === 'red' ? 'high' : 'medium', tip: 'Индекс РБ (0…14) от Газпромбанк. Описание сигнала — по матрице РБ (ФТ-1.3.1).' , dot: true },
+    { label: 'Оценка СПАРК · Кредитный лимит, руб.', value: cp.creditLimit ? moneyCompact(cp.creditLimit) : '—' },
+    // Светофор «Риски бизнеса» — двухпозиционный, как на портале Газпромбанка:
+    // либо контрагент в негативном реестре ЦБ РФ / Росфинмониторинга (красный),
+    // либо благонадёжен (зелёный). Балл 0…14 здесь не выводится; в реестр
+    // попадают контрагенты из красной зоны индекса (≥ 10, как у RbIndicator).
+    cp.rbIndex >= 10
+      ? { label: 'Газпромбанк · Индекс Риски бизнеса', value: 'Включен в негативный реестр по данным ЦБ РФ и Росфинмониторинг', level: 'high', dot: true }
+      : { label: 'Газпромбанк · Индекс Риски бизнеса', value: 'Благонадежный контрагент, не включен в негативный реестр по данным ЦБ РФ и Росфинмониторинг', level: 'low', dot: true },
     { label: 'Газпромбанк · Графовый индикатор', value: 'AAA' },
     { label: 'Газпромбанк · Исковый индикатор', value: 'AAA' },
-    { label: 'Газпромбанк · Дата включения в негативный реестр', value: rbSignal(cp.rbIndex).color === 'red' ? '—' : 'не включён' },
+    { label: 'Газпромбанк · Дата включения в негативный реестр', value: cp.rbIndex >= 10 ? '14.03.2026' : 'не включён' },
     ...(REAL_RATINGS[cp.uid] ?? [
       { label: 'АКРА · Рейтинг (прогноз)', value: g <= 2 ? 'A (стабильный)' : g === 3 ? 'BBB (негативный)' : 'нет рейтинга' },
       { label: 'АКРА · Дата обновления рейтинга', value: g <= 3 ? '12.03.2026' : 'Нет данных' },
@@ -190,9 +201,28 @@ export function buildExternal(cp: Counterparty) {
   };
   // Строки «Дата обновления …рейтинга» из вывода убраны: дата теперь в плашке
   // группы (groupAsOf), отдельной строкой она дублировалась.
+  // Дата расчёта у каждого показателя Газпромбанка и у рейтингов агентств:
+  // у рейтинга — дата его обновления (для регионального — своя строка), у
+  // индикаторов ГПБ — дата выгрузки источника. «Нет данных» → даты нет.
+  const isoRu = (iso: string) => iso.split('-').reverse().join('.');
+  const s4Value = (label: string) => section4Base.find((x) => x.label === label)?.value;
+  const s4CalcDate = (x: Indicator, groupAsOf: string): string | undefined => {
+    const [prefix, name] = x.label.split(' · ');
+    if (prefix === 'Газпромбанк') {
+      if (name === 'Дата включения в негативный реестр') return undefined;
+      // индикаторы ГПБ пересчитываются независимо — дата расчёта не позже
+      // актуальности группы, со сдвигом 0…4 дня
+      const d = new Date(groupAsOf); d.setDate(d.getDate() - (seedOf(cp.uid + name) % 5));
+      return isoRu(d.toISOString().slice(0, 10));
+    }
+    if (prefix !== 'АКРА' && prefix !== 'Эксперт РА') return undefined;
+    const d = s4Value(`${prefix} · Дата обновления ${name === 'Рейтинг региона регистрации' ? 'регионального ' : ''}рейтинга`);
+    return d && /^\d{2}\.\d{2}\.\d{4}$/.test(d) ? d : undefined;
+  };
   const section4: Indicator[] = section4Base.filter((x) => !/Дата обновления (регионального )?рейтинга$/.test(x.label)).map((x) => {
     const prefix = x.group ?? x.label.split(' · ')[0];
-    return { ...x, groupAsOf: s4RatingDate(prefix) ?? s4Shift(seedOf(cp.uid + prefix) % 14) };
+    const groupAsOf = s4RatingDate(prefix) ?? s4Shift(seedOf(cp.uid + prefix) % 14);
+    return { ...x, groupAsOf, calcDate: s4CalcDate(x, groupAsOf) };
   });
 
   const NEG_REGISTRIES = 'Негативные реестры по данным ФНС';
@@ -201,19 +231,19 @@ export function buildExternal(cp: Counterparty) {
     { group: NEG_REGISTRIES, label: 'Дисквалифицированные лица в составе исполнительных органов', value: g === 4 ? '1 лицо' : 'Нет', level: g === 4 ? 'high' : 'low' },
     { group: NEG_REGISTRIES, label: 'Руководитель контрагента включён в реестр ФНС как массовый', value: 'Нет', level: 'low' },
     { group: FTS_DEBT, label: 'Дата сведений о недоимке и задолженности по пеням и штрафам', value: '01.08.2026' },
-    { group: FTS_DEBT, label: 'Сумма недоимки по налогам и сборам, ₽', value: g >= 3 ? money(enforcement || 1_200_000) : '0', level: g >= 3 ? 'medium' : 'low', dot: false },
-    { group: FTS_DEBT, label: 'Задолженность по пеням и штрафам, ₽', value: g >= 3 ? money(340_000) : '0' },
+    { group: FTS_DEBT, label: 'Сумма недоимки по налогам и сборам, руб.', value: g >= 3 ? money(enforcement || 1_200_000) : '0', level: g >= 3 ? 'medium' : 'low', dot: false },
+    { group: FTS_DEBT, label: 'Задолженность по пеням и штрафам, руб.', value: g >= 3 ? money(340_000) : '0' },
     { group: FTS_DEBT, label: 'Дата сведений о сумме налоговых правонарушений', value: '31.12.2023' },
-    { group: FTS_DEBT, label: 'Сумма штрафов, ₽', value: g >= 3 ? money(180_000) : '0' },
+    { group: FTS_DEBT, label: 'Сумма штрафов, руб.', value: g >= 3 ? money(180_000) : '0' },
   ];
 
   const S6_SUMMARY = 'Сводная информация из СПАРК';
   const S6_PLEDGES = 'Залоги выданные по данным СПАРК';
   const section6: Indicator[] = [
     { group: S6_SUMMARY, label: 'Количество судебных дел (ответчик), с начала предыдущего года', value: String(lawsuits.length), level: lawsuits.length ? 'medium' : 'low' },
-    { group: S6_SUMMARY, label: 'Сумма исков (ответчик), с начала предыдущего года, ₽', value: money(lawsuits.reduce((s, c) => s + c.amount, 0)) },
-    { group: S6_SUMMARY, label: 'Сумма решений по искам за последние 2 года (ответчик), ₽', value: money(Math.round(lawsuits.reduce((s, c) => s + c.amount, 0) * 0.15)) },
-    { group: S6_SUMMARY, label: 'Сумма активных исполнительных производств, ₽', value: enforcement ? money(enforcement) : '0', level: enforcement ? 'medium' : 'low' },
+    { group: S6_SUMMARY, label: 'Сумма исков (ответчик), с начала предыдущего года, руб.', value: money(lawsuits.reduce((s, c) => s + c.amount, 0)) },
+    { group: S6_SUMMARY, label: 'Сумма решений по искам за последние 2 года (ответчик), руб.', value: money(Math.round(lawsuits.reduce((s, c) => s + c.amount, 0) * 0.15)) },
+    { group: S6_SUMMARY, label: 'Сумма активных исполнительных производств, руб.', value: enforcement ? money(enforcement) : '0', level: enforcement ? 'medium' : 'low' },
     { group: S6_SUMMARY, label: 'Судебные дела о банкротстве (ответчик)', value: hasBankruptcyCase ? 'Да' : 'Нет', level: hasBankruptcyCase ? 'high' : 'low', dot: true },
     { group: S6_PLEDGES, label: 'Залоги выданные', value: g <= 2 ? 'Нет' : '1 предмет залога' },
   ];
@@ -225,7 +255,7 @@ export function buildExternal(cp: Counterparty) {
     { label: 'Реестр недобросовестных поставщиков(РНП)', value: g === 4 ? 'входит' : 'не входит', level: g === 4 ? 'high' : 'low' },
     { label: 'Ссылка на реестр', value: g === 4 ? 'zakupki.gov.ru/epz/dishonestsupplier/' : 'Нет данных' },
     { label: 'Количество РНП, в которые входит контрагент', value: g === 4 ? '1' : '0' },
-    { label: 'РНП: общая стоимость контрактов, ₽', value: g === 4 ? money(4_200_000) : '0' },
+    { label: 'РНП: общая стоимость контрактов, руб.', value: g === 4 ? money(4_200_000) : '0' },
     { label: 'Планируемая дата исключения из РНП', value: g === 4 ? '—' : 'Нет данных' },
   ];
 
@@ -249,9 +279,9 @@ export function buildExternal(cp: Counterparty) {
   const taxSocial = money(Math.round(cp.revenue * 0.002));
   const section10: Indicator[] = [
     { label: 'Налоговый период', value: '31.12.2025' },
-    { label: 'Уплачено налогов всего, ₽', value: money(Math.round(cp.revenue * 0.08)) },
+    { label: 'Уплачено налогов всего, руб.', value: money(Math.round(cp.revenue * 0.08)) },
     {
-      label: 'Расшифровка по видам налогов и взносов, ₽',
+      label: 'Расшифровка по видам налогов и взносов, руб.',
       value: '',
       rows: [
         { amount: taxVat, name: 'Налог на добавленную стоимость (НДС)' },

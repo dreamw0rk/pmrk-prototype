@@ -8,9 +8,11 @@ import { IconAreaChart } from '@consta/icons/IconAreaChart';
 import { IconCalculator } from '@consta/icons/IconCalculator';
 import { IconFileTable } from '@consta/icons/IconFileTable';
 import { IconFilePDF } from '@consta/icons/IconFilePDF';
+import { IconFileDocument } from '@consta/icons/IconFileDocument';
 import { IconGeo } from '@consta/icons/IconGeo';
 import { IconConnection } from '@consta/icons/IconConnection';
 import { IconTeam } from '@consta/icons/IconTeam';
+import { IconMail } from '@consta/icons/IconMail';
 import { IconSpeed } from '@consta/icons/IconSpeed';
 import { IconLineAndBarChart } from '@consta/icons/IconLineAndBarChart';
 import { IconTable2 } from '@consta/icons/IconTable2';
@@ -43,9 +45,9 @@ const EDT_ACTION_GROUPS: { title: string; items: { label: string; hint: string; 
   {
     title: 'Оценка',
     items: [
+      { label: 'Заявка на кредитный лимит', hint: 'Утверждение лимита для реализации с отсрочкой платежа', to: '/limit-requests/new', icon: IconFileDocument },
       { label: 'Экспресс-оценка', hint: 'Кредитоспособность контрагента (ФТ-3.1)', to: '/assessments/new', icon: IconAreaChart },
       { label: 'Лимит авансирования', hint: 'Расчёт по методике Ш-13.08-03', to: '/assessments/new?direction=ADVANCE', icon: IconCalculator },
-      { label: 'Массовая выгрузка оценок', hint: 'Оценка списком контрагентов (ФТ-3.8)', to: '/assessments/mass', icon: IconFileTable },
     ],
   },
   {
@@ -53,13 +55,15 @@ const EDT_ACTION_GROUPS: { title: string; items: { label: string; hint: string; 
     items: [
       { label: 'Профиль контрагента', hint: 'До 10 ИНН, результат на почту (ФТ-7.1)', to: '/reports/profile-rf', icon: IconFilePDF },
       { label: 'Иностранный контрагент', hint: 'По данным СПАРК (ФТ-7.2)', to: '/reports/foreign', icon: IconGeo },
+      { label: 'Массовая выгрузка оценок', hint: 'Оценка списком контрагентов (ФТ-3.8)', to: '/assessments/mass', icon: IconFileTable },
     ],
   },
   {
-    title: 'Связи',
+    title: 'Связи и мониторинг',
     items: [
       { label: 'Отчет по аффилированности', hint: 'Связи между заданными к/а (ФТ-4.5)', to: '/reports/affiliation', icon: IconConnection },
       { label: 'Связанные стороны', hint: 'Отчет по шаблону Приложения 4 (ФТ-4.4)', to: '/reports/related-parties', icon: IconTeam },
+      { label: 'Мониторинг контрагентов', hint: 'Оповещения по ключевым событиям контрагентов', to: '/subscriptions', icon: IconMail },
     ],
   },
 ];
@@ -263,13 +267,12 @@ export function Home() {
 
       {/* Поиск ещё не начат — недавние контрагенты, действия и дашборды в один ряд.
           Пропорции: «Действия» — главный блок стартового экрана (12 плиток в три
-          колонки), ему отдана половина ширины; «Недавние контрагенты» — узкий
-          список из пяти строк, хватает четверти. Доля «Дашбордов» сохранена, чтобы
-          ряд не перекосило: «Действия» выросли ровно на то, что уступили «Недавние».
+          колонки с крупными иконками) занимает ~3/4 ширины; «Дашборды» — узкая
+          колонка ссылок на внешние BI.
           Минимумы minmax подобраны так, чтобы ряд помещался без горизонтальной
           прокрутки на рабочем разрешении. */}
       {(
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(480px, 1.65fr) minmax(260px, 0.9fr)', gap: 16, alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 2.6fr) minmax(200px, 0.8fr)', gap: 16, alignItems: 'stretch' }}>
           {/* Плитки действий из ЕОЛ: три смысловые колонки с иконками. */}
           <SectionCard title="Действия" style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -285,9 +288,9 @@ export function Home() {
                             key={a.to}
                             onClick={() => navigate(a.to)}
                             className="pmrk-clickable"
-                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: 6, width: '100%', height: 104, minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', cursor: 'pointer' }}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: 8, width: '100%', height: 124, minWidth: 0, textAlign: 'left', padding: '12px 14px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', cursor: 'pointer' }}
                           >
-                            <TileIcon size="s" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
+                            <TileIcon size="l" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
                             <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{a.label}</div>
                             <div className="pmrk-muted" style={{ fontSize: 12.5, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{a.hint}</div>
                           </button>
@@ -302,7 +305,7 @@ export function Home() {
 
           {/* Дашборды (ФТ-8.1…8.4) — карточки внешних BI (в прототипе не подключены). */}
           <SectionCard title="Дашборды" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="pmrk-stack" style={{ gap: 10, flex: 1, justifyContent: 'center' }}>
+            <div className="pmrk-stack" style={{ gap: 8, flex: 1 }}>
               {EDT_DASHBOARDS.map((d) => {
                 const CardIcon = d.icon;
                 return (
@@ -312,12 +315,12 @@ export function Home() {
                     onClick={(e) => e.preventDefault()}
                     title="Внешний BI-дашборд — в прототипе не подключён"
                     className="pmrk-clickable"
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', textDecoration: 'none' }}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', textDecoration: 'none' }}
                   >
                     <CardIcon size="l" style={{ color: 'var(--color-typo-brand)', flex: 'none' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-typo-primary)', lineHeight: 1.3 }} className="pmrk-truncate">{d.label}</div>
-                      <div className="pmrk-muted" style={{ fontSize: 12, marginTop: 2 }}>BI · внешняя ссылка ↗</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-typo-primary)', lineHeight: 1.3, overflowWrap: 'anywhere' }}>{d.label}</div>
+                      <div className="pmrk-muted" style={{ fontSize: 12, marginTop: 3 }}>BI · внешняя ссылка ↗</div>
                     </div>
                   </a>
                 );

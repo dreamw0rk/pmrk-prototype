@@ -71,7 +71,6 @@ function AppShellPmrk() {
           <div className="pmrk-brand__mark">ПМ</div>
           <div>
             <div className="pmrk-brand__name">ПМРК</div>
-            <div className="pmrk-brand__sub">Кредитный контроль · ГК ГПН</div>
           </div>
         </div>
 

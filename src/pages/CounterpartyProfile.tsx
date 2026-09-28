@@ -150,7 +150,7 @@ export function CounterpartyProfile() {
           шапка оказывалась уже колонки контента; maxWidth + margin auto держат
           её по центру. Ширина шапки — своя переменная (--pmrk-cp-header-max),
           независимая от колонки контента (--pmrk-content-max у .pmrk-page). */}
-      <div style={{ width: '100%', maxWidth: 'var(--pmrk-cp-header-max)', margin: '0 auto', padding: '14px 14px 0' }}>
+      <div style={{ width: '100%', maxWidth: 'var(--pmrk-cp-header-max)', margin: '0 auto', padding: '14px 8px 0' }}>
         {skin !== 'sfk' && (
           <div className="pmrk-breadcrumbs">
             <a onClick={() => navigate('/registry')} style={{ cursor: 'pointer' }}>Реестр контрагентов</a> / {c.shortName}
@@ -186,7 +186,7 @@ export function CounterpartyProfile() {
                 а кнопка ниже тянется ровно на ту же ширину — визуально один блок,
                 кнопка не длиннее чипов. */}
             <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 10, marginTop: 10, maxWidth: '100%' }}>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="pmrk-cp-status" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span title="Статус по данным СПАРК"><StatusBadge status={c.status} /></span>
                 {c.specialControl && <StatusBadge status="Особый контроль" />}
                 {c.underSanctions && <SanctionBadge />}
@@ -207,7 +207,9 @@ export function CounterpartyProfile() {
               файл, а не открывает раздел; полное название отчёта с форматом и
               номером ФТ — в подсказке. */}
           <div style={{ flex: 1, minWidth: 460, maxWidth: 700 }}>
-            {/* Четыре кнопки равной ширины: minmax(0, 1fr) — нижняя граница
+            {/* height: 109 у плиток — низ панели доходит ровно до верха кнопки
+                «Подписаться» в левой колонке (заголовок + реквизиты + ряд чипов).
+                Четыре кнопки равной ширины: minmax(0, 1fr) — нижняя граница
                 столбца 0, верхняя — равная доля контейнера. Подпись в две строки:
                 «Скачать» сверху, название отчёта под ним. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
@@ -219,7 +221,7 @@ export function CounterpartyProfile() {
                   onClick={() => navigate(`/report/${c.uid}${r.to}`)}
                   title={r.title}
                   className="pmrk-clickable pmrk-report-tile"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-typo-brand)', borderRadius: 8, cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', height: 109, minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-typo-brand)', borderRadius: 8, cursor: 'pointer' }}
                 >
                   {/* PNG перекрашивается в фирменный цвет через CSS-маску:
                       альфа-канал картинки задаёт форму, заливка — цвет */}
@@ -263,8 +265,11 @@ export function CounterpartyProfile() {
       </div>
       </div>
 
-      {/* контент вкладок — на общей сетке страницы, под «липкой» панелью */}
-      <div className="pmrk-page">
+      {/* контент вкладок — под «липкой» панелью, той же ширины, что и шапка
+          (--pmrk-cp-header-max), а не общей колонки страниц: на широком экране
+          разделы тянутся во всю рабочую область; боковые поля ужаты до 8px,
+          чтобы серого по краям почти не оставалось */}
+      <div className="pmrk-page" style={{ maxWidth: 'var(--pmrk-cp-header-max)', paddingLeft: 8, paddingRight: 8 }}>
         {/* AI-резюме сверху профиля (AI-2) — над содержимым вкладок (со скелетоном генерации) */}
         {aiOn && summary && <ProfileAiSummary uid={uid} summary={summary} />}
 
@@ -509,21 +514,6 @@ function GeneralTab({ c }: { c: Counterparty }) {
         title="Взаимодействие контрагента с ГК Газпром нефть"
         extra={<DateActuality date={c.asOf.general} source="справочник ДО ГК ГПН" />}
       >
-        {/* Статус контрагента и признак принадлежности к ГК ГПН — на реальном
-            портале это начало того же раздела «Взаимодействие с ГК», перед
-            списком блоков/ДО, а не отдельная карточка. */}
-        <KeyValue
-          cols={3}
-          items={[
-            { k: 'Статус контрагента', v: interaction.pmrkStatus },
-            { k: 'Признак принадлежности к ГК ГПН', v: interaction.gpnAffiliationFlag },
-          ]}
-        />
-
-        <div className="pmrk-muted" style={{ fontSize: 13, margin: '16px 0 12px' }}>
-          Дочерние общества ГК «Газпром нефть», работающие с контрагентом, — по блокам. Условия работы по каждому ДО (кредитный лимит, отсрочка, обеспечение) — на вкладке «Кредитный лимит».
-        </div>
-
         {/* Плоская таблица: блок — отдельным столбцом в каждой строке, без
             вложенности и без подсчёта ДО */}
         <div className="pmrk-table">
@@ -649,6 +639,8 @@ function GeneralTab({ c }: { c: Counterparty }) {
 }
 
 const extLevelColor = (l?: string) => (l === 'high' ? 'var(--pmrk-risk-4)' : l === 'medium' ? 'var(--pmrk-risk-3)' : l === 'low' ? 'var(--pmrk-risk-1)' : 'var(--color-typo-primary)');
+/* для значения, окрашенного целиком (без точки): светофорный жёлтый текстом не читается */
+const extLevelTextColor = (l?: string) => (l === 'medium' ? 'var(--pmrk-risk-3-text)' : extLevelColor(l));
 
 /* Иконки индикаторов СПАРК. Стилистика источника: показатель — круговая шкала,
    значение крупной цифрой в центре, дуга заполнения поверх тонкой серой дорожки,
@@ -756,7 +748,7 @@ function IndicatorVisual({ ind, hideDot, left }: { ind: Indicator; hideDot?: boo
     // не применялись размеры и точка была невидимой.
     // left — значение по левому краю (списки раздела «Внешняя информация»):
     // занимает свободную ширину строки, текст и переносы прижаты влево.
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: left ? 'flex-start' : 'flex-end', gap: 6, fontWeight: 600, color: ind.level && (ind.dot ?? !hideDot) ? 'var(--color-typo-primary)' : extLevelColor(ind.level), whiteSpace: 'pre-line', textAlign: left ? 'left' : 'right', flex: left ? 1 : undefined }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: left ? 'flex-start' : 'flex-end', gap: 6, fontWeight: 600, color: ind.level && (ind.dot ?? !hideDot) ? 'var(--color-typo-primary)' : extLevelTextColor(ind.level), whiteSpace: 'pre-line', textAlign: left ? 'left' : 'right', flex: left ? 1 : undefined }}>
       {ind.level && (ind.dot ?? !hideDot) && <span className="pmrk-dot" style={{ background: extLevelColor(ind.level) }} />}
       {ind.value}
       {ind.link && (
@@ -806,6 +798,7 @@ function GroupedIndicators({ indicators, hideDot, left }: { indicators: Indicato
     if (!group) { group = { name, items: [] }; groups.push(group); }
     group.items.push({ sub, ind });
   }
+  const hasCalcDate = indicators.some((x) => x.calcDate);
   return (
     <div style={{ border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius-lg)', overflow: 'hidden', marginTop: 4 }}>
       {groups.map((g) => (
@@ -824,6 +817,15 @@ function GroupedIndicators({ indicators, hideDot, left }: { indicators: Indicato
                 {ind.tip && <span title={ind.tip} style={{ marginLeft: 6, cursor: 'help', color: 'var(--color-typo-ghost)', fontSize: 12 }}>ⓘ</span>}
               </span>
               <IndicatorVisual ind={ind} hideDot={hideDot} left={left} />
+              {/* дата расчёта показателя — своя колонка фиксированной ширины у
+                  правого края, чтобы даты стояли столбиком; колонка есть во всех
+                  группах раздела, если дата есть хотя бы у одного показателя, —
+                  иначе значения в группах с датой и без неё съезжали бы */}
+              {hasCalcDate && (
+                <span style={{ flex: 'none', width: 150, textAlign: 'right', fontSize: 12, color: 'var(--color-typo-secondary)', whiteSpace: 'nowrap' }}>
+                  {ind.calcDate ? `Дата расчёта ${ind.calcDate}` : ''}
+                </span>
+              )}
             </div>
           ))}
         </Fragment>
@@ -994,8 +996,8 @@ function ExternalTab({ c }: { c: Counterparty }) {
                       <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Состояние</div>
                       <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Исход дела</div>
                       <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Дата иска</div>
-                      <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма иска, ₽</div>
-                      <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма по решению, ₽</div>
+                      <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма иска, руб.</div>
+                      <div className="pmrk-th" style={{ flex: 0.9, minWidth: 0, justifyContent: 'flex-end' }}>Сумма по решению, руб.</div>
                     </div>
                     {(allCases ? ext.courtCases : ext.courtCases.slice(0, 3)).map((cc, i) => (
                       <div key={i} className="pmrk-tr" style={{ cursor: 'default' }}>
@@ -1219,7 +1221,7 @@ function DebtTab({ c }: { c: Counterparty }) {
             наведению (тултип), как и раньше. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>ДЗ и ПДЗ, ₽</div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>ДЗ и ПДЗ, руб.</div>
             <LineChart
               labels={labels}
               format={(v) => moneyCompact(v)}
@@ -1231,7 +1233,7 @@ function DebtTab({ c }: { c: Counterparty }) {
             />
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Авансовая задолженность, ₽</div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Авансовая задолженность, руб.</div>
             <LineChart
               labels={labels}
               format={(v) => moneyCompact(v)}
@@ -1242,7 +1244,7 @@ function DebtTab({ c }: { c: Counterparty }) {
             />
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Кредитная задолженность, ₽</div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Кредитная задолженность, руб.</div>
             <LineChart
               labels={labels}
               format={(v) => moneyCompact(v)}
@@ -1382,7 +1384,7 @@ function StatementsTab({ c }: { c: Counterparty }) {
     <SectionCard title="Отчётность (Ф1–Ф4 за 3 периода)" extra={<DateActuality date={c.asOf.statements} source="СПАРК / ручной ввод" />}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <Button size="xs" view="secondary" label="РСБУ отчётность (PDF)" iconLeft={IconDownload as never} />
-        <span className="pmrk-muted" style={{ fontSize: 12, alignSelf: 'center' }}>Стандарт: РСБУ · валюта ₽ · тыс. руб.</span>
+        <span className="pmrk-muted" style={{ fontSize: 12, alignSelf: 'center' }}>Стандарт: РСБУ · тыс. руб.</span>
       </div>
       {st.blocks.map((block, bi) => (
         <div key={block.title} className="pmrk-table" style={{ overflow: 'hidden', marginTop: bi ? 16 : 0 }}>
@@ -1472,7 +1474,7 @@ function AssessmentTab({ c }: { c: Counterparty }) {
             )}
           </div>
           <div className="pmrk-muted" style={{ fontSize: 12, marginBottom: 10 }}>{r.groupText} · класс {r.contragentClass} · рейтинг {r.internalRating}</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 12 }}><span>Кредитный лимит контрагента, ₽</span><span>{r.limit ? moneyCompact(r.limit) : '—'}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 12 }}><span>Кредитный лимит контрагента, руб.</span><span>{r.limit ? moneyCompact(r.limit) : '—'}</span></div>
 
           <div className="pmrk-muted" style={{ fontSize: 11.5, marginBottom: 6 }}>Количество баллов по разделам</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1518,7 +1520,7 @@ function AssessmentTab({ c }: { c: Counterparty }) {
               <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Дата оценки</div>
               <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Период отчётности</div>
               <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Группа (1–4)</div>
-              <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит, ₽</div>
+              <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит, руб.</div>
               <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end' }}>Скоринг-балл</div>
               <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Категория</div>
             </div>
@@ -1677,11 +1679,11 @@ function LegalTab({ c }: { c: Counterparty }) {
     { label: 'Номер исходящей претензии', width: 130, render: (x) => x.claimNo },
     { label: 'Дата направления претензии', width: 110, render: (x) => dateRu(x.sentDate) },
     { label: 'Предмет и основание претензии', width: 260, render: (x) => x.subject },
-    { label: 'Сумма претензии (общая), ₽', width: 130, align: 'right', render: (x) => m(x.total) },
-    { label: 'Основной долг, ₽', width: 110, align: 'right', render: (x) => m(x.principal) },
-    { label: 'Неустойка, ₽', width: 100, align: 'right', render: (x) => m(x.penalty) },
-    { label: 'Иное, ₽', width: 90, align: 'right', render: (x) => m(x.other) },
-    { label: 'Удовлетворено, ₽', width: 110, align: 'right', render: (x) => m(x.satisfied) },
+    { label: 'Сумма претензии (общая), руб.', width: 130, align: 'right', render: (x) => m(x.total) },
+    { label: 'Основной долг, руб.', width: 110, align: 'right', render: (x) => m(x.principal) },
+    { label: 'Неустойка, руб.', width: 100, align: 'right', render: (x) => m(x.penalty) },
+    { label: 'Иное, руб.', width: 90, align: 'right', render: (x) => m(x.other) },
+    { label: 'Удовлетворено, руб.', width: 110, align: 'right', render: (x) => m(x.satisfied) },
     { label: 'Событие по претензии', width: 180, render: (x) => x.event },
     { label: 'Дата события', width: 100, render: (x) => dateRu(x.eventDate) },
     { label: 'Статус', width: 150, render: (x) => <StatusBadge status={x.status} /> },
@@ -1695,8 +1697,8 @@ function LegalTab({ c }: { c: Counterparty }) {
     { label: 'Истец', width: 190, render: (x) => x.plaintiff },
     { label: 'Номер дела', width: 130, render: (x) => x.caseNo },
     { label: 'Дата регистрации дела', width: 120, render: (x) => dateRu(x.regDate) },
-    { label: 'Сумма иска текущая, ₽', width: 140, align: 'right', render: (x) => m(x.currentClaim) },
-    { label: 'Удовлетворено, ₽', width: 110, align: 'right', render: (x) => m(x.satisfied) },
+    { label: 'Сумма иска текущая, руб.', width: 140, align: 'right', render: (x) => m(x.currentClaim) },
+    { label: 'Удовлетворено, руб.', width: 110, align: 'right', render: (x) => m(x.satisfied) },
     { label: 'Текущая судебная инстанция', width: 170, render: (x) => x.instance },
     { label: 'Ближайшее судебное заседание', width: 130, render: (x) => dateRu(x.nextHearing) },
     { label: 'Статус дела', width: 150, render: (x) => <StatusBadge status={x.status} /> },
@@ -1714,8 +1716,8 @@ function LegalTab({ c }: { c: Counterparty }) {
     { label: 'Дата создания дела об исполнительном производстве', width: 130, render: (x) => dateRu(x.createDate) },
     { label: 'Дата выдачи исполнительного листа', width: 130, render: (x) => dateRu(x.writDate) },
     { label: 'Исполнительный документ: серия и номер', width: 160, render: (x) => x.writSerial },
-    { label: 'Сумма по исполнительному документу, ₽', width: 150, align: 'right', render: (x) => m(x.sumByDoc) },
-    { label: 'Фактически получено, ₽', width: 130, align: 'right', render: (x) => m(x.received) },
+    { label: 'Сумма по исполнительному документу, руб.', width: 150, align: 'right', render: (x) => m(x.sumByDoc) },
+    { label: 'Фактически получено, руб.', width: 130, align: 'right', render: (x) => m(x.received) },
     { label: 'Дата последнего платежа', width: 130, render: (x) => safeDateRu(x.lastPaymentDate) },
     { label: 'Планируемое событие по исполнительному производству', width: 190, render: (x) => x.plannedEvent },
     { label: 'Дата планируемого события по исполнительному производству', width: 150, render: (x) => safeDateRu(x.plannedDate) },
@@ -1729,10 +1731,10 @@ function LegalTab({ c }: { c: Counterparty }) {
     { label: 'Кредитор в деле о банкротстве', width: 220, render: (x) => x.creditor },
     { label: 'Название дела о банкротстве', width: 220, render: (x) => x.caseName },
     { label: 'Стадия банкротства', width: 150, render: (x) => <StatusBadge status={x.stage} /> },
-    { label: 'Сумма требований Кредитора в реестре требований, ₽', width: 160, align: 'right', render: (x) => m(x.claimInRegistry) },
-    { label: 'Сумма исполнения требований в деле о банкротстве, ₽', width: 160, align: 'right', render: (x) => m(x.execution) },
+    { label: 'Сумма требований Кредитора в реестре требований, руб.', width: 160, align: 'right', render: (x) => m(x.claimInRegistry) },
+    { label: 'Сумма исполнения требований в деле о банкротстве, руб.', width: 160, align: 'right', render: (x) => m(x.execution) },
     { label: 'Дата последнего платежа', width: 130, render: (x) => safeDateRu(x.lastPaymentDate) },
-    { label: 'Сумма последнего платежа, ₽', width: 140, align: 'right', render: (x) => m(x.lastPaymentSum) },
+    { label: 'Сумма последнего платежа, руб.', width: 140, align: 'right', render: (x) => m(x.lastPaymentSum) },
     { label: 'Планируемое событие по банкротному делу', width: 200, render: (x) => x.plannedEvent },
     { label: 'Дата планируемого события по банкротному делу', width: 150, render: (x) => safeDateRu(x.plannedDate) },
     { label: 'Описание события', width: 220, render: (x) => x.eventDescription },
@@ -1778,9 +1780,9 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
   const affiliatedLimit = useMemo(() => affiliatedCreditLimit(c), [c.uid]);
 
   const summaryIndicators: Indicator[] = [
-    { label: 'Совокупный кредитный лимит контрагента, ₽', value: money(groupAggregateLimit, { unit: '' }) },
-    { label: 'Совокупный кредитный лимит аффилированных лиц, ₽', value: money(affiliatedLimit, { unit: '' }) },
-    { label: 'Совокупный кредитный лимит контрагента и аффилированных лиц, ₽', value: money(groupAggregateLimit + affiliatedLimit, { unit: '' }) },
+    { label: 'Совокупный кредитный лимит контрагента, руб.', value: money(groupAggregateLimit, { unit: '' }) },
+    { label: 'Совокупный кредитный лимит аффилированных лиц, руб.', value: money(affiliatedLimit, { unit: '' }) },
+    { label: 'Совокупный кредитный лимит контрагента и аффилированных лиц, руб.', value: money(groupAggregateLimit + affiliatedLimit, { unit: '' }) },
   ];
 
   return (
@@ -1823,7 +1825,7 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
                 <div className="pmrk-th" style={{ flex: '0 0 190px', minWidth: 0, overflow: 'hidden' }}>Наименование ДО ГК ГПН</div>
                 <div className="pmrk-th" style={{ flex: '0 0 110px', minWidth: 0, overflow: 'hidden' }}>ИНН</div>
                 <div className="pmrk-th" style={{ flex: '0 0 160px', minWidth: 0, overflow: 'hidden' }}>Сегмент</div>
-                <div className="pmrk-th" style={{ flex: '0 0 160px', minWidth: 0, overflow: 'hidden' }}>Утверждённый кредитный лимит, ₽</div>
+                <div className="pmrk-th" style={{ flex: '0 0 160px', minWidth: 0, overflow: 'hidden' }}>Утверждённый кредитный лимит, руб.</div>
                 <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, overflow: 'hidden' }}>Утверждённая отсрочка платежа, кол-во дней</div>
                 <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Коллегиальный орган, утвердивший КЛ</div>
                 <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Реквизиты документа, согласно которому утверждён КЛ</div>
@@ -1888,7 +1890,7 @@ function AdvanceLimitTab({ c }: { c: Counterparty }) {
     <SectionCard title="Лимит авансирования" extra={<DateActuality date={c.asOf['credit-limit']} source="scoring" />}>
       {hasAdvance ? (
         <div className="pmrk-table">
-          <div className="pmrk-table__head"><div className="pmrk-th" style={{ flex: 1 }}>Заявка</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Лимит авансирования, ₽</div><div className="pmrk-th" style={{ flex: 1 }}>Дата</div><div className="pmrk-th" style={{ flex: 1 }}>Статус</div></div>
+          <div className="pmrk-table__head"><div className="pmrk-th" style={{ flex: 1 }}>Заявка</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Лимит авансирования, руб.</div><div className="pmrk-th" style={{ flex: 1 }}>Дата</div><div className="pmrk-th" style={{ flex: 1 }}>Статус</div></div>
           <div className="pmrk-tr" style={{ cursor: 'default' }}>
             <div className="pmrk-td" style={{ flex: 1, fontWeight: 600 }}>ЛА-2026-0142</div>
             <div className="pmrk-td pmrk-tnum" style={{ flex: 1, justifyContent: 'flex-end', display: 'flex' }}>{moneyCompact(c.creditLimit || 60_000_000)}</div>

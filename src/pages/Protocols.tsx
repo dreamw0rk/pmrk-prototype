@@ -149,7 +149,7 @@ export function Protocols() {
                 <div className="pmrk-th" style={{ flex: 1 }}>Заявка</div>
                 <div className="pmrk-th" style={{ flex: 1.8 }}>Контрагент</div>
                 <div className="pmrk-th" style={{ flex: 1.1 }}>Действие</div>
-                <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Лимит, ₽</div>
+                <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Лимит, руб.</div>
                 <div className="pmrk-th" style={{ flex: 1.1 }}>Решение</div>
               </div>
               {proto.decisions.map((d, i) => (

@@ -52,7 +52,7 @@ export function CommandCenter() {
       {/* Полоса отчётного периода (идея из СФК) — опинионированный дефолт/дедлайн */}
       {!light && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', marginBottom: 16, background: 'var(--color-bg-default)', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius-lg)' }}>
-          <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flex: 'none' }}>◷</span>
+          <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flex: 'none' }}>◷</span>
           <span style={{ fontSize: 13.5 }}>Отчётный период · <b>{REPORTING_PERIOD.module}</b>: {REPORTING_PERIOD.label}</span>
           <span style={{ flex: 1 }} />
           <span className="pmrk-muted" style={{ fontSize: 12.5 }}>до {dateRu(REPORTING_PERIOD.deadline)} · {REPORTING_PERIOD.state}</span>
@@ -65,7 +65,7 @@ export function CommandCenter() {
           <Stat label="Контрагентов в реестре" value={REGISTRY.length.toLocaleString('ru-RU')} sub="из 200 тыс. (демо-срез)" asOf="2026-06-15" calcLabel="обновлено" calcSource="реестр" />
           <Stat label="Требуют внимания" value={AI_DIGEST.items.length} sub="по сигналам мониторинга" tone="risk" asOf={AI_DIGEST.asOf} calcSource="AI-ранжирование" />
           <Stat label="Заявки на КЛ в работе" value={myRequests.length} sub="на проверке/утверждении" asOf="2026-06-15" calcLabel="обновлено" calcSource="limit-workflow" />
-          <Stat label="Совокупный КЛ группы, ₽" value={moneyCompact(1_250_000_000)} sub="РН-Снабжение" asOf="2026-06-14" calcSource="агрегат лимитов" />
+          <Stat label="Совокупный КЛ группы, руб." value={moneyCompact(1_250_000_000)} sub="РН-Снабжение" asOf="2026-06-14" calcSource="агрегат лимитов" />
         </div>
       )}
 

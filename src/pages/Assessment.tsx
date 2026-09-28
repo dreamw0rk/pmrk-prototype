@@ -104,8 +104,8 @@ function PreviewPopup({ cp, onClose, onOpen }: { cp: Counterparty; onClose: () =
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12.5 }}>
           <div><span className="pmrk-muted">Статус:</span> {cp.status}</div>
           <div><span className="pmrk-muted">ОКВЭД:</span> {cp.okvedCode}</div>
-          <div><span className="pmrk-muted">Действ. КЛ, ₽:</span> {cp.creditLimit ? moneyCompact(cp.creditLimit) : '—'}</div>
-          <div><span className="pmrk-muted">Выручка, ₽:</span> {moneyCompact(cp.revenue)}</div>
+          <div><span className="pmrk-muted">Действ. КЛ, руб.:</span> {cp.creditLimit ? moneyCompact(cp.creditLimit) : '—'}</div>
+          <div><span className="pmrk-muted">Выручка, руб.:</span> {moneyCompact(cp.revenue)}</div>
         </div>
         <Button size="xs" view="ghost" label="Открыть профиль" iconRight={IconForward as never} onClick={onOpen} style={{ marginTop: 10 }} />
       </div>
@@ -138,7 +138,7 @@ export function AssessmentJournal() {
         <div style={{ overflowX: 'auto' }}>
           <div className="pmrk-table" style={{ minWidth: 1500 }}>
             <div className="pmrk-table__head">
-              {['Наименование', 'ИНН', 'Дата создания', 'Период отч.', 'Стандарт', 'Группа (нефть/НП)', 'Группа (МТР/ЛУ)', 'Степень надёжности', 'Рек. КЛ (нефть/НП), ₽', 'Рек. КЛ (МТР/ЛУ), ₽', 'Лимит аванс., ₽', 'Ед. изм.', 'Валюта', 'Кем изменено'].map((h, i) => (
+              {['Наименование', 'ИНН', 'Дата создания', 'Период отч.', 'Стандарт', 'Группа (нефть/НП)', 'Группа (МТР/ЛУ)', 'Степень надёжности', 'Рек. КЛ (нефть/НП), руб.', 'Рек. КЛ (МТР/ЛУ), руб.', 'Лимит аванс., руб.', 'Ед. изм.', 'Валюта', 'Кем изменено'].map((h, i) => (
                 <div key={i} className="pmrk-th" style={{ flex: i === 0 ? 2.2 : 1, minWidth: i === 0 ? 200 : 90 }}>{h}</div>
               ))}
             </div>
@@ -261,13 +261,13 @@ export function AssessmentResultView({ cp, onRecalc }: { cp: Counterparty; onRec
       {/* 4. Расчёт кредитного лимита — постатейно по Форме №1 (ФТ-3.5) */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
-          <span style={{ fontWeight: 600, fontSize: 13.5 }}>4. Расчёт кредитного лимита, ₽</span>
+          <span style={{ fontWeight: 600, fontSize: 13.5 }}>4. Расчёт кредитного лимита, руб.</span>
           <span className="pmrk-tnum" style={{ fontWeight: 700 }}>{r.limit ? moneyCompact(r.limit) : '—'}</span>
         </div>
         <div className="pmrk-table">
           <div className="pmrk-table__head">
             <div className="pmrk-th" style={{ flex: 2, minWidth: 0 }}>Показатель</div>
-            <div className="pmrk-th" style={{ flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>тыс. ₽</div>
+            <div className="pmrk-th" style={{ flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>тыс. руб.</div>
           </div>
           {r.limitSteps.map((s) => (
             <div key={s.label} className="pmrk-tr" style={{ cursor: 'default' }}>
@@ -297,7 +297,7 @@ export function AssessmentResultView({ cp, onRecalc }: { cp: Counterparty; onRec
               <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Дата оценки</div>
               <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Период отчётности</div>
               <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Группа (1–4)</div>
-              <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит, ₽</div>
+              <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит, руб.</div>
               <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end' }}>Скоринг-балл</div>
               <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Категория</div>
             </div>
@@ -483,7 +483,7 @@ function GeneralTab({ cp, edit }: { cp: Counterparty; edit: boolean }) {
       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Дополнительные показатели для проведения оценки</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14 }}>
         <Field label="Дата регистрации"><input value={dateRu(cp.registered)} readOnly={!edit} style={selStyle} /></Field>
-        <Field label="Сумма активных исполнительных производств, ₽"><input value={enforcement ? money(enforcement) : '0'} readOnly={!edit} style={selStyle} /></Field>
+        <Field label="Сумма активных исполнительных производств, руб."><input value={enforcement ? money(enforcement) : '0'} readOnly={!edit} style={selStyle} /></Field>
       </div>
       {edit && <div className="pmrk-muted" style={{ fontSize: 12, marginTop: 10 }}>Режим редактирования: можно скорректировать дополнительные показатели; финансовая отчётность правится на вкладке «Отчётность».</div>}
     </SectionCard>

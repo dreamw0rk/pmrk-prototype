@@ -54,7 +54,6 @@ export function AppShellSfk() {
           <div className="sfk-brand-logo">ПМ</div>
           <div className="sfk-brand-text">
             <strong>ПМРК</strong>
-            <span>Кредитный контроль · ГК ГПН</span>
           </div>
         </div>
 

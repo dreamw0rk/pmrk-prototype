@@ -185,6 +185,19 @@
   flex: none;
 }
 
+/* Чипы состояния в шапке профиля контрагента («Действующее», «Особый
+   контроль», «Под санкциями») — крупнее табличных: это главный статус
+   карточки. Селектор с [data-skin] перебивает и таблетки СФК. */
+.pmrk-cp-status .pmrk-chip,
+[data-skin] .pmrk-cp-status .pmrk-chip {
+  gap: 8px;
+  padding: 5px 12px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.pmrk-cp-status .pmrk-dot,
+[data-skin] .pmrk-cp-status .pmrk-dot { width: 10px; height: 10px; }
+
 /* --- AI-Summary (фирменный компонент) --- */
 .pmrk-ai {
   padding: 14px 16px 14px 20px;

@@ -18,7 +18,7 @@ export function SectionTag({ source }: { source: string }) {
 
 export function DueChip({ days }: { days: number }) {
   const d = dueDelta(days);
-  const color = d.tone === 'bad' ? 'var(--pmrk-risk-4)' : d.tone === 'warn' ? 'var(--pmrk-risk-3)' : 'var(--color-typo-secondary)';
+  const color = d.tone === 'bad' ? 'var(--pmrk-risk-4)' : d.tone === 'warn' ? 'var(--pmrk-risk-3-text)' : 'var(--color-typo-secondary)';
   return <span style={{ fontSize: 12, fontWeight: 700, color }} className="pmrk-tnum">{d.label}</span>;
 }
 

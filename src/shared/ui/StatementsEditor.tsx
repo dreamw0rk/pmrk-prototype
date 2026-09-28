@@ -104,7 +104,7 @@ export function StatementsEditor(props: { onValidChange?: (valid: boolean) => vo
           <select style={sel}><option>Годовая · 2025</option><option>Промежуточная · 1 кв. 2026</option><option>Годовая · 2024</option></select>
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}><span className="pmrk-muted">Валюта</span>
-          <select style={sel}><option>RUB · ₽</option><option>USD · $</option><option>EUR · €</option></select>
+          <select style={sel}><option>RUB · руб.</option><option>USD · $</option><option>EUR · €</option></select>
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}><span className="pmrk-muted">Единицы</span>
           <select style={sel}><option>тыс. руб.</option><option>млн руб.</option><option>руб.</option></select>
@@ -137,7 +137,7 @@ export function StatementsEditor(props: { onValidChange?: (valid: boolean) => vo
           <div className="pmrk-table">
             <div className="pmrk-table__head">
               <div className="pmrk-th" style={{ flex: 2 }}>Бухгалтерский баланс (Форма №1) · на 31.12.2025</div>
-              <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Значение, тыс. ₽</div>
+              <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Значение, тыс. руб.</div>
             </div>
             {rows.map((r, i) => {
               const isTotal = r.side === 'none';
@@ -173,7 +173,7 @@ export function StatementsEditor(props: { onValidChange?: (valid: boolean) => vo
         <div className="pmrk-table">
           <div className="pmrk-table__head">
             <div className="pmrk-th" style={{ flex: 2 }}>{FORMS.find((f) => f.key === form)?.label} · на 31.12.2025</div>
-            <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Значение, тыс. ₽</div>
+            <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Значение, тыс. руб.</div>
           </div>
           {OTHER_ROWS[form].map((r, i) => (
             <div key={i} className="pmrk-tr" style={{ cursor: 'default', fontWeight: r.label.startsWith('Чист') || r.label.startsWith('Капитал на конец') ? 700 : 400 }}>

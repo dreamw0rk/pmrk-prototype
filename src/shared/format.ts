@@ -4,8 +4,8 @@ const RUB = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 const RUB2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /* Соглашение о валюте: знак рубля в ячейках и значениях НЕ пишется — число идёт
-   просто числом, а «₽» стоит в названии (заголовке колонки, подписи поля,
-   карточки), например «Сумма иска, ₽». Исключение — сумма внутри связного
+   просто числом, а «руб.» стоит в названии (заголовке колонки, подписи поля,
+   карточки), например «Сумма иска, руб.». Исключение — сумма внутри связного
    текста (новость, подпись без названия): там нужны moneyText/moneyCompactText. */
 
 export function money(amount: number, opts?: { unit?: 'руб.' | 'тыс. руб.' | 'млн руб.' | ''; frac?: boolean }): string {
@@ -14,9 +14,9 @@ export function money(amount: number, opts?: { unit?: 'руб.' | 'тыс. ру�
   return unit ? `${fmt.format(amount)} ${unit}` : fmt.format(amount);
 }
 
-/** Сумма для связного текста (без отдельного названия): «1 234 567 ₽». */
+/** Сумма для связного текста (без отдельного названия): «1 234 567 руб.». */
 export function moneyText(amount: number): string {
-  return `${RUB.format(amount)} ₽`;
+  return `${RUB.format(amount)} руб.`;
 }
 
 /** Компактная подача больших сумм для плотных таблиц/карточек: «5,00 млрд»,
@@ -26,10 +26,10 @@ export function moneyCompact(amount: number): string {
   return unit ? `${value} ${unit}` : value;
 }
 
-/** Компактная сумма для связного текста: «5,00 млрд ₽». */
+/** Компактная сумма для связного текста: «5,00 млрд руб.». */
 export function moneyCompactText(amount: number): string {
   const { value, unit } = moneyCompactParts(amount);
-  return `${value} ${unit ? unit + ' ' : ''}₽`;
+  return `${value} ${unit ? unit + ' ' : ''}руб.`;
 }
 
 /** То же самое, но число и единица измерения отдельно — чтобы можно было
@@ -91,7 +91,7 @@ export function dueDelta(days: number): { label: string; tone: 'bad' | 'warn' | 
 /** Цвет тега раздела-источника задачи. */
 const SECTION_COLORS: Record<string, string> = {
   'Согласование КЛ': 'var(--color-bg-brand)',
-  'Особый контроль': 'var(--pmrk-risk-3)',
+  'Особый контроль': 'var(--pmrk-risk-3-text)',
   'Аффилированность': '#0a8f8f',
   'Контроль актуальности': 'var(--pmrk-ai)',
   'Оценка': 'var(--pmrk-risk-1)',

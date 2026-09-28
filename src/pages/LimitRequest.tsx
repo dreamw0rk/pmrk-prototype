@@ -61,7 +61,7 @@ export function LimitRequestRegistry() {
             <div className="pmrk-th" style={{ flex: 1.6, minWidth: 160 }}>ДО ГК ГПН</div>
             <div className="pmrk-th" style={{ flex: 2, minWidth: 180 }}>Контрагент</div>
             <div className="pmrk-th" style={{ flex: 1, minWidth: 100 }}>ИНН</div>
-            <div className="pmrk-th" style={{ flex: 1, minWidth: 110, justifyContent: 'flex-end' }}>Запраш. КЛ, ₽</div>
+            <div className="pmrk-th" style={{ flex: 1, minWidth: 110, justifyContent: 'flex-end' }}>Запраш. КЛ, руб.</div>
             <div className="pmrk-th" style={{ flex: 1.4, minWidth: 150 }}>Название этапа</div>
             <div className="pmrk-th" style={{ flex: 1.1, minWidth: 120 }}>Статус</div>
             <div className="pmrk-th" style={{ flex: 1.2, minWidth: 130 }}>Ответственный</div>
@@ -181,13 +181,13 @@ function LrGeneralTab({ r }: { r: LimitRequest }) {
         <AiField aiOn={aiOn} label="Расчёт" req value={calc} onChange={setCalc} filled={aiFilled.calc} onAi={() => { setCalc(draft.calculation); setAiFilled((p) => ({ ...p, calc: true })); }} rows={2} />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginTop: 6 }}>
-          <Field label="Запрашиваемый кредитный лимит, ₽" req><input type="number" defaultValue={r.requestedLimit} style={selStyle} /></Field>
-          <Field label="Валюта" req><select style={selStyle}><option>RUB · ₽</option><option>USD</option><option>EUR</option></select></Field>
-          <ReadField label="Действующий КЛ, ₽" value={r.currentLimit ? money(r.currentLimit) : '0'} />
+          <Field label="Запрашиваемый кредитный лимит, руб." req><input type="number" defaultValue={r.requestedLimit} style={selStyle} /></Field>
+          <Field label="Валюта" req><select style={selStyle}><option>RUB · руб.</option><option>USD</option><option>EUR</option></select></Field>
+          <ReadField label="Действующий КЛ, руб." value={r.currentLimit ? money(r.currentLimit) : '0'} />
         </div>
 
         {belowMateriality && (
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3)', fontSize: 13, marginTop: 12 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3-text)', fontSize: 13, marginTop: 12 }}>
             «Кредитный лимит ниже уровня существенности» утверждение не требуется, обращаем внимание, что уровень существенности для ИП и ФЛ составляет 300 тыс. руб.
           </div>
         )}
@@ -207,7 +207,7 @@ function LrGeneralTab({ r }: { r: LimitRequest }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14, marginTop: 12 }}>
           <Field label="Обеспечение" req><select style={selStyle} defaultValue={r.collateral}><option>Нет</option><option>Банковская гарантия</option><option>Залог</option><option>Поручительство</option></select></Field>
-          <Field label="Обеспечение, ₽" req><input type="number" defaultValue={r.collateralAmount} style={selStyle} /></Field>
+          <Field label="Обеспечение, руб." req><input type="number" defaultValue={r.collateralAmount} style={selStyle} /></Field>
         </div>
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 12 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}><input type="checkbox" /> Согласовано с Департаментом по финансам</label>
@@ -218,8 +218,8 @@ function LrGeneralTab({ r }: { r: LimitRequest }) {
 
       <SectionCard title="4. Совокупный кредитный лимит по ГК «Газпром нефть»">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
-          <Stat label="Действующий совокупный КЛ, ₽" value={moneyCompact(r.aggregateLimit)} asOf={r.createdAt} calcSource="агрегат лимитов" />
-          <Stat label="Совокупный КЛ с учётом заявки, ₽" value={moneyCompact(aggregateWith)} sub="Запрашиваемый + Совокупный − Действующий" asOf={r.createdAt} calcSource="авторасчёт" />
+          <Stat label="Действующий совокупный КЛ, руб." value={moneyCompact(r.aggregateLimit)} asOf={r.createdAt} calcSource="агрегат лимитов" />
+          <Stat label="Совокупный КЛ с учётом заявки, руб." value={moneyCompact(aggregateWith)} sub="Запрашиваемый + Совокупный − Действующий" asOf={r.createdAt} calcSource="авторасчёт" />
           <div style={{ padding: '10px 12px', background: 'var(--color-bg-brand)', color: '#fff', borderRadius: 8 }}>
             <div style={{ fontSize: 12, opacity: 0.85 }}>Уровень утверждения (матрица)</div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{approvalLevel}</div>
@@ -236,7 +236,7 @@ function LrGeneralTab({ r }: { r: LimitRequest }) {
 function LrStatementsTab() {
   return (
     <SectionCard title="Отчётность (Ф1–Ф4)">
-      <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3)', fontSize: 13, marginBottom: 14 }}>
+      <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3-text)', fontSize: 13, marginBottom: 14 }}>
         ⚠ Последняя загруженная отчётность старше 12 месяцев. Используйте актуальную отчётность или приложите комментарий-обоснование.
         <input placeholder="Комментарий-обоснование использования отчётности старше 12 мес." style={{ ...selStyle, marginTop: 8, background: 'var(--color-bg-default)' }} />
       </div>
@@ -290,10 +290,10 @@ function LrPerformanceTab({ r }: { r: LimitRequest }) {
             <div className="pmrk-table__head">
               <div className="pmrk-th" style={{ flex: 1.2 }}>Месяц</div>
               <div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Кол-во, т</div>
-              <div className="pmrk-th" style={{ flex: 1.3, justifyContent: 'flex-end' }}>Выручка с НДС, ₽</div>
-              <div className="pmrk-th" style={{ flex: 1.3, justifyContent: 'flex-end' }}>Поступление ДС, ₽</div>
-              <div className="pmrk-th" style={{ flex: 1.3, justifyContent: 'flex-end' }}>Остаток задолж., ₽</div>
-              <div className="pmrk-th" style={{ flex: 1.1, justifyContent: 'flex-end' }}>в т.ч. ПДЗ, ₽</div>
+              <div className="pmrk-th" style={{ flex: 1.3, justifyContent: 'flex-end' }}>Выручка с НДС, руб.</div>
+              <div className="pmrk-th" style={{ flex: 1.3, justifyContent: 'flex-end' }}>Поступление ДС, руб.</div>
+              <div className="pmrk-th" style={{ flex: 1.3, justifyContent: 'flex-end' }}>Остаток задолж., руб.</div>
+              <div className="pmrk-th" style={{ flex: 1.1, justifyContent: 'flex-end' }}>в т.ч. ПДЗ, руб.</div>
             </div>
             {exp.map((e, i) => (
               <div key={i} className="pmrk-tr" style={{ cursor: 'default' }}>
@@ -341,7 +341,7 @@ function LrDecisionTab({ r }: { r: LimitRequest }) {
             <Stat label="Дата начала действия" value="01.06.2026" />
             <Stat label="Дата окончания действия" value="31.05.2027" />
             <Stat label="Валюта утверждённого КЛ" value="RUB" />
-            <Stat label="Утверждённый КЛ, ₽" value={money(r.requestedLimit)} tone="good" asOf={r.createdAt} calcSource="протокол № 18" />
+            <Stat label="Утверждённый КЛ, руб." value={money(r.requestedLimit)} tone="good" asOf={r.createdAt} calcSource="протокол № 18" />
             <Stat label="Утверждённая отсрочка, дни" value={String(r.deferralDays)} />
             <Stat label="Статус последнего протокола" value="Утверждён" tone="good" />
           </div>
@@ -481,19 +481,19 @@ export function LimitRequestCreate() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <Field label="Контрагент" req><select value={cpUid} onChange={(e) => setCpUid(e.target.value)} style={selStyle}>{HEROES.map((h) => <option key={h.uid} value={h.uid}>{h.name}</option>)}</select></Field>
           <ReadField label="Подразделение / Блок" value={cp.subsidiary} />
-          <Field label="Запрашиваемый кредитный лимит, ₽" req><input type="number" value={requested} onChange={(e) => setRequested(Number(e.target.value))} style={selStyle} /></Field>
-          <ReadField label="Действующий КЛ, ₽" value={cp.creditLimit ? money(cp.creditLimit) : '0'} />
+          <Field label="Запрашиваемый кредитный лимит, руб." req><input type="number" value={requested} onChange={(e) => setRequested(Number(e.target.value))} style={selStyle} /></Field>
+          <ReadField label="Действующий КЛ, руб." value={cp.creditLimit ? money(cp.creditLimit) : '0'} />
         </div>
 
         {belowMateriality && (
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3)', fontSize: 13, marginBottom: 14 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--pmrk-risk-3-bg)', color: 'var(--pmrk-risk-3-text)', fontSize: 13, marginBottom: 14 }}>
             «Кредитный лимит ниже уровня существенности» утверждение не требуется, обращаем внимание, что уровень существенности для ИП и ФЛ составляет 300 тыс. руб.
           </div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 14 }}>
           <div style={{ padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 8 }}><div className="pmrk-muted" style={{ fontSize: 12 }}>Действие по лимиту</div><div style={{ fontWeight: 600 }}>{action}</div><div style={{ marginTop: 4 }}><CalcStamp live /></div></div>
-          <div style={{ padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 8 }}><div className="pmrk-muted" style={{ fontSize: 12 }}>Совокупный КЛ с учётом заявки, ₽</div><div style={{ fontWeight: 600 }}>{moneyCompact(aggregateWith)}</div><div style={{ marginTop: 4 }}><CalcStamp live /></div></div>
+          <div style={{ padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 8 }}><div className="pmrk-muted" style={{ fontSize: 12 }}>Совокупный КЛ с учётом заявки, руб.</div><div style={{ fontWeight: 600 }}>{moneyCompact(aggregateWith)}</div><div style={{ marginTop: 4 }}><CalcStamp live /></div></div>
           <div style={{ padding: '10px 12px', background: 'var(--color-bg-brand)', color: '#fff', borderRadius: 8 }}><div style={{ fontSize: 12, opacity: 0.85 }}>Уровень утверждения</div><div style={{ fontWeight: 700 }}>{approvalLevel}</div></div>
         </div>
 
