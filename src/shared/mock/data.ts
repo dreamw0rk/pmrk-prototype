@@ -114,6 +114,7 @@ export const HEROES: Counterparty[] = [
     courtCases: [
       { id: 'c-gpn1', kind: 'lawsuit', role: 'истец', amount: 1_240_000_000, date: '2026-02-18', status: 'Рассмотрение по существу', subject: 'Взыскание задолженности с подрядчика' },
       { id: 'c-gpn2', kind: 'claim', role: 'ответчик', amount: 320_000_000, date: '2025-12-09', status: 'Претензия получена', subject: 'Спор по договору транспортировки' },
+      { id: 'c-gpn3', kind: 'enforcement', role: 'должник', amount: 7_000, date: '2026-05-27', status: 'Исполнительное производство', subject: 'Госпошлина, присужденная судом' },
     ],
     sanctions: [
       { program: 'Блокирующие санкции (SDN List)', authority: 'OFAC (США)', date: '2025-01-10', basis: 'Включение в SDN-список (Executive Order 14024)' },

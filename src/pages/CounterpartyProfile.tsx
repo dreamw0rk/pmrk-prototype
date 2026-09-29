@@ -17,7 +17,7 @@ import {
 } from '@/shared/ui/kit';
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
 import iconPdf from '@/assets/icons/icon-pdf.png';
-import { LineChart } from '@/shared/ui/MiniChart';
+import { LineChart, DebtChart } from '@/shared/ui/MiniChart';
 import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
 import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
@@ -59,13 +59,25 @@ const monthLabels = (n = 12) =>
     return d.toLocaleDateString('ru-RU', { month: 'short' });
   });
 
+/** Даты точек графиков ДЗ/КЗ, как в исходной системе: каждая точка — на
+    последний день месяца (30.09.2025, 31.10.2025 …), последняя — на дату
+    актуальности данных (asOf), а не на конец её месяца. */
+const debtDateLabels = (n: number, asOf: string) => {
+  const end = new Date(asOf);
+  return Array.from({ length: n }, (_, i) => {
+    if (i === n - 1) return dateRu(asOf);
+    const monthEnd = new Date(Date.UTC(end.getFullYear(), end.getMonth() - (n - 1 - i) + 1, 0));
+    return dateRu(monthEnd.toISOString().slice(0, 10));
+  });
+};
+
 /** Отчёты по контрагенту (ФТ-1.16…1.19) — плитки в шапке профиля. Путь строится
     как `/report/{uid}{to}`, поэтому у «Профиля контрагента» to пустой. */
 const REPORT_TILES = [
-  { to: '/egrul', label: 'Скачать ЕГРЮЛ', title: 'Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)' },
-  { to: '', label: 'Скачать профиль', title: 'Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)' },
-  { to: '/spark', label: 'Скачать СПАРК-Профиль', title: 'Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)' },
-  { to: '/spark-risks', label: 'Скачать СПАРК-Риски', title: 'Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)' },
+  { to: '/egrul', label: 'Скачать выписку\nиз ЕГРЮЛ/ЕГРИП', title: 'Сформировать и скачать выписку из ЕГРЮЛ/ЕГРИП, .pdf (ФТ-1.16)' },
+  { to: '', label: 'Скачать отчет\n«Профиль\nконтрагента»', title: 'Сформировать и скачать отчет «Профиль контрагента», .pdf (ФТ-1.17)' },
+  { to: '/spark', label: 'Скачать\nрасширенный отчет\n«СПАРК-Профиль»', title: 'Сформировать и скачать расширенный отчет «СПАРК-Профиль», .pdf (ФТ-1.18)' },
+  { to: '/spark-risks', label: 'Скачать отчет\n«СПАРК-Риски»', title: 'Сформировать и скачать отчет «СПАРК-Риски», .pdf (ФТ-1.19)' },
 ];
 
 export function CounterpartyProfile() {
@@ -88,9 +100,11 @@ export function CounterpartyProfile() {
     return () => scroller.removeEventListener('scroll', onScroll);
   }, [uid]);
 
-  // В скине СФК большой заголовок профиля уезжает в топбар оболочки (топология 1:1).
+  // В скине СФК топбар оболочки прокручивается вместе со страницей, поэтому
+  // название контрагента живёт в «липкой» шапке профиля (как в ПМРК1), а в
+  // топбаре — только хлебные крошки (пустой title гасит заголовок топбара).
   useSetPageMeta({
-    title: c?.name ?? 'Контрагент',
+    title: '',
     breadcrumbs: [{ label: 'Реестр контрагентов', to: '/registry' }, ...(c ? [{ label: c.shortName }] : [])],
   });
 
@@ -160,14 +174,12 @@ export function CounterpartyProfile() {
             а не сжимает заголовок с бейджами до нечитаемого столбца. */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 4, flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }}>
-            {skin !== 'sfk' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '2px 0 6px' }}>
-                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>
-                  {c.name}
-                </h1>
-                {cardActions}
-              </div>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '2px 0 6px' }}>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>
+                {c.name}
+              </h1>
+              {cardActions}
+            </div>
             {/* реквизиты — одной строкой через точки-разделители: три блока
                 почти одинакового веса делали шапку рыхлой, теперь это одна
                 тихая подпись под названием. Статус и санкции сюда не выносим —
@@ -190,9 +202,6 @@ export function CounterpartyProfile() {
                 <span title="Статус по данным СПАРК"><StatusBadge status={c.status} /></span>
                 {c.specialControl && <StatusBadge status="Особый контроль" />}
                 {c.underSanctions && <SanctionBadge />}
-                {/* в скине СФК заголовка на странице нет (он в топбаре оболочки),
-                    поэтому кнопки карточки остаются в строке бейджей */}
-                {skin === 'sfk' && <div style={{ marginLeft: 'auto' }}>{cardActions}</div>}
               </div>
               {subscribeAction}
             </div>
@@ -206,22 +215,23 @@ export function CounterpartyProfile() {
               шапки, не растягивая её. Слово «Скачать» в названии — кнопка формирует
               файл, а не открывает раздел; полное название отчёта с форматом и
               номером ФТ — в подсказке. */}
-          <div style={{ flex: 1, minWidth: 460, maxWidth: 700 }}>
-            {/* height: 109 у плиток — низ панели доходит ровно до верха кнопки
-                «Подписаться» в левой колонке (заголовок + реквизиты + ряд чипов).
-                Четыре кнопки равной ширины: minmax(0, 1fr) — нижняя граница
-                столбца 0, верхняя — равная доля контейнера. Подпись в две строки:
-                «Скачать» сверху, название отчёта под ним. */}
+          <div style={{ flex: '1 1 600px', minWidth: 520, maxWidth: 760 }}>
+            {/* minHeight: 76 у плиток — компактные кнопки, текст (полное название
+                отчёта) заполняет кнопку; на узком экране, где название не влезает
+                в три строки, ряд кнопок вырастает по самой длинной подписи.
+                Панель — не шире 760px: кнопки узкие, названия разбиты на
+                2–3 строки явными переносами, как в макете. Четыре кнопки равной
+                ширины: minmax(0, 1fr) — нижняя граница столбца 0, верхняя —
+                равная доля контейнера. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
               {REPORT_TILES.map((r) => {
-                const [verb, ...rest] = r.label.split(' ');
                 return (
                 <button
                   key={r.to}
                   onClick={() => navigate(`/report/${c.uid}${r.to}`)}
                   title={r.title}
                   className="pmrk-clickable pmrk-report-tile"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', height: 109, minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-typo-brand)', borderRadius: 8, cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 76, minWidth: 0, textAlign: 'left', padding: '10px 12px', border: '1px solid var(--color-typo-brand)', borderRadius: 8, cursor: 'pointer' }}
                 >
                   {/* PNG перекрашивается в фирменный цвет через CSS-маску:
                       альфа-канал картинки задаёт форму, заливка — цвет */}
@@ -236,12 +246,8 @@ export function CounterpartyProfile() {
                       WebkitMaskPosition: 'center', maskPosition: 'center',
                     }}
                   />
-                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
-                    {/* «Скачать» — всегда отдельной строкой; название отчёта под
-                        ним переносится, если не помещается в ширину кнопки */}
-                    <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{verb}</span>
-                    <span style={{ display: 'block', overflowWrap: 'anywhere' }}>{rest.join(' ')}</span>
-                  </div>
+                  {/* переносы строк заданы в самом названии (\n) — как в макете */}
+                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3, whiteSpace: 'pre' }}>{r.label}</div>
                 </button>
                 );
               })}
@@ -492,8 +498,11 @@ function GeneralTab({ c }: { c: Counterparty }) {
             { k: 'Размер предприятия', v: c.companySize },
             { k: 'Среднесписочная численность', v: `${c.employees} чел.` },
             { k: 'Налоговый режим', v: c.taxRegime },
-            { k: 'Основной ОКВЭД', v: `${c.okvedCode} — ${c.okved}` },
+            // код ОКВЭД и его расшифровка — отдельными полями: «Отрасль» —
+            // название основного вида деятельности по ОКВЭД
+            { k: 'Основной ОКВЭД', v: c.okvedCode },
             { k: 'Вид деятельности', v: activityKind(c) },
+            { k: 'Отрасль', v: c.okved },
           ]}
         />
 
@@ -518,7 +527,7 @@ function GeneralTab({ c }: { c: Counterparty }) {
             вложенности и без подсчёта ДО */}
         <div className="pmrk-table">
           <div className="pmrk-table__head">
-            <div className="pmrk-th" style={{ flex: 1 }}>Блок</div>
+            <div className="pmrk-th" style={{ flex: 1 }}>Блок/КБЕ, с которыми работает контрагент</div>
             <div className="pmrk-th" style={{ flex: 1.4 }}>Наименование ДО</div>
           </div>
           {doRows.map(({ block, blockName, link }) => (
@@ -966,7 +975,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
           <ExtAccordion
             title={s.title}
             indicators={s.indicators}
-            defaultOpen={['s1', 's2', 's4', 's6'].includes(s.key)}
+            defaultOpen={['s1', 's2', 's4', 's5', 's6'].includes(s.key)}
             beforeIndicators={s.key === 's1' && s.indicators ? <RiskSummaryList indicators={s.indicators} /> : undefined}
             hideList={s.key === 's1'}
             hideDot={['s4', 's6'].includes(s.key)}
@@ -974,6 +983,46 @@ function ExternalTab({ c }: { c: Counterparty }) {
             valueLeft
             extra={<DateActuality date={s.asOf} source={s.source} />}
           >
+            {s.key === 's5' && (
+              // «Расшифровка сведений о суммах недоимки…» — вложенный подблок под
+              // группой «Задолженность перед ФНС», в стиле остальных расшифровок;
+              // строка ИТОГО считается из строк таблицы
+              <div style={{ marginTop: 10 }}>
+                <ExtAccordion
+                  title="Расшифровка сведений о суммах недоимки и задолженности по пеням и штрафам"
+                  defaultOpen
+                  flush
+                  softHead
+                >
+                  <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+                    <div className="pmrk-table__head" style={{ position: 'static' }}>
+                      <div className="pmrk-th" style={{ flex: 1.6, minWidth: 0 }}>Наименование налога, сбора, страхового взноса</div>
+                      <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Сумма недоимки, руб.</div>
+                      <div className="pmrk-th" style={{ flex: 0.7, minWidth: 0 }}>Сумма пени, руб.</div>
+                      <div className="pmrk-th" style={{ flex: 0.7, minWidth: 0 }}>Сумма штрафа, руб.</div>
+                      <div className="pmrk-th" style={{ flex: 1.3, minWidth: 0 }}>Общая сумма недоимки и задолженности по пеням и штрафам, руб.</div>
+                    </div>
+                    {ext.ftsDebtBreakdown.length === 0 && (
+                      <div className="pmrk-tr" style={{ cursor: 'default' }}>
+                        <div className="pmrk-td pmrk-muted" style={{ flex: 1 }}>Задолженность перед ФНС отсутствует</div>
+                      </div>
+                    )}
+                    {ext.ftsDebtBreakdown.length > 0 && [
+                      ...ext.ftsDebtBreakdown,
+                      ext.ftsDebtBreakdown.reduce((t, r) => ({ ...t, arrears: t.arrears + r.arrears, penalty: t.penalty + r.penalty, fine: t.fine + r.fine, total: t.total + r.total }), { name: 'ИТОГО', arrears: 0, penalty: 0, fine: 0, total: 0 }),
+                    ].map((r) => (
+                      <div key={r.name} className="pmrk-tr" style={{ cursor: 'default', fontWeight: r.name === 'ИТОГО' ? 700 : undefined }}>
+                        <div className="pmrk-td" style={{ flex: 1.6, minWidth: 0, whiteSpace: 'normal' }}>{r.name}</div>
+                        <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8, minWidth: 0 }}>{money(r.arrears)}</div>
+                        <div className="pmrk-td pmrk-tnum" style={{ flex: 0.7, minWidth: 0 }}>{money(r.penalty)}</div>
+                        <div className="pmrk-td pmrk-tnum" style={{ flex: 0.7, minWidth: 0 }}>{money(r.fine)}</div>
+                        <div className="pmrk-td pmrk-tnum" style={{ flex: 1.3, minWidth: 0 }}>{money(r.total)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </ExtAccordion>
+              </div>
+            )}
             {s.key === 's6' && ext.courtCases.length > 0 && (
               // «Расшифровка судебных дел» — вложенный сворачиваемый подблок
               // раздела: тем же ExtAccordion, что и разделы «Внешней информации»,
@@ -984,6 +1033,7 @@ function ExternalTab({ c }: { c: Counterparty }) {
                   title="Расшифровка судебных дел"
                   flush
                   softHead
+                  extra={<span style={{ fontSize: 12, color: 'var(--color-typo-secondary)', whiteSpace: 'nowrap' }}>Информация актуальна на {dateRu(s.asOf)}</span>}
                 >
                   {/* таблица во всю карточку (без рамки и полей), шапка липнет
                       прямо под заголовком подблока (top = высота плашки);
@@ -1013,6 +1063,38 @@ function ExternalTab({ c }: { c: Counterparty }) {
                     ))}
                   </div>
                   {ext.courtCases.length > 3 && <div style={{ margin: '6px 16px 8px' }}><Button size="xs" view="ghost" label={allCases ? 'Свернуть' : 'Показать больше'} onClick={() => setAllCases((v) => !v)} /></div>}
+                </ExtAccordion>
+              </div>
+            )}
+            {s.key === 's6' && ext.enforcementCases.length > 0 && (
+              // «Расшифровка активных исполнительных производств» — последний
+              // вложенный подблок раздела, в том же стиле, что и «Расшифровка
+              // судебных дел»; дата актуальности — справа в заголовке подблока
+              <div style={{ marginTop: 10 }}>
+                <ExtAccordion
+                  title="Расшифровка активных исполнительных производств"
+                  flush
+                  softHead
+                  extra={<span style={{ fontSize: 12, color: 'var(--color-typo-secondary)', whiteSpace: 'nowrap' }}>Информация актуальна на {dateRu(s.asOf)}</span>}
+                >
+                  <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+                    <div className="pmrk-table__head" style={{ position: 'static' }}>
+                      <div className="pmrk-th" style={{ flex: 1.4, minWidth: 0 }}>Наименование категории</div>
+                      <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Номер производства</div>
+                      <div className="pmrk-th" style={{ flex: 0.6, minWidth: 0 }}>Дата</div>
+                      <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0 }}>Сумма выплаты, руб.</div>
+                      <div className="pmrk-th" style={{ flex: 2, minWidth: 0 }}>Документ-основание</div>
+                    </div>
+                    {ext.enforcementCases.map((ec, i) => (
+                      <div key={i} className="pmrk-tr" style={{ cursor: 'default' }}>
+                        <div className="pmrk-td" style={{ flex: 1.4, minWidth: 0 }}>{ec.category}</div>
+                        <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{ec.number}</div>
+                        <div className="pmrk-td" style={{ flex: 0.6, minWidth: 0 }}>{dateRu(ec.date)}</div>
+                        <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8, minWidth: 0 }}>{money(ec.amount, { unit: '' })}</div>
+                        <div className="pmrk-td" style={{ flex: 2, minWidth: 0, whiteSpace: 'normal', overflow: 'visible', textOverflow: 'clip', overflowWrap: 'anywhere' }}>{ec.basis}</div>
+                      </div>
+                    ))}
+                  </div>
                 </ExtAccordion>
               </div>
             )}
@@ -1207,53 +1289,59 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
 
 function DebtTab({ c }: { c: Counterparty }) {
   const debt = c.debt.length ? c.debt : synthDebt(c);
-  const labels = monthLabels(debt.length);
+  const labels = debtDateLabels(debt.length, c.asOf.debt ?? NOW.toISOString().slice(0, 10));
   const [month, setMonth] = useState(NOW.getMonth());
   const [year, setYear] = useState(NOW.getFullYear());
   const dzKz = useMemo(() => buildDzKzTable(c, month, year), [c.uid, month, year]);
+  // Фильтр графиков по ДО: в списке только ДО, по которым в детализации есть
+  // ненулевые значения (activeColumns), в порядке колонок таблицы. Серия
+  // выбранного ДО — ряд контрагента, умноженный на долю ДО в соответствующей
+  // аналитике детализации, поэтому графики и таблица не расходятся.
+  const [doFilter, setDoFilter] = useState('');
+  const doOptions = dzKz.groups.flatMap((g) => g.columns).filter((col) => dzKz.activeColumns.has(col.name)).map((col) => col.name);
+  const selectedDo = doOptions.includes(doFilter) ? doFilter : '';
+  const doShare = (rowKey: string) => {
+    if (!selectedDo) return 1;
+    const row = dzKz.rows.find((r) => r.key === rowKey);
+    return row && row.total ? (row.values[selectedDo] ?? 0) / row.total : 0;
+  };
+  const kDz = doShare('dzTotal'), kPdz = doShare('dzOverdue'), kAdv = doShare('advanceTotal'), kPay = doShare('payable');
   return (
     <>
       <SectionCard title="Данные по дебиторской и кредиторской задолженности" extra={<DateActuality date={c.asOf.debt} source="АРМ КК" />}>
-        {/* Три графика друг за другом в ряд (было 2: «Авансы и кредиторская
-            задолженность» объединяла две разнородные серии в одном графике —
-            разделили на «Авансовую» и «Кредитную» задолженность). Точки на
-            каждое значение — showPoints; значение по-прежнему только по
-            наведению (тултип), как и раньше. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>ДЗ и ПДЗ, руб.</div>
-            <LineChart
-              labels={labels}
-              format={(v) => moneyCompact(v)}
-              showPoints
-              series={[
-                { name: 'Дебиторская задолженность', color: 'var(--color-bg-brand)', points: debt.map((d) => d.dz), area: true },
-                { name: 'Просроченная ДЗ', color: 'var(--pmrk-risk-4)', points: debt.map((d) => d.pdz) },
-              ]}
-            />
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Авансовая задолженность, руб.</div>
-            <LineChart
-              labels={labels}
-              format={(v) => moneyCompact(v)}
-              showPoints
-              series={[
-                { name: 'Выданные авансы', color: 'var(--pmrk-risk-2)', points: debt.map((d) => d.advance), area: true },
-              ]}
-            />
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Кредитная задолженность, руб.</div>
-            <LineChart
-              labels={labels}
-              format={(v) => moneyCompact(v)}
-              showPoints
-              series={[
-                { name: 'Кредиторская задолженность', color: 'var(--pmrk-ai)', points: debt.map((d) => d.payable), area: true },
-              ]}
-            />
-          </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, marginBottom: 14 }}>
+          <span>Выберите дочернее общество (ДО) для отображения</span>
+          <select
+            value={selectedDo}
+            onChange={(e) => setDoFilter(e.target.value)}
+            style={{ height: 32, minWidth: 320, border: '1px solid var(--color-bg-border)', borderRadius: 8, padding: '0 10px', background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)', fontSize: 13 }}
+          >
+            <option value="">Все ДО</option>
+            {doOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </label>
+        {/* Три графика в ряд в оформлении исходной системы (DebtChart):
+            ДЗ и ПДЗ, выданные авансы, КЗ — в млн руб., точки на конец каждого
+            месяца и на дату актуальности; значение — по наведению (тултип). */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+          <DebtChart
+            title="ДЗ и ПДЗ, млн руб."
+            labels={labels}
+            series={[
+              { name: 'ДЗ', color: '#3d8fd6', points: debt.map((d) => Math.round(d.dz * kDz)) },
+              { name: 'ПДЗ', color: '#f2a53a', points: debt.map((d) => Math.round(d.pdz * kPdz)) },
+            ]}
+          />
+          <DebtChart
+            title="Выданные авансы, млн руб."
+            labels={labels}
+            series={[{ name: 'Выданные авансы', color: '#3d8fd6', points: debt.map((d) => Math.round(d.advance * kAdv)) }]}
+          />
+          <DebtChart
+            title="Кредиторская задолженность, млн руб."
+            labels={labels}
+            series={[{ name: 'КЗ', color: '#3d8fd6', points: debt.map((d) => Math.round(d.payable * kPay)) }]}
+          />
         </div>
       </SectionCard>
       <DzKzDetailCard c={c} dzKz={dzKz} month={month} year={year} onMonth={setMonth} onYear={setYear} />

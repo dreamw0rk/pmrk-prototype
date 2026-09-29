@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /* Лёгкие SVG-графики (обёртка с тултипом «дата + значение»). Намеренно не тянем
    тяжёлый charts-пакет: полный контроль над тултипами/доступностью, мгновенный
@@ -79,9 +79,10 @@ export function LineChart(props: {
             ))}
           </g>
         )}
-        {/* подписи X (разрежённые) */}
+        {/* подписи X (разрежённые): шаг отсчитывается от последней точки, чтобы
+            она всегда была подписана и не налезала на соседнюю подпись */}
         {props.labels.map((l, i) =>
-          i % Math.ceil(n / 6) === 0 || i === n - 1 ? (
+          (n - 1 - i) % Math.ceil(n / 6) === 0 ? (
             <text key={i} x={x(i)} y={H - 6} fontSize={10} fill="var(--color-typo-secondary)" textAnchor="middle">
               {l}
             </text>
@@ -200,6 +201,146 @@ export function Gauge({ value, color, label }: { value: number; color: string; l
         </div>
       </div>
       {label && <div className="pmrk-muted" style={{ textAlign: 'center', fontSize: 11, marginTop: 4 }}>{label}</div>}
+    </div>
+  );
+}
+
+/* ======================================================================
+   График вкладки «Данные по ДЗ и КЗ» — по образцу исходной системы:
+   заголовок по центру, шкала Y в млн руб. (0 / середина / максимум),
+   сглаженные линии с точками без заливки, подпись каждой даты по оси X,
+   легенда точками снизу. Ширина viewBox = фактической ширине блока
+   (ResizeObserver), поэтому шрифт подписей — в реальных пикселях. Если даты
+   по оси X не помещаются в ряд, они поворачиваются наискосок: подписана
+   каждая точка, но подписи не слипаются.
+   ====================================================================== */
+
+/** «Круглый» шаг шкалы: 1 / 2 / 5 × 10^k, чтобы деления были 0, 1 000, 2 000… */
+function niceStep(raw: number): number {
+  if (raw <= 0) return 1;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const m = raw / pow;
+  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * pow;
+}
+
+/** Сглаженная линия через точки (Catmull-Rom → кубические Безье). */
+function smoothPath(pts: [number, number][]): string {
+  if (pts.length < 2) return pts.length ? `M ${pts[0][0]} ${pts[0][1]}` : '';
+  let d = `M ${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2[0]} ${p2[1]}`;
+  }
+  return d;
+}
+
+const fmtMln = (v: number) => (v / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: v / 1_000_000 < 10 ? 1 : 0 });
+
+export function DebtChart(props: { title: string; labels: string[]; series: Series[] }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(480);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(240, Math.round(e.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const n = props.labels.length;
+  // подпись «31.08.2025» ≈ 56px при 10px; если шаг точек меньше — наискосок
+  const LABEL_W = 58;
+  const tilt = (W - 60) / Math.max(n - 1, 1) < LABEL_W;
+  const H = tilt ? 250 : 220;
+  const padL = 44;
+  const padR = tilt ? 10 : 30;
+  const padT = 12;
+  const padB = tilt ? 58 : 26;
+  const [hover, setHover] = useState<number | null>(null);
+
+  const max = Math.max(...props.series.flatMap((s) => s.points), 0);
+  const step = niceStep(max / 2);
+  const top = Math.max(step * 2, step);
+  const ticks = [0, step, top];
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const x = (i: number) => padL + (innerW * i) / Math.max(n - 1, 1);
+  const y = (v: number) => padT + innerH - (innerH * v) / (top || 1);
+
+  return (
+    <div ref={boxRef} style={{ position: 'relative', minWidth: 0 }}>
+      <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-typo-secondary)', marginBottom: 6 }}>{props.title}</div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width={W}
+        height={H}
+        style={{ display: 'block' }}
+        onMouseLeave={() => setHover(null)}
+        onMouseMove={(e) => {
+          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+          const rel = ((e.clientX - rect.left) / rect.width) * W;
+          const idx = Math.round(((rel - padL) / innerW) * (n - 1));
+          setHover(Math.max(0, Math.min(n - 1, idx)));
+        }}
+      >
+        {/* сетка и шкала Y, млн руб. */}
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="var(--color-bg-border)" strokeWidth={1} />
+            <text x={padL - 6} y={y(t) + 3} fontSize={10} fill="var(--color-typo-secondary)" textAnchor="end">{fmtMln(t)}</text>
+          </g>
+        ))}
+        <line x1={padL} x2={padL} y1={padT} y2={padT + innerH} stroke="var(--color-bg-border)" strokeWidth={1} />
+        {/* серии: сглаженная линия + точки */}
+        {props.series.map((s, si) => (
+          <g key={si}>
+            <path d={smoothPath(s.points.map((v, i) => [x(i), y(v)]))} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            {s.points.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r={3} fill={s.color} />)}
+          </g>
+        ))}
+        {hover != null && (
+          <line x1={x(hover)} x2={x(hover)} y1={padT} y2={padT + innerH} stroke="var(--color-typo-ghost)" strokeDasharray="3 3" />
+        )}
+        {/* подпись каждой точки по оси X */}
+        {props.labels.map((l, i) => (
+          tilt
+            ? <text key={i} x={x(i)} y={padT + innerH + 12} fontSize={10} fill="var(--color-typo-secondary)" textAnchor="end" transform={`rotate(-40 ${x(i)} ${padT + innerH + 12})`}>{l}</text>
+            : <text key={i} x={x(i)} y={H - 8} fontSize={10} fill="var(--color-typo-secondary)" textAnchor="middle">{l}</text>
+        ))}
+      </svg>
+
+      {hover != null && (
+        <div
+          style={{
+            position: 'absolute', left: `${(x(hover) / W) * 100}%`, top: 24, transform: 'translateX(-50%)',
+            background: 'var(--color-bg-default)', border: '1px solid var(--color-bg-border)', borderRadius: 8,
+            boxShadow: 'var(--pmrk-shadow-2)', padding: '8px 10px', pointerEvents: 'none', fontSize: 12, whiteSpace: 'nowrap', zIndex: 5,
+          }}
+        >
+          <div className="pmrk-muted" style={{ marginBottom: 4 }}>{props.labels[hover]}</div>
+          {props.series.map((s, si) => (
+            <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
+              <span style={{ flex: 1 }}>{s.name}</span>
+              <b style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMln(s.points[hover])} млн руб.</b>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* легенда — точками по центру под графиком */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
+        {props.series.map((s, si) => (
+          <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
+            {s.name}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

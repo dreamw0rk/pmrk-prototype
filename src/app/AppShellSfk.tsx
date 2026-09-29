@@ -99,7 +99,8 @@ export function AppShellSfk() {
                 ))}
               </div>
             )}
-            <h1 className="sfk-page-title">{title}</h1>
+            {/* пустой title от страницы — заголовка в топбаре нет, только крошки */}
+            {title && <h1 className="sfk-page-title">{title}</h1>}
             {meta.subtitle && <div className="sfk-page-sub">{meta.subtitle}</div>}
           </div>
 

@@ -56,6 +56,15 @@ export interface SanctionDetail {
 export interface CourtCaseDetail {
   plaintiff: string; number: string; category: string; state: string; outcome: string; date: string; claim: number; decision: number;
 }
+/** Строка «Расшифровки сведений о суммах недоимки и задолженности по пеням и
+    штрафам» (ФНС): налог/сбор/взнос и суммы по нему; total — сумма трёх колонок. */
+export interface FtsDebtRow {
+  name: string; arrears: number; penalty: number; fine: number; total: number;
+}
+/** Строка «Расшифровки активных исполнительных производств» (ФССП через СПАРК). */
+export interface EnforcementDetail {
+  category: string; number: string; date: string; amount: number; basis: string;
+}
 export interface ExternalSection { key: string; title: string; indicators?: Indicator[]; asOf: string; source: string; }
 
 /* Источник данных для каждого раздела «Внешней информации» — свой: разделы
@@ -157,14 +166,15 @@ export function buildExternal(cp: Counterparty) {
     : [];
 
   // «Реестры СПАРК» — в разделе только нейтральные/рисковые реестры со
-  // светофором: не выявлено — зелёный, только нейтральные реестры — жёлтый,
-  // есть рисковый реестр — красный. SparkRisk и статус по СПАРК отсюда убраны.
+  // светофором: только нейтральный реестр (МСП) — зелёный, реестры,
+  // требующие внимания, — жёлтый, есть рисковый реестр — красный. Каждый
+  // реестр — отдельной строкой с «- », как в исходной системе. SparkRisk и статус по СПАРК отсюда убраны.
   const section3: Indicator[] = [
     g === 4
-      ? { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: 'Реестр недобросовестных поставщиков; Реестр экспедиторов', level: 'high' }
+      ? { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: '- Реестр недобросовестных поставщиков\n- Реестр экспедиторов', level: 'high' }
       : g === 3
-        ? { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: 'Реестр экспедиторов; Участник Хартии АПК', level: 'medium' }
-        : { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: 'не выявлено', level: 'low' },
+        ? { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: '- Реестр экспедиторов\n- Участник Хартии АПК', level: 'medium' }
+        : { label: 'Нейтральные/рисковые реестры по данным СПАРК', value: '- Реестр субъектов малого и среднего предпринимательства', level: 'low' },
   ];
 
   const section4Base: Indicator[] = [
@@ -225,31 +235,67 @@ export function buildExternal(cp: Counterparty) {
     return { ...x, groupAsOf, calcDate: s4CalcDate(x, groupAsOf) };
   });
 
+  // Светофор сумм и счётчиков в разделах ФНС и «Судебные дела»: 0 — зелёный,
+  // больше нуля — красный (как в исходной системе).
+  const amountLevel = (v: number): Level => (v > 0 ? 'high' : 'low');
   const NEG_REGISTRIES = 'Негативные реестры по данным ФНС';
   const FTS_DEBT = 'Задолженность перед ФНС';
+  // Итоги «Задолженности перед ФНС» и их расшифровка по налогам — из одних и
+  // тех же чисел: недоимка раскладывается по налогам/взносам, пени — отдельной
+  // строкой «Суммы пеней», поэтому ИТОГО таблицы совпадает со сводкой.
+  const ftsArrears = g >= 3 ? enforcement || 1_200_000 : 0;
+  const ftsPenalty = g >= 3 ? 340_000 : 0;
+  const ftsFine = g >= 3 ? 180_000 : 0;
+  const ndsPart = Math.round(ftsArrears * 0.61);
+  const ndflPart = Math.round(ftsArrears * 0.133);
+  const npoPart = Math.round(ftsArrears * 0.0175);
+  const debtRow = (name: string, arrears: number, penalty: number): FtsDebtRow => ({ name, arrears, penalty, fine: 0, total: arrears + penalty });
+  const ftsDebtBreakdown: FtsDebtRow[] = ftsArrears || ftsPenalty ? [
+    debtRow('Налог на добавленную стоимость (НДС)', ndsPart, 0),
+    debtRow('Налог на доходы физических лиц (НДФЛ)', ndflPart, 0),
+    debtRow('Налог на прибыль организаций (НПО)', npoPart, 0),
+    debtRow('Суммы пеней', 0, ftsPenalty),
+    debtRow('Страховые взносы', ftsArrears - ndsPart - ndflPart - npoPart, 0),
+  ] : [];
+
   const section5: Indicator[] = [
     { group: NEG_REGISTRIES, label: 'Дисквалифицированные лица в составе исполнительных органов', value: g === 4 ? '1 лицо' : 'Нет', level: g === 4 ? 'high' : 'low' },
     { group: NEG_REGISTRIES, label: 'Руководитель контрагента включён в реестр ФНС как массовый', value: 'Нет', level: 'low' },
     { group: FTS_DEBT, label: 'Дата сведений о недоимке и задолженности по пеням и штрафам', value: '01.08.2026' },
-    { group: FTS_DEBT, label: 'Сумма недоимки по налогам и сборам, руб.', value: g >= 3 ? money(enforcement || 1_200_000) : '0', level: g >= 3 ? 'medium' : 'low', dot: false },
-    { group: FTS_DEBT, label: 'Задолженность по пеням и штрафам, руб.', value: g >= 3 ? money(340_000) : '0' },
+    { group: FTS_DEBT, label: 'Сумма недоимки по налогам и сборам, руб.', value: money(ftsArrears), level: amountLevel(ftsArrears) },
+    { group: FTS_DEBT, label: 'Задолженность по пеням и штрафам, руб.', value: money(ftsPenalty), level: amountLevel(ftsPenalty) },
     { group: FTS_DEBT, label: 'Дата сведений о сумме налоговых правонарушений', value: '31.12.2023' },
-    { group: FTS_DEBT, label: 'Сумма штрафов, руб.', value: g >= 3 ? money(180_000) : '0' },
+    { group: FTS_DEBT, label: 'Сумма штрафов, руб.', value: money(ftsFine), level: amountLevel(ftsFine) },
   ];
 
   const S6_SUMMARY = 'Сводная информация из СПАРК';
   const S6_PLEDGES = 'Залоги выданные по данным СПАРК';
   const section6: Indicator[] = [
-    { group: S6_SUMMARY, label: 'Количество судебных дел (ответчик), с начала предыдущего года', value: String(lawsuits.length), level: lawsuits.length ? 'medium' : 'low' },
-    { group: S6_SUMMARY, label: 'Сумма исков (ответчик), с начала предыдущего года, руб.', value: money(lawsuits.reduce((s, c) => s + c.amount, 0)) },
+    { group: S6_SUMMARY, label: 'Количество судебных дел (ответчик), с начала предыдущего года', value: String(lawsuits.length), level: amountLevel(lawsuits.length), dot: true },
+    { group: S6_SUMMARY, label: 'Сумма исков (ответчик), с начала предыдущего года, руб.', value: money(lawsuits.reduce((s, c) => s + c.amount, 0)), level: amountLevel(lawsuits.reduce((s, c) => s + c.amount, 0)), dot: true },
     { group: S6_SUMMARY, label: 'Сумма решений по искам за последние 2 года (ответчик), руб.', value: money(Math.round(lawsuits.reduce((s, c) => s + c.amount, 0) * 0.15)) },
-    { group: S6_SUMMARY, label: 'Сумма активных исполнительных производств, руб.', value: enforcement ? money(enforcement) : '0', level: enforcement ? 'medium' : 'low' },
+    { group: S6_SUMMARY, label: 'Сумма активных исполнительных производств, руб.', value: enforcement ? money(enforcement) : '0', level: amountLevel(enforcement), dot: true },
     { group: S6_SUMMARY, label: 'Судебные дела о банкротстве (ответчик)', value: hasBankruptcyCase ? 'Да' : 'Нет', level: hasBankruptcyCase ? 'high' : 'low', dot: true },
     { group: S6_PLEDGES, label: 'Залоги выданные', value: g <= 2 ? 'Нет' : '1 предмет залога' },
   ];
   const courtCases: CourtCaseDetail[] = lawsuits.map((c, i) => ({
     plaintiff: i === 0 ? 'ООО «ТЭК-Снаб»' : 'ООО «Поставщик-' + (100 + i) + '»', number: `А56-${10000 + i * 137}/2026`, category: 'Экономические споры', state: c.status, outcome: c.status.includes('производ') ? 'рассматривается' : 'в работе', date: c.date, claim: c.amount, decision: 0,
   }));
+
+  // Активные исполнительные производства — те же записи, из которых считается
+  // «Сумма активных исполнительных производств» в сводке раздела s6. Номер ИП
+  // и документ-основание — в формате ФССП, детерминированно от id записи.
+  const enforcementCases: EnforcementDetail[] = cp.courtCases.filter((c) => c.kind === 'enforcement').map((c) => {
+    const sd = seedOf(c.id);
+    const docDate = new Date(c.date); docDate.setDate(docDate.getDate() - 13);
+    return {
+      category: c.subject,
+      number: `${8_000_000 + (sd % 999_999)}/${c.date.slice(2, 4)}/${77_000 + (sd % 999)}-ИП`,
+      date: c.date,
+      amount: c.amount,
+      basis: `Исполнительный лист от ${docDate.toISOString().slice(0, 10)} № ${63}MS${String(100 + (sd % 900)).padStart(4, '0')}#2-${1000 + (sd % 999)}/${c.date.slice(0, 4)}#2`,
+    };
+  });
 
   const section7: Indicator[] = [
     { label: 'Реестр недобросовестных поставщиков(РНП)', value: g === 4 ? 'входит' : 'не входит', level: g === 4 ? 'high' : 'low' },
@@ -372,6 +418,8 @@ export function buildExternal(cp: Counterparty) {
     ].map((s): ExternalSection => ({ ...s, source: SECTION_SOURCE[s.key] ?? 'СПАРК', asOf: sectionAsOf(s.key) })),
     sanctions,
     courtCases,
+    enforcementCases,
+    ftsDebtBreakdown,
   };
 }
 
