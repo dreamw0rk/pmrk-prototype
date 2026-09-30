@@ -98,20 +98,20 @@ interface MetricDef {
 }
 
 const METRICS: MetricDef[] = [
-  { key: 'dzTotal', label: 'Дебиторская Задолженность Общая, руб.', indent: 0, activity: 0.3, base: (t) => t.dz },
-  { key: 'dzCurrent', label: 'Задолженность Текущая, руб.', indent: 1, activity: 0.3, base: (t) => t.dz - t.pdz },
-  { key: 'dzOverdue', label: 'Задолженность Просроченная, руб.', indent: 1, activity: 0.3, base: (t) => t.pdz },
-  { key: 'dzOverdue5', label: 'Задолженность просроченная до 5 дней, руб.', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.35) },
-  { key: 'dzOverdue30', label: 'Задолженность просроченная от 6 до 30 дней, руб.', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.4) },
-  { key: 'dzOverdueMore', label: 'Задолженность просроченная более 30 дней, руб.', indent: 2, activity: 0.15, base: (t) => t.pdz - Math.round(t.pdz * 0.35) - Math.round(t.pdz * 0.4) },
-  { key: 'claims', label: 'Выставленные претензии и штрафы в адрес контрагента, руб.', indent: 1, activity: 0.08, base: (t) => Math.round(t.pdz * 0.06) },
-  { key: 'dzCollateral', label: 'Сумма обеспечения дебиторской задолженности, руб.', indent: 0, activity: 0.1, base: () => 0 },
-  { key: 'advanceTotal', label: 'Авансы Сумма на конец периода, руб. (без отрицательных сальдо)', indent: 0, activity: 0.35, base: (t) => t.advance },
-  { key: 'advanceCollateral', label: 'Аванс Сумма обеспечения, руб.', indent: 0, activity: 0.05, base: () => 0 },
-  { key: 'reservesDz', label: 'Сумма резервов по сомнительным долгам по ДЗ на конец периода, руб.', indent: 0, activity: 0.1, base: (t) => Math.round(t.pdz * 0.07) },
-  { key: 'reservesAdvance', label: 'Сумма резервов по сомнительным долгам по авансам на конец периода, руб.', indent: 0, activity: 0.05, base: (t) => Math.round(t.advance * 0.015) },
-  { key: 'payable', label: 'Кредиторская задолженность, руб.', indent: 0, activity: 0.4, base: (t) => t.payable },
-  { key: 'otherCollateral', label: 'Сумма прочего обеспечения, руб.', indent: 0, activity: 0.05, base: () => 0 },
+  { key: 'dzTotal', label: 'Дебиторская Задолженность Общая, ₽', indent: 0, activity: 0.3, base: (t) => t.dz },
+  { key: 'dzCurrent', label: 'Задолженность Текущая, ₽', indent: 1, activity: 0.3, base: (t) => t.dz - t.pdz },
+  { key: 'dzOverdue', label: 'Задолженность Просроченная, ₽', indent: 1, activity: 0.3, base: (t) => t.pdz },
+  { key: 'dzOverdue5', label: 'Задолженность просроченная до 5 дней, ₽', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.35) },
+  { key: 'dzOverdue30', label: 'Задолженность просроченная от 6 до 30 дней, ₽', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.4) },
+  { key: 'dzOverdueMore', label: 'Задолженность просроченная более 30 дней, ₽', indent: 2, activity: 0.15, base: (t) => t.pdz - Math.round(t.pdz * 0.35) - Math.round(t.pdz * 0.4) },
+  { key: 'claims', label: 'Выставленные претензии и штрафы в адрес контрагента, ₽', indent: 1, activity: 0.08, base: (t) => Math.round(t.pdz * 0.06) },
+  { key: 'dzCollateral', label: 'Сумма обеспечения дебиторской задолженности, ₽', indent: 0, activity: 0.1, base: () => 0 },
+  { key: 'advanceTotal', label: 'Авансы Сумма на конец периода, ₽ (без отрицательных сальдо)', indent: 0, activity: 0.35, base: (t) => t.advance },
+  { key: 'advanceCollateral', label: 'Аванс Сумма обеспечения, ₽', indent: 0, activity: 0.05, base: () => 0 },
+  { key: 'reservesDz', label: 'Сумма резервов по сомнительным долгам по ДЗ на конец периода, ₽', indent: 0, activity: 0.1, base: (t) => Math.round(t.pdz * 0.07) },
+  { key: 'reservesAdvance', label: 'Сумма резервов по сомнительным долгам по авансам на конец периода, ₽', indent: 0, activity: 0.05, base: (t) => Math.round(t.advance * 0.015) },
+  { key: 'payable', label: 'Кредиторская задолженность, ₽', indent: 0, activity: 0.4, base: (t) => t.payable },
+  { key: 'otherCollateral', label: 'Сумма прочего обеспечения, ₽', indent: 0, activity: 0.05, base: () => 0 },
 ];
 
 function fallbackTotals(c: Counterparty): Totals {
@@ -168,6 +168,118 @@ export function buildDzKzTable(c: Counterparty, month: number, year: number): Dz
 
   const periodDate = new Date(Date.UTC(year, month + 1, 0)).toISOString().slice(0, 10);
   return { periodDate, groups, activeColumns, rows };
+}
+
+/* ------------------------------------------------------------------------
+   Расшифровка задолженности по договорам (клик по сумме в «Детализации»).
+   «Детализация» выше — это агрегат (одна цифра на пару «аналитика × ДО»);
+   здесь та же цифра раскладывается на правдоподобный, но детерминированный
+   список договоров, суммирующийся ровно в неё — как в исходной системе
+   (модальное окно «Дебиторская и кредиторская задолженность»). Договоров,
+   обеспечения и т.п. на Counterparty не хранится — это derived-мок по
+   значениям из уже построенной DzKzTable. */
+
+export interface DzKzContractRow {
+  number: string;
+  general: number;
+  current: number;
+  overdue: number;
+  overdue5: number;
+  overdue30: number;
+  overdueMore: number;
+  claims: number;
+  reserve: number;
+}
+export interface DzKzSumRow { number: string; amount: number }
+export interface DzKzContractDetail {
+  /** название ДО, либо undefined — расшифровка по «Итого» (все ДО) */
+  colName?: string;
+  periodDate: string;
+  dz: DzKzContractRow[];
+  advances: DzKzSumRow[];
+  payable: DzKzSumRow[];
+}
+
+/** Номер договора в формате исходной системы: «ГСН-22/01000/01541/Д». */
+function contractNumber(seed: number): string {
+  const yy = 21 + (seed % 4);
+  const block = 1000 * (1 + ((seed >> 3) % 40));
+  const tail = (seed * 7 + 1000) % 100000;
+  return `ГСН-${yy}/${String(block).padStart(5, '0')}/${String(tail).padStart(5, '0')}/Д`;
+}
+
+/** Делит total на n неотрицательных слагаемых со случайными, но
+    детерминированными весами — сумма всегда строго равна total. */
+function splitFixed(total: number, n: number, seed: number): number[] {
+  if (!n || total <= 0) return Array(n).fill(0);
+  const rnd = rng(seed);
+  return proportionalSplit(total, Array.from({ length: n }, () => 0.2 + rnd()));
+}
+
+/** Делит total пропорционально весам (largest remainder method) — сумма
+    результата всегда строго равна total. Веса нулевые/пустые → равные доли. */
+function proportionalSplit(total: number, weights: number[]): number[] {
+  const n = weights.length;
+  if (!n || total <= 0) return Array(n).fill(0);
+  const sumW = weights.reduce((s, w) => s + w, 0);
+  if (sumW <= 0) return splitFixed(total, n, 1);
+  const raw = weights.map((w) => (w / sumW) * total);
+  const floors = raw.map(Math.floor);
+  const remainder = total - floors.reduce((s, v) => s + v, 0);
+  const order = raw.map((v, i) => ({ i, frac: v - Math.floor(v) })).sort((a, b) => b.frac - a.frac);
+  const result = [...floors];
+  for (let k = 0; k < remainder && k < order.length; k++) result[order[k].i] += 1;
+  return result;
+}
+
+/** Расшифровка по договорам для одной колонки таблицы «Детализация» — ДО по
+    имени (`colName`) или сводно «Итого» по всем ДО (`colName` не передан,
+    тогда берутся строки `total`, а не `values[col]`). */
+export function buildDzKzContractDetail(c: Counterparty, table: DzKzTable, colName?: string): DzKzContractDetail {
+  const v = (key: string) => {
+    const row = table.rows.find((r) => r.key === key);
+    if (!row) return 0;
+    return colName ? row.values[colName] ?? 0 : row.total;
+  };
+  const baseSeed = seedOf(`${c.uid}-${colName ?? 'ИТОГО'}`);
+
+  const generalTotal = v('dzTotal');
+  const nDz = generalTotal > 0 ? 2 + Math.floor(rng(baseSeed)() * 7) : 0;
+  const generalSplit = splitFixed(generalTotal, nDz, baseSeed + 1);
+  const overdueSplit = proportionalSplit(v('dzOverdue'), generalSplit);
+  const overdue5Split = proportionalSplit(v('dzOverdue5'), overdueSplit);
+  const overdue30Split = proportionalSplit(v('dzOverdue30'), overdueSplit);
+  const overdueMoreSplit = proportionalSplit(v('dzOverdueMore'), overdueSplit);
+  const claimsSplit = proportionalSplit(v('claims'), overdueSplit);
+  const reserveSplit = proportionalSplit(v('reservesDz'), overdueSplit);
+  const dz: DzKzContractRow[] = generalSplit
+    .map((general, i) => ({
+      number: contractNumber(baseSeed + 13 + i * 97),
+      general,
+      overdue: overdueSplit[i] ?? 0,
+      current: Math.max(0, general - (overdueSplit[i] ?? 0)),
+      overdue5: overdue5Split[i] ?? 0,
+      overdue30: overdue30Split[i] ?? 0,
+      overdueMore: overdueMoreSplit[i] ?? 0,
+      claims: claimsSplit[i] ?? 0,
+      reserve: reserveSplit[i] ?? 0,
+    }))
+    .filter((r) => r.general > 0);
+
+  const sumRows = (total: number, seedOffset: number): DzKzSumRow[] => {
+    const n = total > 0 ? 1 + Math.floor(rng(baseSeed + seedOffset)() * 4) : 0;
+    return splitFixed(total, n, baseSeed + seedOffset + 1)
+      .map((amount, i) => ({ number: contractNumber(baseSeed + seedOffset + 31 + i * 53), amount }))
+      .filter((r) => r.amount > 0);
+  };
+
+  return {
+    colName,
+    periodDate: table.periodDate,
+    dz,
+    advances: sumRows(v('advanceTotal'), 500),
+    payable: sumRows(v('payable'), 900),
+  };
 }
 
 /** Выгрузка таблицы «Детализация» в .xlsx — та же структура, что на экране:

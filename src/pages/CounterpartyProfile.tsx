@@ -29,7 +29,7 @@ import { buildDoLinks, type DoLink } from '@/shared/mock/subsidiaries';
 import { buildAdditionalOkveds, activityKind } from '@/shared/mock/okved';
 import { buildNameChanges } from '@/shared/mock/nameHistory';
 import { buildStatements } from '@/shared/mock/statements';
-import { buildDzKzTable, exportDzKzToExcel, MONTH_NAMES, shortDoLabel } from '@/shared/mock/dzKzMatrix';
+import { buildDzKzTable, buildDzKzContractDetail, exportDzKzToExcel, MONTH_NAMES, shortDoLabel, type DzKzContractDetail } from '@/shared/mock/dzKzMatrix';
 import { buildInteractionInfo } from '@/shared/mock/interaction';
 import { buildAssessment, DIRECTIONS, type Direction as AssessDirection, type ScoreBlock } from '@/shared/mock/assessment';
 import type { Counterparty, AffiliationLinkType, AffiliationNode, NewsSource } from '@/shared/mock/types';
@@ -1370,6 +1370,26 @@ function DzKzDetailCard({
   const selectStyle: React.CSSProperties = { height: 32, border: '1px solid var(--color-bg-border)', borderRadius: 8, padding: '0 10px', background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)', fontSize: 13 };
   const stickyCol: React.CSSProperties = { position: 'sticky', left: 0, background: 'var(--color-bg-default)', zIndex: 1 };
 
+  // Клик по сумме в «Детализации» — расшифровка по договорам (undefined
+  // colName у sentinel-объекта означает «Итого» по всем ДО, а не «закрыто»:
+  // закрытое состояние — null).
+  const [detailCol, setDetailCol] = useState<{ col?: string } | null>(null);
+  const openDetail = (col?: string) => setDetailCol({ col });
+  /** Сумма-ссылка: кликабельна только когда есть что расшифровывать (v > 0). */
+  const SumCell = ({ v, col, bold }: { v: number | undefined; col?: string; bold?: boolean }) =>
+    v ? (
+      <span
+        className="pmrk-clickable"
+        style={{ color: 'var(--color-typo-brand)', fontWeight: bold ? 700 : 400, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }}
+        onClick={() => openDetail(col)}
+        title="Показать расшифровку по договорам"
+      >
+        {money(v, { unit: '' })}
+      </span>
+    ) : (
+      <span>—</span>
+    );
+
   return (
     <SectionCard title={`Детализация (Блок → ДО → итог, ${dzKz.rows.length} аналитик)`}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
@@ -1434,11 +1454,11 @@ function DzKzDetailCard({
                   </td>
                   {allCols.map((col) => (
                     <td key={col.name} className="pmrk-tnum" style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-bg-border)', textAlign: 'right' }}>
-                      {fmtCell(r.values[col.name])}
+                      <SumCell v={r.values[col.name]} col={col.name} />
                     </td>
                   ))}
                   <td className="pmrk-tnum" style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-bg-border)', textAlign: 'right', fontWeight: 700 }}>
-                    {fmtCell(r.total)}
+                    <SumCell v={r.total} bold />
                   </td>
                 </tr>
               ))}
@@ -1457,7 +1477,143 @@ function DzKzDetailCard({
           </b>.
         </span>
       </div>
+
+      {detailCol && (
+        <DzKzContractModal
+          detail={buildDzKzContractDetail(c, dzKz, detailCol.col)}
+          onClose={() => setDetailCol(null)}
+        />
+      )}
     </SectionCard>
+  );
+}
+
+/** Расшифровка задолженности по договорам (клик по сумме в «Детализации») —
+    4 блока по образцу исходной системы: дебиторская задолженность, авансы,
+    кредиторская задолженность, прочие обеспечения. Поля обеспечения и
+    комментариев в моке не заведены (в «Детализации» это всегда нулевые
+    строки) — выводятся прочерком, а «Прочие обеспечения» — пустым разделом,
+    как и в исходнике для контрагентов без обеспечения. */
+function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; onClose: () => void }) {
+  const m = (n: number) => money(n, { unit: '' });
+  const rub = (n: number) => (n ? m(n) : '—');
+
+  const dzRows = detail.dz.map((r, i) => ({ id: `${r.number}-${i}`, ...r }));
+  const dzCols: LegalCol<typeof dzRows[0]>[] = [
+    { label: 'Номер договора', width: 160, render: (r) => r.number },
+    { label: 'Задолженность Общая, ₽', width: 140, align: 'right', render: (r) => m(r.general) },
+    { label: 'Задолженность Текущая, ₽', width: 140, align: 'right', render: (r) => m(r.current) },
+    { label: 'Задолженность Просроченная, ₽', width: 150, align: 'right', render: (r) => rub(r.overdue) },
+    { label: 'Просроченная до 5 дней, ₽', width: 140, align: 'right', render: (r) => rub(r.overdue5) },
+    { label: 'Просроченная от 6 до 30 дней, ₽', width: 150, align: 'right', render: (r) => rub(r.overdue30) },
+    { label: 'Просроченная более 30 дней, ₽', width: 150, align: 'right', render: (r) => rub(r.overdueMore) },
+    { label: 'Выставленные претензии и штрафы, ₽', width: 160, align: 'right', render: (r) => rub(r.claims) },
+    { label: 'Сумма резервов по сомнительным долгам, ₽', width: 170, align: 'right', render: (r) => rub(r.reserve) },
+    { label: 'Комментарий относительно просроченной задолженности', width: 220, render: () => '—' },
+    { label: 'Сумма обеспечения, ₽', width: 130, align: 'right', render: () => '—' },
+    { label: 'Вид обеспечения', width: 120, render: () => '—' },
+    { label: 'Номер обеспечения', width: 130, render: () => '—' },
+    { label: 'Наименование гаранта / поручителя / залогодателя / страховщика', width: 220, render: () => '—' },
+    { label: 'Дата начала действия обеспечения', width: 150, render: () => '—' },
+    { label: 'Дата окончания срока действия обеспечения', width: 160, render: () => '—' },
+  ];
+
+  const advRows = detail.advances.map((r, i) => ({ id: `${r.number}-${i}`, ...r }));
+  const advCols: LegalCol<typeof advRows[0]>[] = [
+    { label: 'Номер договора', width: 160, render: (r) => r.number },
+    { label: 'Авансы Сумма на конец периода, ₽ (без отрицательных сальдо)', width: 220, align: 'right', render: (r) => m(r.amount) },
+    { label: 'Комментарий по авансам', width: 180, render: () => '—' },
+    { label: 'Сумма обеспечения, ₽', width: 130, align: 'right', render: () => '—' },
+    { label: 'Вид обеспечения', width: 120, render: () => '—' },
+    { label: 'Номер обеспечения', width: 130, render: () => '—' },
+    { label: 'Наименование гаранта / поручителя / залогодателя / страховщика', width: 220, render: () => '—' },
+    { label: 'Дата начала действия обеспечения', width: 150, render: () => '—' },
+    { label: 'Дата окончания срока действия обеспечения', width: 160, render: () => '—' },
+  ];
+
+  const payRows = detail.payable.map((r, i) => ({ id: `${r.number}-${i}`, ...r }));
+  const payCols: LegalCol<typeof payRows[0]>[] = [
+    { label: 'Номер договора', width: 200, render: (r) => r.number },
+    { label: 'Кредиторская задолженность, ₽', width: 180, align: 'right', render: (r) => m(r.amount) },
+  ];
+
+  const otherCols: LegalCol<{ id: string }>[] = [
+    { label: 'Номер договора', width: 200, render: () => '—' },
+    { label: 'Сумма обеспечения, ₽', width: 150, align: 'right', render: () => '—' },
+    { label: 'Вид обеспечения', width: 140, render: () => '—' },
+    { label: 'Номер обеспечения', width: 140, render: () => '—' },
+    { label: 'Наименование гаранта / поручителя / залогодателя / страховщика', width: 240, render: () => '—' },
+    { label: 'Дата начала действия обеспечения', width: 160, render: () => '—' },
+    { label: 'Дата окончания срока действия обеспечения', width: 170, render: () => '—' },
+  ];
+
+  const SectionHead = ({ title }: { title: string }) => (
+    <div style={{ padding: '9px 14px', background: 'var(--color-bg-brand)', color: '#fff', fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase', borderRadius: 'var(--pmrk-radius) var(--pmrk-radius) 0 0' }}>
+      {title}
+    </div>
+  );
+
+  // Esc закрывает — как у обычного Modal.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // Свой оверлей вместо <Modal> из Consta: тот же Consta-компонент на этом
+  // экране (широкая таблица + CSS-анимация появления MixPopoverAnimate) у
+  // некоторых пользователей рендерился не на весь экран — тёмная подложка и
+  // белая карточка занимали только часть вьюпорта, а страница просвечивала
+  // рядом, хотя по layout (getBoundingClientRect) оверлей был на весь экран:
+  // похоже на баг компоновки слоя, вызванный анимацией входа. Простой
+  // position:fixed без анимации даёт то же самое визуально, но не ловит эту
+  // особенность рендеринга.
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0, 32, 51, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-default)', borderRadius: 'var(--pmrk-radius-lg)', padding: 22, width: 'min(94vw, 1520px)', maxWidth: '94vw', maxHeight: '86vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Дебиторская и кредиторская задолженность</h3>
+          <span className="pmrk-muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
+            {detail.colName ?? 'Итого по всем ДО'} · на {dateRu(detail.periodDate)}
+          </span>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <SectionHead title="Дебиторская задолженность" />
+          <div style={{ border: '1px solid var(--color-bg-border)', borderTop: 'none', borderRadius: '0 0 var(--pmrk-radius) var(--pmrk-radius)', padding: dzRows.length ? 0 : 10 }}>
+            <LegalWideTable columns={dzCols} rows={dzRows} empty="Дебиторской задолженности по договорам нет." />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <SectionHead title="Авансы" />
+          <div style={{ border: '1px solid var(--color-bg-border)', borderTop: 'none', borderRadius: '0 0 var(--pmrk-radius) var(--pmrk-radius)', padding: advRows.length ? 0 : 10 }}>
+            <LegalWideTable columns={advCols} rows={advRows} empty="Авансов нет." />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <SectionHead title="Кредиторская задолженность" />
+          <div style={{ border: '1px solid var(--color-bg-border)', borderTop: 'none', borderRadius: '0 0 var(--pmrk-radius) var(--pmrk-radius)', padding: payRows.length ? 0 : 10 }}>
+            <LegalWideTable columns={payCols} rows={payRows} empty="Кредиторской задолженности по договорам нет." />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <SectionHead title="Прочие обеспечения" />
+          <div style={{ border: '1px solid var(--color-bg-border)', borderTop: 'none', borderRadius: '0 0 var(--pmrk-radius) var(--pmrk-radius)', padding: 10 }}>
+            <LegalWideTable columns={otherCols} rows={[]} empty="Прочих обеспечений нет." />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button size="s" label="OK" onClick={onClose} />
+        </div>
+      </div>
+    </div>
   );
 }
 
