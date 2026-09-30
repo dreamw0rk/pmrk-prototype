@@ -6,6 +6,7 @@ import type {
   ReportRequest,
   RiskGroup,
   Signal,
+  SocialLink,
   Task,
 } from './types';
 
@@ -80,6 +81,10 @@ export const HEROES: Counterparty[] = [
     okopf: 'Публичные акционерные общества',
     ownershipForm: 'Частная собственность',
     website: 'gazprom-neft.ru',
+    socials: [
+      { network: 'VK', url: 'vk.com/gazpromneft' },
+      { network: 'MAX', url: 'max.ru/gazpromneft' },
+    ],
     director: 'Дюков Александр Валерьевич, Председатель Правления',
     companySize: 'Крупные предприятия',
     taxRegime: 'ОСН',
@@ -149,6 +154,7 @@ export const HEROES: Counterparty[] = [
     okopf: 'Общества с ограниченной ответственностью',
     ownershipForm: 'Частная собственность',
     website: 'baltteko.ru',
+    socials: [{ network: 'VK', url: 'vk.com/baltteko' }],
     director: 'Кузнецов Артём Игоревич, генеральный директор',
     companySize: 'Средние предприятия',
     taxRegime: 'ОСН',
@@ -209,6 +215,7 @@ export const HEROES: Counterparty[] = [
     okopf: 'Непубличные акционерные общества',
     ownershipForm: 'Частная собственность',
     website: 'sibur-logistika.ru',
+    socials: [{ network: 'VK', url: 'vk.com/siburlogistika' }],
     director: 'Волков Сергей Николаевич, генеральный директор',
     companySize: 'Крупные предприятия',
     taxRegime: 'ОСН',
@@ -261,6 +268,10 @@ export const HEROES: Counterparty[] = [
     okopf: 'Общества с ограниченной ответственностью',
     ownershipForm: 'Частная собственность',
     website: 'td-progress.ru',
+    socials: [
+      { network: 'VK', url: 'vk.com/tdprogress' },
+      { network: 'MAX', url: 'max.ru/tdprogress' },
+    ],
     director: 'Морозова Ирина Сергеевна, генеральный директор',
     companySize: 'Средние предприятия',
     taxRegime: 'УСН',
@@ -368,6 +379,7 @@ export const HEROES: Counterparty[] = [
     okopf: 'Публичные акционерные общества',
     ownershipForm: 'Частная собственность',
     website: 'rn-snab.ru',
+    socials: [{ network: 'MAX', url: 'max.ru/rnsnab' }],
     director: 'Громов Андрей Викторович, генеральный директор',
     companySize: 'Крупные предприятия',
     taxRegime: 'ОСН',
@@ -612,6 +624,14 @@ function makeRegistry(): Counterparty[] {
     const address = region.startsWith('г. ') ? `${postal}, ${region}, ул. ${street}, д. ${houseNo}` : `${region}, ул. ${street}, д. ${houseNo}`;
     const okopf = OKOPF_BY_FORM[form] ?? 'Общества с ограниченной ответственностью';
     const website = rnd() < 0.7 ? `${translit(core)}${suffix}.ru` : undefined;
+    // Соцсети СПАРК находит вместе с сайтом — у контрагентов без сайта их нет;
+    // из тех, у кого сайт есть, не у всех найдены аккаунты (реалистичный разброс).
+    const socials: SocialLink[] = website
+      ? ([
+          rnd() < 0.4 ? { network: 'VK', url: `vk.com/${translit(core)}${suffix}` } : null,
+          rnd() < 0.15 ? { network: 'MAX', url: `max.ru/${translit(core)}${suffix}` } : null,
+        ] as (SocialLink | null)[]).filter((x): x is SocialLink => x !== null)
+      : [];
     const director = `${LAST_NAMES[Math.floor(rnd() * LAST_NAMES.length)]} ${FIRST_NAMES[Math.floor(rnd() * FIRST_NAMES.length)]} ${MIDDLE_NAMES[Math.floor(rnd() * MIDDLE_NAMES.length)]}, ${directorTitle(status)}`;
     const taxRoll = rnd();
     const taxRegime = employees > 250 ? 'ОСН' : taxRoll < 0.55 ? 'УСН' : taxRoll < 0.9 ? 'ОСН' : 'Нет данных';
@@ -631,6 +651,7 @@ function makeRegistry(): Counterparty[] {
       okopf,
       ownershipForm: 'Частная собственность',
       website,
+      socials,
       director,
       companySize: companySizeByEmployees(employees),
       taxRegime,

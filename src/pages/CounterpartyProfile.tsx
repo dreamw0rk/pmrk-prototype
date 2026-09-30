@@ -493,6 +493,16 @@ function GeneralTab({ c }: { c: Counterparty }) {
             { k: 'Организационно-правовая форма (ОКОПФ)', v: c.okopf },
             { k: 'Форма собственности', v: c.ownershipForm },
             { k: 'Рабочий сайт', v: c.website ?? 'Нет данных' },
+            {
+              k: 'Социальные сети',
+              v: c.socials?.length ? (
+                <span style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  {c.socials.map((s, i) => (
+                    <a key={i} href={`https://${s.url}`} target="_blank" rel="noreferrer" style={{ color: 'var(--color-typo-brand)' }}>{s.network}</a>
+                  ))}
+                </span>
+              ) : 'Нет данных',
+            },
             { k: 'Руководитель (должность)', v: c.director },
             { k: 'Размер предприятия', v: c.companySize },
             { k: 'Среднесписочная численность', v: `${c.employees} чел.` },

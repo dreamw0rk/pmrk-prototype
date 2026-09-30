@@ -57,6 +57,13 @@ export interface SanctionItem {
   basis: string;
 }
 
+/** Ссылка на соцсеть контрагента — источник тот же, что и у рабочего сайта
+    (СПАРК находит их вместе, при выгрузке карточки ЕГРЮЛ/СПАРК). */
+export interface SocialLink {
+  network: 'VK' | 'MAX' | 'Одноклассники' | 'Rutube';
+  url: string; // без протокола, как принято в реестре — «vk.com/…»
+}
+
 export interface Counterparty {
   uid: string;
   name: string;
@@ -72,6 +79,7 @@ export interface Counterparty {
   okopf: string; // организационно-правовая форма текстом (ЕГРЮЛ/СПАРК)
   ownershipForm: string; // форма собственности
   website?: string; // рабочий сайт
+  socials?: SocialLink[]; // соцсети, найденные СПАРК рядом с сайтом контрагента
   director: string; // ФИО и должность руководителя
   companySize: string; // категория по размеру (СПАРК): крупное/среднее/малое/микро
   taxRegime: string; // налоговый режим
