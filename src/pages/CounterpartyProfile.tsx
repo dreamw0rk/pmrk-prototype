@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@consta/uikit/Button';
-import { Modal } from '@consta/uikit/Modal';
 import { IconFavoriteStroked } from '@consta/icons/IconFavoriteStroked';
 import { IconFavoriteFilled } from '@consta/icons/IconFavoriteFilled';
 import { IconRing } from '@consta/icons/IconRing';
@@ -1494,6 +1493,30 @@ function DzKzDetailCard({
     комментариев в моке не заведены (в «Детализации» это всегда нулевые
     строки) — выводятся прочерком, а «Прочие обеспечения» — пустым разделом,
     как и в исходнике для контрагентов без обеспечения. */
+/** Простой полноэкранный оверлей вместо <Modal> из Consta: у того компонента
+    (CSS-анимация входа MixPopoverAnimate) с крупным содержимым тёмная
+    подложка и карточка иногда занимали только часть вьюпорта вместо всего
+    экрана, а страница просвечивала рядом. Здесь то же самое — фиксированный
+    затемнённый фон, клик по фону и Esc закрывают, — но без анимации и без
+    компонента Consta, который эту анимацию даёт. */
+function SimpleOverlay({ onClose, maxWidth, children }: { onClose: () => void; maxWidth: string; children: React.ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0, 32, 51, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-default)', borderRadius: 'var(--pmrk-radius-lg)', maxWidth, maxHeight: '86vh', overflowY: 'auto' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; onClose: () => void }) {
   const m = (n: number) => money(n, { unit: '' });
   const rub = (n: number) => (n ? m(n) : '—');
@@ -1553,27 +1576,9 @@ function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; on
     </div>
   );
 
-  // Esc закрывает — как у обычного Modal.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  // Свой оверлей вместо <Modal> из Consta: тот же Consta-компонент на этом
-  // экране (широкая таблица + CSS-анимация появления MixPopoverAnimate) у
-  // некоторых пользователей рендерился не на весь экран — тёмная подложка и
-  // белая карточка занимали только часть вьюпорта, а страница просвечивала
-  // рядом, хотя по layout (getBoundingClientRect) оверлей был на весь экран:
-  // похоже на баг компоновки слоя, вызванный анимацией входа. Простой
-  // position:fixed без анимации даёт то же самое визуально, но не ловит эту
-  // особенность рендеринга.
   return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0, 32, 51, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
-    >
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-default)', borderRadius: 'var(--pmrk-radius-lg)', padding: 22, width: 'min(94vw, 1520px)', maxWidth: '94vw', maxHeight: '86vh', overflowY: 'auto' }}>
+    <SimpleOverlay onClose={onClose} maxWidth="min(94vw, 1520px)">
+      <div style={{ padding: 22 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 16 }}>Дебиторская и кредиторская задолженность</h3>
           <span className="pmrk-muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
@@ -1613,7 +1618,7 @@ function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; on
           <Button size="s" label="OK" onClick={onClose} />
         </div>
       </div>
-    </div>
+    </SimpleOverlay>
   );
 }
 
@@ -1999,16 +2004,18 @@ function LegalTab({ c }: { c: Counterparty }) {
       {sec === 'bankruptcy' && <LegalWideTable columns={bankCols} rows={legal.bankruptcy} empty="Данные по контрагенту отсутствуют" />}
 
       {/* Уведомление о доступах КЮРАСАО 2.0 */}
-      <Modal isOpen={curacao} onClickOutside={() => setCuracao(false)} onEsc={() => setCuracao(false)}>
-        <div style={{ padding: 22, width: 440, maxWidth: '92vw' }}>
-          <h3 style={{ margin: '0 0 10px', fontSize: 16 }}>Переход в систему КЮРАСАО 2.0</h3>
-          <div style={{ fontSize: 13.5, lineHeight: 1.55, marginBottom: 16 }}>Для перехода в систему КЮРАСАО 2.0 необходимо получить соответствующие доступы (через СУИД). При наличии доступов вы будете перенаправлены в систему.</div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button size="s" view="ghost" label="Закрыть" onClick={() => setCuracao(false)} />
-            <Button size="s" label="Перейти в КЮРАСАО 2.0" onClick={() => setCuracao(false)} />
+      {curacao && (
+        <SimpleOverlay onClose={() => setCuracao(false)} maxWidth="min(92vw, 440px)">
+          <div style={{ padding: 22 }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 16 }}>Переход в систему КЮРАСАО 2.0</h3>
+            <div style={{ fontSize: 13.5, lineHeight: 1.55, marginBottom: 16 }}>Для перехода в систему КЮРАСАО 2.0 необходимо получить соответствующие доступы (через СУИД). При наличии доступов вы будете перенаправлены в систему.</div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button size="s" view="ghost" label="Закрыть" onClick={() => setCuracao(false)} />
+              <Button size="s" label="Перейти в КЮРАСАО 2.0" onClick={() => setCuracao(false)} />
+            </div>
           </div>
-        </div>
-      </Modal>
+        </SimpleOverlay>
+      )}
     </SectionCard>
   );
 }
