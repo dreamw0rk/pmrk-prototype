@@ -205,7 +205,6 @@ export function Home() {
               <IconSearchStroked size="s" className="pmrk-muted" />
               <input
                 ref={inputRef}
-                autoFocus
                 value={q}
                 onChange={(e) => { setQ(e.target.value); setActive(-1); setFocused(true); }}
                 onFocus={() => setFocused(true)}
