@@ -686,6 +686,11 @@ export const BY_UID = new Map(REGISTRY.map((c) => [c.uid, c]));
 
 // --- Граф аффилированности (герой РН-Снабжение и Балтийская ТК) -------------
 
+/* Связанные лица по типам аффилированности из справочника
+   (affiliationKinds.ts, 19 типов): у узла — список `kinds`, а на диаграмме он
+   рисуется в каждой своей группе. Состав типов подобран так, чтобы по трём
+   карточкам были видны разные группы — от владельцев и дочерних обществ до
+   членов правления, совета директоров и управляющей компании. */
 export const GRAPHS: Record<string, AffiliationGraph> = {
   'cp-gpn': {
     rootUid: 'cp-gpn',
@@ -693,32 +698,38 @@ export const GRAPHS: Record<string, AffiliationGraph> = {
     rootInn: '5504036333',
     asOf: '2026-06-12',
     nodes: [
-      // Владельцы (вверх по цепочке контроля)
-      { id: 'gp-o1', name: 'ПАО «Газпром»', inn: '7736050003', isPerson: false, directShare: 95.68, inRegistry: false, underSanctions: true, linkType: 'owner', level: 1 },
-      { id: 'gp-o2', name: 'Миноритарии (free float, MOEX)', isPerson: false, directShare: 4.32, inRegistry: false, linkType: 'owner', level: 1 },
-      { id: 'gp-o3', name: 'АО «Роснефтегаз» (10,97% в ПАО «Газпром»)', isPerson: false, indirectShare: 10.50, inRegistry: false, linkType: 'owner', level: 2 },
-      // Конечный контролирующий бенефициар: РФ контролирует 50,23% ПАО «Газпром»
-      // (Росимущество 38,37%, Роснефтегаз 10,97%, Росгазификация 0,89%), что даёт
-      // 48,06% косвенного владения в «Газпром нефти» (50,23% × 95,68%).
-      { id: 'gp-b1', name: 'Российская Федерация (Росимущество, Роснефтегаз, Росгазификация)', isPerson: false, indirectShare: 48.06, inRegistry: false, linkType: 'beneficiary', level: 2 },
+      // Владельцы и контролирующие (вверх по цепочке контроля)
+      { id: 'gp-o1', name: 'ПАО «Газпром»', inn: '7736050003', isPerson: false, directShare: 95.68, inRegistry: false, underSanctions: true, kinds: [2, 9], level: 1 },
+      // РФ контролирует 50,23% ПАО «Газпром» (Росимущество 38,37%, Роснефтегаз
+      // 10,97%, Росгазификация 0,89%): доля в каждом звене цепочки больше 50%,
+      // эффективная доля в «Газпром нефти» — 48,06% (50,23% × 95,68%).
+      { id: 'gp-o3', name: 'Российская Федерация (Росимущество, Роснефтегаз, Росгазификация)', isPerson: false, indirectShare: 48.06, inRegistry: false, kinds: [9], level: 2 },
+      // Руководитель — единоличный исполнительный орган
+      { id: 'gp-d1', name: 'Дюков Александр Валерьевич', isPerson: true, inRegistry: false, isDirector: true, kinds: [3], level: 1 },
       // Дочерние общества — добыча
-      { id: 'gp-s1', name: 'АО «Газпромнефть-Ноябрьскнефтегаз»', inn: '8905000428', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s2', name: 'ООО «Газпромнефть-Хантос»', inn: '8618006063', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s3', name: 'ООО «Газпромнефть-Ямал»', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s4', name: 'ООО «Газпромнефть-Восток»', inn: '7017126251', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s1', name: 'АО «Газпромнефть-Ноябрьскнефтегаз»', inn: '8905000428', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
+      { id: 'gp-s2', name: 'ООО «Газпромнефть-Хантос»', inn: '8618006063', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
+      { id: 'gp-s3', name: 'ООО «Газпромнефть-Ямал»', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
+      { id: 'gp-s4', name: 'ООО «Газпромнефть-Восток»', inn: '7017126251', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
       // Дочерние общества — переработка
-      { id: 'gp-s5', name: 'АО «Газпромнефть-ОНПЗ» (Омский НПЗ)', inn: '5501041254', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s6', name: 'АО «Газпромнефть-МНПЗ»', inn: '7723006328', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s5', name: 'АО «Газпромнефть-ОНПЗ» (Омский НПЗ)', inn: '5501041254', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
+      { id: 'gp-s6', name: 'АО «Газпромнефть-МНПЗ»', inn: '7723006328', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
       // Дочерние общества — сбыт/сервис (ДО, с которыми работают контрагенты реестра)
-      { id: 'gp-s7', name: 'АО «Газпромнефть-Аэро»', inn: '7714117720', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s8', name: 'ООО «Газпромнефть — смазочные материалы»', inn: '7728640182', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 'gp-s9', name: 'ООО «Газпромнефть-Региональные продажи»', inn: '4703105075', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'gp-s7', name: 'АО «Газпромнефть-Аэро»', inn: '7714117720', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
+      { id: 'gp-s8', name: 'ООО «Газпромнефть — смазочные материалы»', inn: '7728640182', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
+      { id: 'gp-s9', name: 'ООО «Газпромнефть-Региональные продажи»', inn: '4703105075', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
       // Зарубежный актив (под санкциями)
-      { id: 'gp-s10', name: 'НИС а.д. Нови-Сад (NIS, Сербия)', isPerson: false, directShare: 44.85, inRegistry: false, underSanctions: true, linkType: 'subsidiary', level: 1 },
-      // Совместно контролируемые (метод долевого участия)
-      { id: 'gp-a1', name: 'ПАО «НГК «Славнефть»', inn: '7707017509', isPerson: false, directShare: 49.94, inRegistry: false, linkType: 'affiliate', level: 1 },
-      { id: 'gp-a2', name: 'АО «Томскнефть» ВНК', isPerson: false, indirectShare: 50, inRegistry: false, linkType: 'affiliate', level: 2 },
+      { id: 'gp-s10', name: 'НИС а.д. Нови-Сад (NIS, Сербия)', isPerson: false, directShare: 44.85, inRegistry: false, underSanctions: true, kinds: [1], level: 1 },
+      // Совместно контролируемые (метод долевого участия) — зависимые общества
+      { id: 'gp-a1', name: 'ПАО «НГК «Славнефть»', inn: '7707017509', isPerson: false, directShare: 49.94, inRegistry: false, kinds: [1], level: 1 },
+      { id: 'gp-a2', name: 'АО «Томскнефть» ВНК', isPerson: false, indirectShare: 50, inRegistry: false, kinds: [1], level: 2 },
+      // Косвенно контролируемые: доля в каждом звене цепочки больше 50%
+      { id: 'gp-c1', name: 'ООО «Газпромнефть-Бункер»', isPerson: false, indirectShare: 100, inRegistry: false, kinds: [8], level: 2 },
+      { id: 'gp-c2', name: 'ООО «Газпромнефть-Терминал»', isPerson: false, indirectShare: 100, inRegistry: false, kinds: [8], level: 2 },
     ],
+    // конечный бенефициар — физическое лицо не установлен: компанию контролирует
+    // Российская Федерация (юридическое лицо в этот список не входит)
+    beneficiaries: [],
   },
   'cp-rnsnab': {
     rootUid: 'cp-rnsnab',
@@ -726,15 +737,30 @@ export const GRAPHS: Record<string, AffiliationGraph> = {
     rootInn: '7706222333',
     asOf: '2026-06-11',
     nodes: [
-      { id: 'o1', name: 'АО «Холдинговая компания Ресурс»', inn: '7701445566', isPerson: false, directShare: 75, inRegistry: false, linkType: 'owner', level: 1 },
-      { id: 'o2', name: 'Громов Андрей Викторович', isPerson: true, directShare: 15, inRegistry: false, linkType: 'owner', level: 1, isDirector: true },
-      { id: 'o3', name: 'ООО «Инвест-Капитал СЗ»', inn: '7842301551', isPerson: false, indirectShare: 10, inRegistry: true, uid: 'cp-balt', linkType: 'owner', level: 2 },
-      { id: 'b1', name: 'Громов Андрей Викторович', isPerson: true, inRegistry: false, linkType: 'beneficiary', level: 1, indirectShare: 51 },
-      { id: 'b2', name: 'Сидорова Мария Олеговна', isPerson: true, inRegistry: false, linkType: 'beneficiary', level: 2, indirectShare: 12 },
-      { id: 'a1', name: 'ООО «РН-Транс Юг»', inn: '6164099887', isPerson: false, inRegistry: true, uid: 'cp-yugtrans', linkType: 'affiliate', level: 1 },
-      { id: 'a2', name: 'ООО «Снаб-Сервис М»', inn: '7706998877', isPerson: false, inRegistry: false, linkType: 'affiliate', level: 1 },
-      { id: 's1', name: 'ООО «РН-Снабжение Логистика»', inn: '7706112244', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
-      { id: 's2', name: 'АО «Балтийская Топливная Компания»', inn: '7842301551', isPerson: false, directShare: 40, inRegistry: true, uid: 'cp-balt', underSanctions: false, linkType: 'subsidiary', level: 1 },
+      // Владельцы: 60% + 25% + 15% = 100%
+      { id: 'o1', name: 'АО «Холдинговая компания Ресурс»', inn: '7701445566', isPerson: false, directShare: 60, inRegistry: false, kinds: [2, 9], level: 1 },
+      { id: 'o3', name: 'ООО «Инвест-Капитал СЗ»', inn: '7842301551', isPerson: false, directShare: 25, inRegistry: true, uid: 'cp-balt', kinds: [2], level: 1 },
+      // Руководитель (он же миноритарный акционер с 15% и член совета директоров)
+      { id: 'o2', name: 'Громов Андрей Викторович', isPerson: true, directShare: 15, inRegistry: false, isDirector: true, kinds: [3, 7], level: 1 },
+      { id: 'o4', name: 'Белова Ирина Михайловна', isPerson: true, inRegistry: false, kinds: [7], level: 1 },
+      { id: 'o5', name: 'Ларионов Пётр Сергеевич', isPerson: true, inRegistry: false, kinds: [6], level: 1 },
+      // Компании, в которых руководитель также является действующим руководителем
+      { id: 'o6', name: 'ООО «Грант-Ойл»', isPerson: false, inRegistry: false, kinds: [4], level: 1 },
+      // Управляющая компания и её руководитель
+      { id: 'o7', name: 'ООО «УК «Ресурс-Менеджмент»', isPerson: false, inRegistry: false, kinds: [103], level: 1 },
+      { id: 'o8', name: 'Иванов Игорь Олегович', isPerson: true, inRegistry: false, kinds: [5], level: 2 },
+      // Дочерние общества и косвенно контролируемые
+      { id: 's1', name: 'ООО «РН-Снабжение Логистика»', inn: '7706112244', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
+      { id: 's2', name: 'АО «Балтийская Топливная Компания»', inn: '7842301551', isPerson: false, directShare: 40, inRegistry: true, uid: 'cp-balt', underSanctions: false, kinds: [1], level: 1 },
+      { id: 's3', name: 'ООО «РН-Снабжение Терминал»', isPerson: false, indirectShare: 100, inRegistry: false, kinds: [8], level: 2 },
+      // Юридические лица, где общий контролирующий акционер владеет более 50%
+      { id: 'a1', name: 'ООО «РН-Транс Юг»', inn: '6164099887', isPerson: false, inRegistry: true, uid: 'cp-yugtrans', kinds: [10], level: 1 },
+      { id: 'a2', name: 'ООО «Снаб-Сервис М»', inn: '7706998877', isPerson: false, inRegistry: false, kinds: [10], level: 1 },
+    ],
+    // Конечные бенефициары — физические лица (доля по цепочке владения)
+    beneficiaries: [
+      { id: 'bn1', name: 'Громов Андрей Викторович', isPerson: true, indirectShare: 51, inRegistry: false, isDirector: true, kinds: [], level: 1 },
+      { id: 'bn2', name: 'Сидорова Мария Олеговна', isPerson: true, indirectShare: 12, inRegistry: false, kinds: [], level: 2 },
     ],
   },
   'cp-balt': {
@@ -743,12 +769,15 @@ export const GRAPHS: Record<string, AffiliationGraph> = {
     rootInn: '7842301551',
     asOf: '2026-06-10',
     nodes: [
-      { id: 'bo1', name: 'ПАО «РН-Снабжение»', inn: '7706222333', isPerson: false, directShare: 40, inRegistry: true, uid: 'cp-rnsnab', linkType: 'owner', level: 1 },
-      { id: 'bo2', name: 'Кузнецов Артём Игоревич', isPerson: true, directShare: 35, inRegistry: false, linkType: 'owner', level: 1, isDirector: true },
-      { id: 'bo3', name: 'ООО «Невские Нефтепродукты»', inn: '7811556677', isPerson: false, indirectShare: 25, inRegistry: true, uid: 'cp-nevsky', underSanctions: true, linkType: 'owner', level: 2 },
-      { id: 'bb1', name: 'Кузнецов Артём Игоревич', isPerson: true, inRegistry: false, linkType: 'beneficiary', level: 1, indirectShare: 35 },
-      { id: 'ba1', name: 'ООО «БалтОйл Сервис»', inn: '7842556612', isPerson: false, inRegistry: false, linkType: 'affiliate', level: 1 },
-      { id: 'bs1', name: 'ООО «БТК-Ритейл»', inn: '7842667711', isPerson: false, directShare: 100, inRegistry: false, linkType: 'subsidiary', level: 1 },
+      { id: 'bo1', name: 'ПАО «РН-Снабжение»', inn: '7706222333', isPerson: false, directShare: 40, inRegistry: true, uid: 'cp-rnsnab', kinds: [2], level: 1 },
+      { id: 'bo2', name: 'Кузнецов Артём Игоревич', isPerson: true, directShare: 35, inRegistry: false, isDirector: true, kinds: [2, 3], level: 1 },
+      { id: 'bo3', name: 'ООО «Невские Нефтепродукты»', inn: '7811556677', isPerson: false, indirectShare: 25, inRegistry: true, uid: 'cp-nevsky', underSanctions: true, kinds: [2], level: 2 },
+      { id: 'bo4', name: 'ООО «Нева-Трейд»', isPerson: false, inRegistry: false, kinds: [4], level: 1 },
+      { id: 'ba1', name: 'ООО «БалтОйл Сервис»', inn: '7842556612', isPerson: false, inRegistry: false, kinds: [10], level: 1 },
+      { id: 'bs1', name: 'ООО «БТК-Ритейл»', inn: '7842667711', isPerson: false, directShare: 100, inRegistry: false, kinds: [1], level: 1 },
+    ],
+    beneficiaries: [
+      { id: 'bb1', name: 'Кузнецов Артём Игоревич', isPerson: true, directShare: 35, inRegistry: false, isDirector: true, kinds: [], level: 1 },
     ],
   },
 };

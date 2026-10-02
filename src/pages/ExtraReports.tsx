@@ -82,7 +82,8 @@ export function EgrulExtract() {
   const c = useCounterparty();
   if (!c) return <NotFound onBack={() => navigate('/registry')} />;
 
-  const owners = (GRAPHS[c.uid]?.nodes ?? []).filter((n) => n.linkType === 'owner');
+  // владельцы (участники) для выписки — тип аффилированности 2 «Владельцы (с долей более 20 %)»
+  const owners = (GRAPHS[c.uid]?.nodes ?? []).filter((n) => n.kinds.includes(2));
 
   return (
     <div className="xrep-root" data-accent="fns">

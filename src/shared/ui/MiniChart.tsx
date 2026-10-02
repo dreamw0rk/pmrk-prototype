@@ -344,3 +344,108 @@ export function DebtChart(props: { title: string; labels: string[]; series: Seri
     </div>
   );
 }
+
+/* ---------------------- Динамика группы кредитоспособности ---------------------- */
+
+const MONTH_SHORT = ['янв.', 'февр.', 'март', 'апр.', 'май', 'июнь', 'июль', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
+
+export interface GroupPoint { date: string; group: 1 | 2 | 3 | 4; score: number }
+
+/** Динамика оценки кредитоспособности: по вертикали — группа 1–4 (1 сверху,
+    это лучшая), по горизонтали — последние 12 месяцев до даты `end`. На графике
+    только месяцы, в которых проводилась оценка; при нескольких оценках в одном
+    месяце берётся последняя. Количество баллов — в подсказке точки. */
+export function GroupDynamicsChart({ points, end, height = 220 }: { points: GroupPoint[]; end: Date; height?: number }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(520);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setWidth(el.getBoundingClientRect().width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const N = 12;
+  const months = Array.from({ length: N }, (_, i) => new Date(end.getFullYear(), end.getMonth() - (N - 1 - i), 1));
+  const monthIdx = (iso: string) => {
+    const d = new Date(iso);
+    return (d.getFullYear() - months[0].getFullYear()) * 12 + d.getMonth() - months[0].getMonth();
+  };
+  const byMonth = new Map<number, GroupPoint>();
+  [...points].sort((a, b) => a.date.localeCompare(b.date)).forEach((p) => {
+    const i = monthIdx(p.date);
+    if (i >= 0 && i < N) byMonth.set(i, p);
+  });
+  const pts = [...byMonth].map(([i, p]) => ({ i, p }));
+
+  const padL = 44, padR = 12, padT = 10, padB = 26;
+  const innerW = Math.max(width - padL - padR, 1);
+  const innerH = height - padT - padB;
+  const px = (i: number) => padL + (innerW * (i + 0.5)) / N;
+  const py = (g: number) => padT + (innerH * (g - 0.5)) / 4;
+  // плавные «ступеньки»: горизонтальные касательные в каждой точке
+  const path = pts.map(({ i, p }, k) => {
+    const x = px(i), y = py(p.group);
+    if (k === 0) return `M ${x} ${y}`;
+    const x0 = px(pts[k - 1].i), y0 = py(pts[k - 1].p.group), mx = (x0 + x) / 2;
+    return `C ${mx} ${y0}, ${mx} ${y}, ${x} ${y}`;
+  }).join(' ');
+  const step = innerW / N < 40 ? 2 : 1;
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <svg width="100%" height={height} style={{ display: 'block' }} onMouseLeave={() => setHover(null)}>
+        {[0, 1, 2, 3, 4].map((t) => (
+          <line key={t} x1={padL} x2={width - padR} y1={padT + (innerH * t) / 4} y2={padT + (innerH * t) / 4} stroke="var(--color-bg-border)" strokeWidth={1} />
+        ))}
+        {[1, 2, 3, 4].map((g) => (
+          <g key={g}>
+            <rect x={4} y={py(g) - 11} width={24} height={22} rx={6} fill="var(--color-bg-brand)" />
+            <text x={16} y={py(g) + 4.5} fontSize={13} fontWeight={700} fill="#fff" textAnchor="middle">{g}</text>
+          </g>
+        ))}
+        {pts.length > 1 && <path d={path} fill="none" stroke="var(--color-bg-brand)" strokeWidth={2.5} strokeLinecap="round" />}
+        {pts.map(({ i, p }) => (
+          <circle
+            key={i}
+            cx={px(i)}
+            cy={py(p.group)}
+            r={hover === i ? 6 : 4.5}
+            fill="var(--color-bg-brand)"
+            stroke="var(--color-bg-default)"
+            strokeWidth={1.5}
+            onMouseEnter={() => setHover(i)}
+            style={{ cursor: 'default' }}
+          />
+        ))}
+        {months.map((m, i) =>
+          (N - 1 - i) % step === 0 ? (
+            <text key={i} x={px(i)} y={height - 8} fontSize={10.5} fill="var(--color-typo-secondary)" textAnchor="middle">
+              {MONTH_SHORT[m.getMonth()]} {String(m.getFullYear()).slice(2)}
+            </text>
+          ) : null,
+        )}
+      </svg>
+
+      {hover != null && byMonth.get(hover) && (
+        <div
+          style={{
+            position: 'absolute', left: Math.min(Math.max(px(hover), 70), Math.max(width - 70, 70)), top: py(byMonth.get(hover)!.group) - 8,
+            transform: 'translate(-50%, -100%)', background: 'var(--color-bg-default)', border: '1px solid var(--color-bg-border)',
+            borderRadius: 8, boxShadow: 'var(--pmrk-shadow-2)', padding: '6px 10px', pointerEvents: 'none', fontSize: 12, whiteSpace: 'nowrap', zIndex: 5,
+          }}
+        >
+          <div className="pmrk-muted" style={{ marginBottom: 2 }}>{byMonth.get(hover)!.date.split('-').reverse().join('.')}</div>
+          Группа {byMonth.get(hover)!.group} · {byMonth.get(hover)!.score} баллов
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-bg-brand)' }} />
+        Группа кредитоспособности (кол-во баллов)
+      </div>
+    </div>
+  );
+}

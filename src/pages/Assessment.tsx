@@ -12,7 +12,8 @@ import { ROLES, can } from '@/shared/roles';
 import { PageHeader, SectionCard, GroupBadge, Stat, EmptyState, AuditFooter, DateActuality, CalcStamp, Segmented, FileDrop } from '@/shared/ui/kit';
 import { StatementsEditor } from '@/shared/ui/StatementsEditor';
 import { HEROES, BY_UID, REGISTRY } from '@/shared/mock/data';
-import { buildAssessment, DIRECTIONS, METHODOLOGY_TITLE, STOP_FACTORS, CATEGORIES_OIL, CATEGORIES_MTR, CATEGORIES_ADV, type Direction, type DirectionResult, type ScoreBlock } from '@/shared/mock/assessment';
+import { exportAssessmentToExcel } from '@/shared/mock/assessmentExport';
+import { buildAssessment, METHODOLOGY_TITLE, STOP_FACTORS, CATEGORIES_OIL, CATEGORIES_MTR, CATEGORIES_ADV, type Direction, type DirectionResult, type ScoreBlock } from '@/shared/mock/assessment';
 import { SCORE_EXPLAIN } from '@/shared/mock/ai';
 import type { Counterparty } from '@/shared/mock/types';
 import { dateRu, moneyCompact, money, inn as fmtInn } from '@/shared/format';
@@ -197,7 +198,8 @@ function ScoreBlockTable({ block }: { block: ScoreBlock }) {
 export function AssessmentResultView({ cp, onRecalc }: { cp: Counterparty; onRecalc?: () => void }) {
   const { aiOn } = useApp();
   const all = useMemo(() => buildAssessment(cp), [cp.uid]);
-  const [dir, setDir] = useState<Direction>('OIL');
+  // оценка одна — по методике покупателей нефти, газа и нефтепродуктов
+  const dir: Direction = 'OIL';
   const r: DirectionResult = all[dir];
   const explain = SCORE_EXPLAIN[cp.uid];
   const [showExplain, setShowExplain] = useState(false);
@@ -211,11 +213,6 @@ export function AssessmentResultView({ cp, onRecalc }: { cp: Counterparty; onRec
       title="Оценка кредитоспособности"
       extra={<DateActuality date={r.date} source="ядро scoring" />}
     >
-      {/* переключатель 3 методик (ФТ-3.5) */}
-      <div style={{ marginBottom: 14 }}>
-        <Segmented value={dir} onChange={(k) => setDir(k as Direction)} items={DIRECTIONS.map((d) => ({ key: d.key, label: d.short }))} />
-      </div>
-
       {/* итоговое заключение */}
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 24, alignItems: 'center', padding: '12px 0' }}>
         <div style={{ textAlign: 'center' }}>
@@ -322,7 +319,7 @@ export function AssessmentResultView({ cp, onRecalc }: { cp: Counterparty; onRec
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', borderTop: '1px solid var(--color-bg-border)', paddingTop: 12 }}>
         <span className="pmrk-muted" style={{ fontSize: 12.5, flex: 1 }}>Корректировка отчётности, перевыбор к/а или стандарта → пересчёт.</span>
         {onRecalc && <Button size="s" view="ghost" label="Пересчитать" onClick={onRecalc} />}
-        <Button size="xs" view="secondary" label={`Выгрузить (${r.short})`} iconLeft={IconDownload as never} title={`xlsx по шаблону ${r.template}`} />
+        <Button size="xs" view="secondary" label="Выгрузить XLSX" iconLeft={IconDownload as never} title="Шаблон Ш-13.08.01-01 «Оценка кредитоспособности контрагента»" onClick={() => { exportAssessmentToExcel(cp).catch((e) => window.alert(`Не удалось сформировать файл: ${e instanceof Error ? e.message : e}`)); }} />
       </div>
     </SectionCard>
   );

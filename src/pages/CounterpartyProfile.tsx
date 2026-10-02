@@ -12,12 +12,13 @@ import { useSetPageMeta } from '@/app/PageMeta';
 import { can } from '@/shared/roles';
 import {
   GroupBadge, RbIndicator, SanctionBadge, RnpUnscrupulous, StatusBadge, DateActuality, SectionCard, KeyValue, Stat,
-  EmptyState, AuditFooter, severityColor, SEVERITY_LABEL, CalcStamp, Segmented,
+  EmptyState, AuditFooter, severityColor, SEVERITY_LABEL, CalcStamp, Segmented, SimpleOverlay,
 } from '@/shared/ui/kit';
 import { AiSummaryCard } from '@/shared/ui/AiSummaryCard';
 import iconPdf from '@/assets/icons/icon-pdf.png';
-import { LineChart, DebtChart } from '@/shared/ui/MiniChart';
-import { AffiliationDiagram, describeAffiliation, DIRECTOR_COLOR, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
+import { DebtChart, GroupDynamicsChart } from '@/shared/ui/MiniChart';
+import { AffiliationDiagram, describeShare, highRiskInfo, DIRECTOR_COLOR, HIGH_RISK_COLOR, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
+import { AFFILIATION_KINDS } from '@/shared/mock/affiliationKinds';
 import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
 import { useMockQuery } from '@/shared/mock/useMockQuery';
@@ -28,13 +29,19 @@ import { buildDoLinks, type DoLink } from '@/shared/mock/subsidiaries';
 import { buildAdditionalOkveds, activityKind } from '@/shared/mock/okved';
 import { buildNameChanges } from '@/shared/mock/nameHistory';
 import { buildStatements } from '@/shared/mock/statements';
+import { exportAssessmentToExcel } from '@/shared/mock/assessmentExport';
+import { buildIfrsStatements, defaultIfrsLines, getIfrsEntries, saveIfrsEntry, deleteIfrsEntry, type IfrsEntry } from '@/shared/mock/ifrs';
+import { IfrsEntryModal } from '@/shared/ui/IfrsEntryModal';
+import { IconAdd } from '@consta/icons/IconAdd';
 import { buildDzKzTable, buildDzKzContractDetail, exportDzKzToExcel, MONTH_NAMES, shortDoLabel, type DzKzContractDetail } from '@/shared/mock/dzKzMatrix';
 import { buildInteractionInfo } from '@/shared/mock/interaction';
-import { buildAssessment, DIRECTIONS, type Direction as AssessDirection, type ScoreBlock } from '@/shared/mock/assessment';
-import type { Counterparty, AffiliationLinkType, AffiliationNode, NewsSource } from '@/shared/mock/types';
+import { buildAssessment, assessmentExtras, creditIndicators, claimsSummary, type Direction as AssessDirection, type ScoreBlock } from '@/shared/mock/assessment';
+import type { Counterparty, AffiliationNode, NewsSource } from '@/shared/mock/types';
 import { dateRu, money, moneyCompact, moneyCompactText, pct, inn as fmtInn } from '@/shared/format';
 
-interface TabDef { key: string; label: string; cap?: Parameters<typeof can>[1]; }
+/* hidden — вкладка убрана из навигации карточки, но остаётся в коде вместе с
+   содержимым (TabContent) — чтобы вернуть её, достаточно снять флаг. */
+interface TabDef { key: string; label: string; cap?: Parameters<typeof can>[1]; hidden?: boolean; }
 const TABS: TabDef[] = [
   { key: 'general', label: 'Общие сведения' },
   { key: 'external', label: 'Внешняя информация' },
@@ -44,11 +51,11 @@ const TABS: TabDef[] = [
   { key: 'assessment', label: 'Оценка' },
   { key: 'news', label: 'Новости' },
   { key: 'security', label: 'Информация СБ', cap: 'viewSecurityTab' },
-  { key: 'special-control', label: 'Под особым контролем' },
+  { key: 'special-control', label: 'Под особым контролем', hidden: true },
   { key: 'legal', label: 'Претензионно-исковая работа' },
   { key: 'credit-limit', label: 'Кредитный лимит', cap: 'viewLimitSection' },
   { key: 'discussion', label: 'Обсуждение' },
-  { key: 'advance-limit', label: 'Лимит авансирования' },
+  { key: 'advance-limit', label: 'Лимит авансирования', hidden: true },
   { key: 'protocols', label: 'Протоколы', cap: 'viewProtocols' },
 ];
 
@@ -107,7 +114,7 @@ export function CounterpartyProfile() {
     breadcrumbs: [{ label: 'Реестр контрагентов', to: '/registry' }, ...(c ? [{ label: c.shortName }] : [])],
   });
 
-  const visibleTabs = TABS.filter((t) => !t.cap || can(role, t.cap));
+  const visibleTabs = TABS.filter((t) => !t.hidden && (!t.cap || can(role, t.cap)));
 
   if (!c) {
     return (
@@ -1172,11 +1179,11 @@ function AffiliationTabView({ c }: { c: Counterparty }) {
   const graph = GRAPHS[c.uid];
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<'diagram' | 'table'>('diagram');
-  const [filters, setFilters] = useState<DiagramFilters>({ types: new Set<AffiliationLinkType>(['owner', 'subsidiary', 'affiliate']), minDirect: 0, maxLevel: 3 });
+  const [filters, setFilters] = useState<DiagramFilters>({ selected: new Set<number>(), minDirect: 0, maxLevel: 3 });
   const groupRisk = AI_GROUP_RISK[c.uid];
 
   if (!graph) {
-    return <SimpleTab title="Аффилированность" text="Диаграмма и таблица связей строятся по данным структуры собственников, бенефициаров и аффилированных лиц. Для этого контрагента связи не загружены — попробуйте РН-Снабжение или Балтийскую ТК." asOf={c.asOf.affiliation} />;
+    return <SimpleTab title="Аффилированность" text="Диаграмма и таблица связей строятся по данным о владельцах, руководстве и аффилированных лицах по типам аффилированности. Для этого контрагента связи не загружены — попробуйте Газпром нефть, РН-Снабжение или Балтийскую ТК." asOf={c.asOf.affiliation} />;
   }
 
   // Клик по связанному лицу: есть карточка в реестре — открываем её, нет — ведём
@@ -1186,13 +1193,18 @@ function AffiliationTabView({ c }: { c: Counterparty }) {
       ? navigate(`/counterparties/${n.uid}/general`)
       : navigate(`/counterparties/request?q=${encodeURIComponent(n.inn ?? n.name)}`);
 
-  const toggleType = (t: AffiliationLinkType) => {
+  // Типы аффилированности, по которым у компании есть связи — в порядке
+  // справочника; по ним строятся фильтры-чипы. Сначала показаны все типы (чип
+  // «Все»); выбор чипов оставляет только выбранные, повторный клик снимает.
+  const kindsPresent = AFFILIATION_KINDS.filter((k) => graph.nodes.some((n) => n.kinds.includes(k.id)));
+  const toggleType = (id: number) => {
     setFilters((f) => {
-      const types = new Set(f.types);
-      types.has(t) ? types.delete(t) : types.add(t);
-      return { ...f, types };
+      const selected = new Set(f.selected);
+      selected.has(id) ? selected.delete(id) : selected.add(id);
+      return { ...f, selected };
     });
   };
+  const resetTypes = () => setFilters((f) => ({ ...f, selected: new Set<number>() }));
 
   return (
     <>
@@ -1213,11 +1225,24 @@ function AffiliationTabView({ c }: { c: Counterparty }) {
           <Segmented value={mode} onChange={setMode} items={[{ key: 'diagram', label: 'Диаграмма' }, { key: 'table', label: 'Таблица' }]} />
         </div>
 
-        {/* фильтры */}
+        {/* фильтры — по типам аффилированности (справочник). «Все» — по
+            умолчанию; выбранный тип показывает только его группу. Короткая
+            подпись, полное название типа — в подсказке и в заголовке группы */}
         <div className="pmrk-filterbar">
-          {(['owner', 'subsidiary', 'affiliate'] as AffiliationLinkType[]).map((t) => (
-            <div key={t} className={`pmrk-filterchip ${filters.types.has(t) ? 'pmrk-filterchip--active' : ''}`} onClick={() => toggleType(t)}>
-              {t === 'owner' ? 'Собственники' : t === 'subsidiary' ? 'Дочерние' : 'Аффилированные'}
+          <div
+            className={`pmrk-filterchip ${filters.selected.size === 0 ? 'pmrk-filterchip--active' : ''}`}
+            onClick={resetTypes}
+          >
+            Все
+          </div>
+          {kindsPresent.map((k) => (
+            <div
+              key={k.id}
+              title={k.pmrk}
+              className={`pmrk-filterchip ${filters.selected.has(k.id) ? 'pmrk-filterchip--active' : ''}`}
+              onClick={() => toggleType(k.id)}
+            >
+              {k.short}
             </div>
           ))}
         </div>
@@ -1231,25 +1256,29 @@ function AffiliationTabView({ c }: { c: Counterparty }) {
             onOpenNode={openNode}
           />
         ) : (
-          <AffiliationTable graph={graph} search={search} onOpen={openNode} />
+          <AffiliationTable graph={graph} search={search} selected={filters.selected} onOpen={openNode} />
         )}
       </SectionCard>
     </>
   );
 }
 
-function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[string]; search: string; onOpen: (n: AffiliationNode) => void }) {
+function AffiliationTable({ graph, search, selected, onOpen }: { graph: typeof GRAPHS[string]; search: string; selected: Set<number>; onOpen: (n: AffiliationNode) => void }) {
   const q = search.trim().toLowerCase();
-  const owners = graph.nodes.filter((n) => n.linkType === 'owner');
-  const aff = graph.nodes.filter((n) => n.linkType === 'affiliate' || n.linkType === 'subsidiary');
   const hit = (n: AffiliationNode) => !!q && (n.name.toLowerCase().includes(q) || (n.inn ?? '').includes(q));
 
   const NameCell = ({ n }: { n: AffiliationNode }) => (
-    <div className="pmrk-td" style={{ flex: 1.6, whiteSpace: 'normal' }}>
+    <div className="pmrk-td" style={{ flex: 1.8, whiteSpace: 'normal' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         {n.isDirector && <span title="Руководитель (ЕИО)" style={{ width: 8, height: 8, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none' }} />}
         <span style={{ fontWeight: 600 }}>{n.name}</span>
       </span>{' '}{n.underSanctions && <SanctionBadge />}
+      {highRiskInfo(n) && (
+        <span className="pmrk-chip" title="Высокий риск по результату экспресс-оценки (группа 4)" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-typo-primary)', marginLeft: 6 }}>
+          <span className="pmrk-dot" style={{ background: HIGH_RISK_COLOR }} />
+          Высокий риск
+        </span>
+      )}
     </div>
   );
 
@@ -1257,41 +1286,80 @@ function AffiliationTable({ graph, search, onOpen }: { graph: typeof GRAPHS[stri
     <div className={`pmrk-tr ${hit(n) ? 'pmrk-search-hit' : ''}`} style={{ cursor: 'pointer', alignItems: 'flex-start' }} onClick={() => onOpen(n)}>
       <NameCell n={n} />
       <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{n.inn ?? '—'}</div>
-      <div className="pmrk-td pmrk-muted" style={{ flex: 2, whiteSpace: 'normal' }}>{describeAffiliation(n)}</div>
+      <div className="pmrk-td" style={{ flex: 0.8 }}>{n.isPerson ? 'Физ. лицо' : 'Юр. лицо'}</div>
+      <div className="pmrk-td pmrk-muted" style={{ flex: 1.6, whiteSpace: 'normal' }}>{describeShare(n) ?? '—'}</div>
     </div>
   );
 
-  // Каждая таблица — несворачиваемый подблок в стиле «Изменений в наименовании…»:
-  // мягкая плашка заголовка, таблица во всю карточку с липкой шапкой, счётчик
-  // строк чипом; collapsible={false} — заголовок не сворачивает содержимое.
+  // Таблица: сначала «Структура собственников» — владельцы (тип 2) и конечные
+  // бенефициары, ФИЗИЧЕСКИЕ лица; затем по таблице на каждый из остальных типов
+  // аффилированности — те же группы, что и на диаграмме (одно лицо с несколькими
+  // типами есть в каждой). Несворачиваемые подблоки в стиле «Изменений в
+  // наименовании…»: мягкая плашка заголовка, таблица во всю карточку, счётчик
+  // строк чипом. Владельцев отдельной группой типа 2 не дублируем.
   const chip = (n: number) => <span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{n}</span>;
+  const OWNER_KIND = 2;
+  const showStructure = selected.size === 0 || selected.has(OWNER_KIND);
+  const owners = graph.nodes.filter((n) => n.kinds.includes(OWNER_KIND));
+  const beneficiaries = graph.beneficiaries ?? [];
+  const structureRows = [
+    ...owners.map((n) => ({ n, role: 'Владелец' })),
+    ...beneficiaries.map((n) => ({ n, role: 'Конечный бенефициар' })),
+  ];
+  const groups = AFFILIATION_KINDS
+    .filter((k) => k.id !== OWNER_KIND && (selected.size === 0 || selected.has(k.id)))
+    .map((k) => ({ kind: k, nodes: graph.nodes.filter((n) => n.kinds.includes(k.id)) }))
+    .filter((g) => g.nodes.length > 0);
+
+  const hasStructure = showStructure && (structureRows.length > 0 || graph.beneficiaries !== undefined);
+  if (!groups.length && !hasStructure) return <EmptyState text="Связей выбранных типов не найдено." />;
+
   return (
     <div>
-      <div style={{ marginTop: 16 }}>
-      <ExtAccordion title="Структура собственников" collapsible={false} flush softHead extra={chip(owners.length)}>
-        <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
-          <div className="pmrk-table__head" style={{ position: 'static' }}>
-            <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
-            <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-            <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
-          </div>
-          {owners.length ? owners.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
+      {hasStructure && (
+        <div style={{ marginTop: 16 }}>
+          <ExtAccordion title="Структура собственников" collapsible={false} flush softHead extra={chip(structureRows.length)}>
+            <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+              <div className="pmrk-table__head" style={{ position: 'static' }}>
+                <div className="pmrk-th" style={{ flex: 1.8 }}>Наименование</div>
+                <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+                <div className="pmrk-th" style={{ flex: 0.8 }}>Тип лица</div>
+                <div className="pmrk-th" style={{ flex: 1.4 }}>Доля владения</div>
+                <div className="pmrk-th" style={{ flex: 1.1 }}>Статус</div>
+              </div>
+              {structureRows.map(({ n, role }) => (
+                <div key={`${role}:${n.id}`} className={`pmrk-tr ${hit(n) ? 'pmrk-search-hit' : ''}`} style={{ cursor: 'pointer', alignItems: 'flex-start' }} onClick={() => onOpen(n)}>
+                  <NameCell n={n} />
+                  <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{n.inn ?? '—'}</div>
+                  <div className="pmrk-td" style={{ flex: 0.8 }}>{n.isPerson ? 'Физ. лицо' : 'Юр. лицо'}</div>
+                  <div className="pmrk-td pmrk-muted" style={{ flex: 1.4, whiteSpace: 'normal' }}>{describeShare(n) ?? '—'}</div>
+                  <div className="pmrk-td" style={{ flex: 1.1, whiteSpace: 'normal', fontWeight: role === 'Конечный бенефициар' ? 600 : 400 }}>{role}</div>
+                </div>
+              ))}
+              {graph.beneficiaries !== undefined && beneficiaries.length === 0 && (
+                <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>
+                  Конечный бенефициар — физическое лицо не установлен.
+                </div>
+              )}
+            </div>
+          </ExtAccordion>
         </div>
-      </ExtAccordion>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-      <ExtAccordion title="Аффилированные и дочерние лица" collapsible={false} flush softHead extra={chip(aff.length)}>
-        <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
-          <div className="pmrk-table__head" style={{ position: 'static' }}>
-            <div className="pmrk-th" style={{ flex: 1.6 }}>Наименование</div>
-            <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
-            <div className="pmrk-th" style={{ flex: 2 }}>Описание связи</div>
-          </div>
-          {aff.length ? aff.map((n) => <Row key={n.id} n={n} />) : <div className="pmrk-muted" style={{ fontSize: 13, padding: '10px 12px' }}>Нет данных</div>}
+      )}
+      {groups.map(({ kind, nodes }) => (
+        <div key={kind.id} style={{ marginTop: 16 }}>
+          <ExtAccordion title={kind.pmrk} collapsible={false} flush softHead extra={chip(nodes.length)}>
+            <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
+              <div className="pmrk-table__head" style={{ position: 'static' }}>
+                <div className="pmrk-th" style={{ flex: 1.8 }}>Наименование</div>
+                <div className="pmrk-th" style={{ flex: 0.9 }}>ИНН</div>
+                <div className="pmrk-th" style={{ flex: 0.8 }}>Тип лица</div>
+                <div className="pmrk-th" style={{ flex: 1.6 }}>Доля владения</div>
+              </div>
+              {nodes.map((n) => <Row key={n.id} n={n} />)}
+            </div>
+          </ExtAccordion>
         </div>
-      </ExtAccordion>
-      </div>
+      ))}
     </div>
   );
 }
@@ -1503,30 +1571,6 @@ function DzKzDetailCard({
     комментариев в моке не заведены (в «Детализации» это всегда нулевые
     строки) — выводятся прочерком, а «Прочие обеспечения» — пустым разделом,
     как и в исходнике для контрагентов без обеспечения. */
-/** Простой полноэкранный оверлей вместо <Modal> из Consta: у того компонента
-    (CSS-анимация входа MixPopoverAnimate) с крупным содержимым тёмная
-    подложка и карточка иногда занимали только часть вьюпорта вместо всего
-    экрана, а страница просвечивала рядом. Здесь то же самое — фиксированный
-    затемнённый фон, клик по фону и Esc закрывают, — но без анимации и без
-    компонента Consta, который эту анимацию даёт. */
-function SimpleOverlay({ onClose, maxWidth, children }: { onClose: () => void; maxWidth: string; children: React.ReactNode }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0, 32, 51, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
-    >
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-default)', borderRadius: 'var(--pmrk-radius-lg)', maxWidth, maxHeight: '86vh', overflowY: 'auto' }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; onClose: () => void }) {
   const m = (n: number) => money(n, { unit: '' });
   const rub = (n: number) => (n ? m(n) : '—');
@@ -1632,42 +1676,116 @@ function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; on
   );
 }
 
+/** Ширина колонки показателя в таблицах отчётности (px). */
+const STMT_LABEL_W = 400;
+
 function StatementsTab({ c }: { c: Counterparty }) {
   // Столбцы — отчётные периоды от свежего к старому. По «героям» это реальная
   // годовая отчётность (три закрытых года), по остальным карточкам — прежняя
   // синтетика, где текущий, ещё не закрытый год подписан датой актуализации
   // отчётности контрагента: иначе непонятно, на какую дату приведены цифры.
-  const st = useMemo(() => buildStatements(c), [c.uid]);
+  const [standard, setStandard] = useState<'РСБУ' | 'МСФО'>('РСБУ');
+  const [, bump] = useState(0);
+  // null — окно закрыто, 'new' — новая запись, иначе редактируем внесённый период
+  const [editing, setEditing] = useState<IfrsEntry | 'new' | null>(null);
+  const rsbu = useMemo(() => buildStatements(c), [c.uid]);
+  const ifrsEntries = getIfrsEntries(c);
+  const ifrs = buildIfrsStatements(ifrsEntries);
+  const st = standard === 'РСБУ' ? rsbu : ifrs;
+  // в МСФО нет кодов строк — колонку не рисуем
+  const hasCodes = standard === 'РСБУ';
+  const codeW = hasCodes ? 100 : 0;
+  const emptyIfrs = standard === 'МСФО' && ifrs.periods.length === 0;
+  const actualDate = standard === 'РСБУ' ? c.asOf.statements : ifrs.periods[0];
 
   return (
-    <SectionCard title="Отчётность (Ф1–Ф4 за 3 периода)" extra={<DateActuality date={c.asOf.statements} source="СПАРК / ручной ввод" />}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <Button size="xs" view="secondary" label="РСБУ отчётность (PDF)" iconLeft={IconDownload as never} />
-        <span className="pmrk-muted" style={{ fontSize: 12, alignSelf: 'center' }}>Стандарт: РСБУ · тыс. руб.</span>
+    <SectionCard title="Финансовая отчётность контрагента" extra={<DateActuality date={actualDate} source={[...new Set(st.sources)].join(' / ')} />}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Segmented value={standard} onChange={setStandard} items={[{ key: 'РСБУ', label: 'РСБУ' }, { key: 'МСФО', label: 'МСФО' }]} />
+        <span className="pmrk-muted" style={{ fontSize: 12 }}>Стандарт: {standard} · тыс. руб.</span>
+        <div style={{ flex: 1 }} />
+        {standard === 'МСФО' && <Button size="xs" view="primary" label="Внести отчётность по МСФО" iconLeft={IconAdd as never} onClick={() => setEditing('new')} />}
+        {!emptyIfrs && <Button size="xs" view="secondary" label={`${standard} отчётность (PDF)`} iconLeft={IconDownload as never} />}
       </div>
-      {st.blocks.map((block, bi) => (
-        <div key={block.title} className="pmrk-table" style={{ overflow: 'hidden', marginTop: bi ? 16 : 0 }}>
-          {/* Колонка показателя — резиновая (flex:1), суммовые — узкие и фиксированной
-              ширины (не растут на всю оставшуюся ширину карточки), поэтому стоят
-              вплотную друг к другу справа — так проще сверять числа взглядом. */}
-          <div className="pmrk-table__head">
-            <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>{block.title}</div>
-            <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>Код строки</div>
-            {st.periods.map((d) => <div key={d} className="pmrk-th" style={{ flex: '0 0 120px', minWidth: 0, justifyContent: 'flex-end' }}>{dateRu(d)}</div>)}
+
+      {standard === 'МСФО' && ifrsEntries.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="pmrk-muted" style={{ fontSize: 12, marginBottom: 6 }}>Внесённая отчётность по МСФО</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {ifrsEntries.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                className="pmrk-filterchip"
+                title="Открыть для редактирования"
+                onClick={() => setEditing(e)}
+                style={{ cursor: 'pointer' }}
+              >
+                {dateRu(e.date)} · {e.consolidated ? 'консолидированная' : 'отдельная'} · {e.status === 'Сформирована' ? 'сформирована' : 'черновик'}
+              </button>
+            ))}
           </div>
-          {block.rows.map((row) => (
-            <div key={row.label} className="pmrk-tr" style={{ cursor: 'default', fontWeight: row.strong ? 700 : 400 }}>
-              <div className="pmrk-td" style={{ flex: 1, minWidth: 0, paddingLeft: row.indent ? 20 : undefined }}>{row.label}</div>
-              <div className="pmrk-td pmrk-tnum pmrk-muted" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', display: 'flex', fontWeight: 400, fontSize: 12 }}>{row.code ?? ''}</div>
-              {row.values.map((v, i) => <div key={i} className="pmrk-td pmrk-tnum" style={{ flex: '0 0 120px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{money(v, { unit: '' })}</div>)}
-            </div>
-          ))}
         </div>
-      ))}
-      {st.balanceCheck && (
-        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--pmrk-risk-1)' }}>✓ Проверка пройдена: активы = пассивам на каждую отчётную дату (ФТ-3.4).</div>
       )}
-      {st.note && <div className="pmrk-muted" style={{ marginTop: 8, fontSize: 12 }}>{st.note}</div>}
+
+      {emptyIfrs ? (
+        <div style={{ padding: '28px 16px', textAlign: 'center', border: '1px dashed var(--color-bg-border)', borderRadius: 'var(--pmrk-radius)' }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Отчётность по МСФО не сформирована</div>
+          <div className="pmrk-muted" style={{ fontSize: 12.5, maxWidth: 520, margin: '0 auto 12px' }}>
+            СПАРК отчётность по МСФО не передаёт. Внесите показатели вручную (источник — «Данные компании»): итоги, баланс и таблицы отчётов система сформирует сама.
+          </div>
+          <Button size="s" label="Внести отчётность по МСФО" iconLeft={IconAdd as never} onClick={() => setEditing('new')} />
+        </div>
+      ) : (
+        st.blocks.map((block, bi) => (
+          <div key={block.title} className="pmrk-table" style={{ overflow: 'hidden', marginTop: bi ? 16 : 0, maxWidth: STMT_LABEL_W + codeW + 120 * st.periods.length }}>
+            {/* Ширина таблицы ограничена: колонка показателя — не шире STMT_LABEL_W, суммовые
+                фиксированной ширины следуют сразу за ней, а не уезжают к правому краю
+                карточки — так числа ближе к подписям и их проще сверять взглядом. */}
+            <div className="pmrk-table__head">
+              <div className="pmrk-th" style={{ flex: `1 1 ${STMT_LABEL_W}px`, minWidth: 0 }}>{block.title}</div>
+              {hasCodes && <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>Код строки</div>}
+              {st.periods.map((d, i) => (
+                // под датой периода — источник отчётности: «ФНС» (из СПАРК) или
+                // «Данные компании» (внесено вручную)
+                <div key={d} className="pmrk-th" style={{ flex: '0 0 120px', minWidth: 0, flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 1 }}>
+                  <span>{dateRu(d)}</span>
+                  <span
+                    title={st.sources[i] === 'ФНС' ? 'Годовая отчётность из СПАРК (ГИР БО ФНС России)' : 'Отчётность внесена вручную'}
+                    style={{ fontSize: 10.5, fontWeight: 400, opacity: 0.85, whiteSpace: 'nowrap' }}
+                  >
+                    {st.sources[i]}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {block.rows.map((row, ri) => (
+              <div key={ri} className="pmrk-tr" style={{ cursor: 'default', fontWeight: row.strong ? 700 : 400 }}>
+                <div className="pmrk-td" style={{ flex: `1 1 ${STMT_LABEL_W}px`, minWidth: 0, paddingLeft: row.indent ? 20 : undefined }}>{row.label}</div>
+                {hasCodes && <div className="pmrk-td pmrk-tnum pmrk-muted" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', display: 'flex', fontWeight: 400, fontSize: 12 }}>{row.code ?? ''}</div>}
+                {row.values.map((v, i) => <div key={i} className="pmrk-td pmrk-tnum" style={{ flex: '0 0 120px', minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{money(v, { unit: '' })}</div>)}
+              </div>
+            ))}
+          </div>
+        ))
+      )}
+      {!emptyIfrs && st.balanceCheck && (
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--pmrk-risk-1)' }}>
+          {standard === 'РСБУ' ? '✓ Проверка пройдена: активы = пассивам на каждую отчётную дату (ФТ-3.4).' : '✓ Проверка пройдена: активы = капитал + обязательства на каждую отчётную дату.'}
+        </div>
+      )}
+      {!emptyIfrs && st.note && <div className="pmrk-muted" style={{ marginTop: 8, fontSize: 12 }}>{st.note}</div>}
+
+      {editing && (
+        <IfrsEntryModal
+          entry={editing === 'new' ? null : editing}
+          baseLines={ifrsEntries[0]?.lines ?? defaultIfrsLines()}
+          takenDates={ifrsEntries.filter((e) => editing === 'new' || e.id !== editing.id).map((e) => e.date)}
+          onClose={() => setEditing(null)}
+          onSave={(e) => { saveIfrsEntry(c, e); setEditing(null); bump((n) => n + 1); }}
+          onDelete={(id) => { deleteIfrsEntry(c, id); setEditing(null); bump((n) => n + 1); }}
+        />
+      )}
     </SectionCard>
   );
 }
@@ -1683,21 +1801,48 @@ const BLOCK_MAX: Record<string, number> = { fin: 45, rep: 30, ext: 25 };
 function AssessmentScoreChip({ block }: { block: ScoreBlock }) {
   const max = BLOCK_MAX[block.key] ?? block.rows.reduce((s, r) => s + r.max, 0);
   const ratio = max ? block.subtotal / max : 0;
-  const tone = ratio >= 0.6 ? 'var(--pmrk-risk-1)' : ratio >= 0.3 ? 'var(--pmrk-risk-2)' : 'var(--pmrk-risk-4)';
-  const bg = ratio >= 0.6 ? 'var(--pmrk-risk-1-bg)' : ratio >= 0.3 ? 'var(--pmrk-risk-2-bg)' : 'var(--pmrk-risk-4-bg)';
+  // светофор без полутонов: заливка зелёная / жёлтая / красная, текст нейтральный
+  const bg = ratio >= 0.6 ? 'rgba(10, 158, 84, 0.20)' : ratio >= 0.3 ? 'rgba(242, 194, 0, 0.30)' : 'rgba(224, 54, 59, 0.20)';
   return (
     <div style={{ flex: 1, minWidth: 130, padding: '10px 12px', borderRadius: 10, background: bg }}>
-      <div style={{ fontSize: 18, fontWeight: 800, color: tone }}>{block.subtotal} <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.75 }}>из {max}</span></div>
-      <div className="pmrk-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{block.title.replace(/^\d+\.\s*/, '')}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-typo-primary)' }}>{block.subtotal} <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.75 }}>из {max}</span></div>
+      <div style={{ fontSize: 11.5, marginTop: 2, color: 'var(--color-typo-primary)', opacity: 0.8 }}>{block.title.replace(/^\d+\.\s*/, '')}</div>
     </div>
   );
 }
+
+/** Плитка «значение + подпись» для дополнительных показателей оценки. */
+function InfoTile({ value, caption }: { value: string; caption: string }) {
+  return (
+    <div style={{ flex: 1, minWidth: 130, padding: '10px 12px', borderRadius: 10, background: 'var(--color-bg-secondary)' }}>
+      <div style={{ fontSize: 16, fontWeight: 700 }}>{value}</div>
+      <div className="pmrk-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{caption}</div>
+    </div>
+  );
+}
+
+const plural = (n: number, one: string, few: string, many: string) =>
+  n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
+
+/** Колонки компактной таблицы «Все экспресс-оценки» (под графиком, в левой колонке). */
+const ALIGN_JUSTIFY = { left: undefined, center: 'center', right: 'flex-end' } as const;
+const SCORE_COLS: { label: string; style: React.CSSProperties; align?: 'center' | 'right' }[] = [
+  { label: 'Дата оценки', style: { flex: '0 0 94px' } },
+  { label: 'Период отчётности', style: { flex: '0 0 94px' } },
+  { label: 'Группа (1–4)', style: { flex: '0 0 56px' }, align: 'center' },
+  { label: 'Скоринг-балл', style: { flex: '1 1 0' }, align: 'center' },
+  { label: 'Доп. балл', style: { flex: '1 1 0' }, align: 'center' },
+  { label: 'Штраф', style: { flex: '1 1 0' }, align: 'center' },
+  { label: 'Кредитный лимит, тыс. руб.', style: { flex: '1.4 1 0' }, align: 'right' },
+  { label: 'Лимит авансового платежа, тыс. руб.', style: { flex: '1.4 1 0' }, align: 'right' },
+];
 
 function AssessmentTab({ c }: { c: Counterparty }) {
   const navigate = useNavigate();
   const { aiOn } = useApp();
   const all = useMemo(() => buildAssessment(c), [c.uid]);
-  const [dir, setDir] = useState<AssessDirection>('OIL');
+  // оценка одна — по методике покупателей нефти, газа и нефтепродуктов
+  const dir: AssessDirection = 'OIL';
   const r = all[dir];
   const explain = SCORE_EXPLAIN[c.uid];
   const [showExplain, setShowExplain] = useState(false);
@@ -1705,43 +1850,114 @@ function AssessmentTab({ c }: { c: Counterparty }) {
     () => c.assessments.filter((a) => a.direction === dir).slice().sort((x, y) => y.date.localeCompare(x.date)),
     [c.uid, dir],
   );
+  // последняя оценка — источник и для панели результата, и для первой строки таблицы
+  const last = history[0];
+  const creditLimit = last?.limit ?? r.limit;
+  const extras = assessmentExtras(c.uid, last ?? { id: c.uid, group: r.group, limit: r.limit });
+  const indicators = creditIndicators(c, r.group);
+  const claims = claimsSummary(c);
+  const limitK = (v: number) => (v ? money(Math.round(v / 1000), { unit: '' }) : '—');
 
   return (
     <SectionCard title="Оценка кредитоспособности" extra={<DateActuality date={r.date} source="ядро scoring" />}>
-      <Segmented value={dir} onChange={setDir} items={DIRECTIONS.map((d) => ({ key: d.key, label: d.short }))} />
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(0,1fr)', gap: 20, marginTop: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(0,1fr)', gap: 20 }}>
         <div>
           <div className="pmrk-muted" style={{ fontSize: 12, marginBottom: 6 }}>Динамика оценки кредитоспособности</div>
-          <LineChart
-            height={160}
-            labels={history.slice().reverse().map((x) => dateRu(x.date))}
-            series={[{ name: 'Группа кредитоспособности', color: 'var(--color-bg-brand)', points: history.slice().reverse().map((x) => x.group), area: true }]}
-            format={(v) => String(Math.round(v))}
-          />
+          <GroupDynamicsChart points={history.map((x) => ({ date: x.date, group: x.group, score: x.score }))} end={NOW} />
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--color-bg-border)' }}>
+            <span className="pmrk-muted" style={{ fontSize: 11.5 }}>МЕТОДОЛОГИЯ: {r.method} «{r.label}»</span>
+            <Button size="xs" view="ghost" label="Подробнее" onClick={() => navigate(`/assessments/${c.assessments[0]?.id ?? c.uid}`)} />
+          </div>
+
+          {/* «Все экспресс-оценки» под графиком, в левой колонке: компактная таблица
+              (мелкий шрифт и отступы, без колонки «Категория» — она одна и показана
+              в результате справа) */}
+          <div style={{ marginTop: 50 }}>
+            <ExtAccordion
+              title="Все экспресс-оценки"
+              collapsible={false}
+              flush
+              softHead
+              extra={<span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{history.length}</span>}
+            >
+              {history.length === 0 ? (
+                <EmptyState text={`По направлению «${r.short}» сохранённых оценок ещё нет — показан предварительный расчёт по текущим данным.`} />
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible', fontSize: 12, minWidth: 560 }}>
+                  <div className="pmrk-table__head" style={{ position: 'static' }}>
+                    {SCORE_COLS.map((col) => (
+                      <div key={col.label} className="pmrk-th" style={{ ...col.style, minWidth: 0, padding: '7px 6px', fontSize: 10.5, lineHeight: 1.2, justifyContent: ALIGN_JUSTIFY[col.align ?? 'left'], textAlign: col.align ?? 'left', whiteSpace: 'normal' }}>{col.label}</div>
+                    ))}
+                  </div>
+                  {history.map((x) => {
+                    const ex = assessmentExtras(c.uid, x);
+                    const cells = [dateRu(x.date), dateRu(x.reportPeriod), String(x.group), String(x.score), String(ex.extraPoints), ex.penalty ? `−${ex.penalty}` : '0', limitK(x.limit), limitK(ex.advanceLimit)];
+                    return (
+                      <div key={x.id} className="pmrk-tr" style={{ cursor: 'pointer' }} onClick={() => navigate(`/assessments/${x.id}`)}>
+                        {SCORE_COLS.map((col, i) => (
+                          <div key={col.label} className={`pmrk-td${col.align ? ' pmrk-tnum' : ''}`} style={{ ...col.style, minWidth: 0, padding: '8px 6px', justifyContent: ALIGN_JUSTIFY[col.align ?? 'left'], display: col.align ? 'flex' : undefined }}>{cells[i]}</div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+                </div>
+              )}
+            </ExtAccordion>
+          </div>
         </div>
         <div>
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Результат последней оценки от {dateRu(r.date)}</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}><span className="pmrk-muted">Категория</span><span>{r.category}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10 }}><span className="pmrk-muted">Период отчётности</span><span>{dateRu(history[0]?.reportPeriod ?? c.asOf.statements ?? r.date)}</span></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <GroupBadge group={r.group} withScore={r.totalScore} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10 }}><span className="pmrk-muted">Период отчётности</span><span>{dateRu(last?.reportPeriod ?? c.asOf.statements ?? r.date)}</span></div>
+
+          {/* итог: группа и скоринг-балл — две сплошные синие полосы */}
+          <div style={{ borderRadius: 'var(--pmrk-radius)', overflow: 'hidden', background: 'var(--color-bg-brand)', color: '#fff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 14px', fontSize: 14, fontWeight: 700 }}>
+              <span>Группа кредитоспособности (1–4)</span><span style={{ fontSize: 18 }}>{r.group}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 14px', fontSize: 14, fontWeight: 700, borderTop: '1px solid rgba(255,255,255,0.28)' }}>
+              <span>Скоринг-балл</span><span style={{ fontSize: 18 }}>{r.totalScore} <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.85 }}>из 100</span></span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 12px' }}>
+            <span className="pmrk-muted" style={{ fontSize: 12, flex: 1 }}>{r.groupText} · класс {r.contragentClass} · рейтинг {r.internalRating}</span>
             {aiOn && explain && (
               <button onClick={() => setShowExplain((v) => !v)} style={{ background: 'var(--pmrk-ai-bg)', border: '1px solid var(--pmrk-ai-border)', color: 'var(--pmrk-ai-strong)', borderRadius: 6, padding: '2px 8px', fontSize: 12, cursor: 'pointer' }}>
                 ✦ почему группа {r.group}?
               </button>
             )}
           </div>
-          <div className="pmrk-muted" style={{ fontSize: 12, marginBottom: 10 }}>{r.groupText} · класс {r.contragentClass} · рейтинг {r.internalRating}</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 12 }}><span>Кредитный лимит контрагента, руб.</span><span>{r.limit ? moneyCompact(r.limit) : '—'}</span></div>
 
-          <div className="pmrk-muted" style={{ fontSize: 11.5, marginBottom: 6 }}>Количество баллов по разделам</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 6 }}>Количество баллов по разделам</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
             {r.blocks.map((b) => <AssessmentScoreChip key={b.key} block={b} />)}
           </div>
 
+          <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 6 }}>Дополнительные показатели</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+            <InfoTile value={indicators.graph} caption="Графовый индикатор" />
+            <InfoTile value={indicators.claim} caption="Исковый индикатор" />
+            <InfoTile value={`${extras.extraPoints} ${plural(extras.extraPoints, 'балл', 'балла', 'баллов')}`} caption="Итого доп. баллы" />
+          </div>
+
+          <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 6 }}>Наличие претензионно-исковой работы с контрагентом</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <InfoTile value={claims.preTrial} caption="Наличие досудебных требований" />
+            <InfoTile value={claims.lawsuits} caption="Наличие исковых требований" />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '8px 0', borderTop: '1px solid var(--color-bg-border)' }}>
+            <span>Кредитный лимит, тыс. руб.</span><span className="pmrk-tnum" style={{ fontWeight: 600 }}>{limitK(creditLimit)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '8px 0', borderTop: '1px solid var(--color-bg-border)', borderBottom: '1px solid var(--color-bg-border)' }}>
+            <span>Лимит авансового платежа, тыс. руб.</span><span className="pmrk-tnum" style={{ fontWeight: 600 }}>{limitK(extras.advanceLimit)}</span>
+          </div>
+
           <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
-            <Button size="xs" view="secondary" label="Выгрузить XLSX" iconLeft={IconDownload as never} />
+            <Button size="xs" view="secondary" label="Выгрузить XLSX" iconLeft={IconDownload as never} title="Шаблон Ш-13.08.01-01 «Оценка кредитоспособности контрагента»" onClick={() => { exportAssessmentToExcel(c).catch((e) => window.alert(`Не удалось сформировать файл: ${e instanceof Error ? e.message : e}`)); }} />
             <Button size="xs" view="ghost" label="Направить на почту" />
           </div>
         </div>
@@ -1755,48 +1971,6 @@ function AssessmentTab({ c }: { c: Counterparty }) {
           <div style={{ fontSize: 13, marginTop: 6, color: 'var(--pmrk-ai-strong)' }}><b>Чувствительность:</b> {explain.toNextGroup}</div>
         </div>
       )}
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--color-bg-border)' }}>
-        <span className="pmrk-muted" style={{ fontSize: 12 }}>МЕТОДОЛОГИЯ: {r.method} «{r.label}»</span>
-        <Button size="xs" view="ghost" label="Подробнее" onClick={() => navigate(`/assessments/${c.assessments[0]?.id ?? c.uid}`)} />
-      </div>
-
-      {/* стиль подблока «Аффилированные и дочерние лица»: несворачиваемая
-          мягкая плашка, таблица во всю карточку с числом строк в чипе */}
-      <div style={{ marginTop: 16 }}>
-      <ExtAccordion
-        title="Все экспресс-оценки"
-        collapsible={false}
-        flush
-        softHead
-        extra={<span className="pmrk-chip" style={{ background: 'var(--color-bg-brand)', color: 'var(--color-bg-default)', fontSize: 11 }}>{history.length}</span>}
-      >
-        {history.length === 0 ? (
-          <EmptyState text={`По направлению «${r.short}» сохранённых оценок ещё нет — показан предварительный расчёт по текущим данным.`} />
-        ) : (
-          <div className="pmrk-table" style={{ border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)', overflow: 'visible' }}>
-            <div className="pmrk-table__head" style={{ position: 'static' }}>
-              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Дата оценки</div>
-              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Период отчётности</div>
-              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Группа (1–4)</div>
-              <div className="pmrk-th" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end' }}>Кредитный лимит, руб.</div>
-              <div className="pmrk-th" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end' }}>Скоринг-балл</div>
-              <div className="pmrk-th" style={{ flex: 1, minWidth: 0 }}>Категория</div>
-            </div>
-            {history.map((x) => (
-              <div key={x.id} className="pmrk-tr" style={{ cursor: 'pointer' }} onClick={() => navigate(`/assessments/${x.id}`)}>
-                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.date)}</div>
-                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{dateRu(x.reportPeriod)}</div>
-                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{x.group}</div>
-                <div className="pmrk-td pmrk-tnum" style={{ flex: 1.2, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.limit ? moneyCompact(x.limit) : '—'}</div>
-                <div className="pmrk-td pmrk-tnum" style={{ flex: 0.8, minWidth: 0, justifyContent: 'flex-end', display: 'flex' }}>{x.score}</div>
-                <div className="pmrk-td" style={{ flex: 1, minWidth: 0 }}>{r.category}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </ExtAccordion>
-      </div>
     </SectionCard>
   );
 }

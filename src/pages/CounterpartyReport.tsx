@@ -4,18 +4,12 @@ import { useApp } from '@/app/AppContext';
 import { BY_UID, GRAPHS, groupLabel, NOW } from '@/shared/mock/data';
 import { ROLES } from '@/shared/roles';
 import { moneyCompact, dateRu } from '@/shared/format';
-import type { AffiliationLinkType } from '@/shared/mock/types';
+import { kindNames } from '@/shared/ui/AffiliationDiagram';
 
 /* Скачиваемый профиль контрагента (ФТ-7.1, РФ). Отдельная «бумажная» A4-страница
    вне оболочки приложения: открывается из карточки и печатается в PDF
    (window.print → «Сохранить как PDF»). Состав — по карточке контрагента. */
 
-const LINK_LABEL: Record<AffiliationLinkType, string> = {
-  owner: 'Владелец',
-  beneficiary: 'Бенефициар',
-  subsidiary: 'Дочернее / зависимое',
-  affiliate: 'Аффилированное',
-};
 const COURT_KIND: Record<string, string> = {
   claim: 'Претензия',
   lawsuit: 'Судебный иск',
@@ -213,16 +207,16 @@ export function CounterpartyReport() {
                 <tr>
                   <th>Связанное лицо</th>
                   <th>ИНН</th>
-                  <th>Тип связи</th>
+                  <th>Тип аффилированности</th>
                   <th>Доля</th>
                 </tr>
               </thead>
               <tbody>
-                {graph.nodes.map((n) => (
+                {[...graph.nodes, ...(graph.beneficiaries ?? [])].map((n) => (
                   <tr key={n.id}>
                     <td>{n.name}{n.underSanctions ? ' (санкции)' : ''}</td>
                     <td>{n.inn ?? '—'}</td>
-                    <td>{LINK_LABEL[n.linkType]}</td>
+                    <td>{n.kinds.length ? kindNames(n).join('; ') : 'Конечный бенефициар (физическое лицо)'}</td>
                     <td>{n.directShare != null ? `${n.directShare}% (прямое)` : n.indirectShare != null ? `${n.indirectShare}% (косв.)` : '—'}</td>
                   </tr>
                 ))}

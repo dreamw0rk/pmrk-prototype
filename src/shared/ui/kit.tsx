@@ -84,6 +84,30 @@ export function SectionCard(props: {
   );
 }
 
+/** Простой полноэкранный оверлей вместо <Modal> из Consta: у того компонента
+    (CSS-анимация входа MixPopoverAnimate) с крупным содержимым тёмная
+    подложка и карточка иногда занимали только часть вьюпорта вместо всего
+    экрана, а страница просвечивала рядом. Здесь то же самое — фиксированный
+    затемнённый фон, клик по фону и Esc закрывают, — но без анимации и без
+    компонента Consta, который эту анимацию даёт. */
+export function SimpleOverlay({ onClose, maxWidth, children }: { onClose: () => void; maxWidth: string; children: React.ReactNode }) {
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0, 32, 51, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-default)', borderRadius: 'var(--pmrk-radius-lg)', maxWidth, maxHeight: '86vh', overflowY: 'auto' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function Stat(props: {
   label: string;
   value: React.ReactNode;

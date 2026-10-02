@@ -24,9 +24,15 @@ export interface StatementRow {
 
 export interface StatementsBlock { title: string; rows: StatementRow[] }
 
+/** Источник отчётности за период: «ФНС» — данные из СПАРК (ГИР БО ФНС России),
+    «Данные компании» — отчётность внесена вручную. */
+export type StatementSource = 'ФНС' | 'Данные компании';
+
 export interface StatementsData {
   /** заголовки столбцов — ISO даты закрытия периода, от свежего к старому */
   periods: string[];
+  /** источник данных по каждому периоду; порядок совпадает с periods */
+  sources: StatementSource[];
   blocks: StatementsBlock[];
   /** показывать отметку «актив = пассив» (полная форма №1) */
   balanceCheck: boolean;
@@ -68,6 +74,7 @@ const REAL_ANCHORS: Record<string, { periods: string[]; revenue: number[]; netPr
 
 function buildFullStatements(
   periods: string[],
+  sources: StatementSource[],
   revenueIn: number[],
   netProfitReal: number[] | null,
   totalAssetsReal: number[] | null,
@@ -216,7 +223,7 @@ function buildFullStatements(
   // системы: показывается итог «Чистые активы», равный капиталу и резервам
   // из Формы №1 (иначе формы разойдутся между собой). ----
   const form3: StatementRow[] = [
-    { label: 'Чистые активы', code: '3600', values: equity, strong: true },
+    { label: 'Чистые активы', code: '3600', values: equity },
   ];
 
   // ---- Форма №4 «Отчёт о движении денежных средств» — сальдо по трём видам
@@ -226,16 +233,17 @@ function buildFullStatements(
   const finFlow = netProfit.map((v) => -Math.round(v * 0.28));
   const totalFlow = opFlow.map((v, i) => v + investFlow[i] + finFlow[i]);
   const form4: StatementRow[] = [
-    { label: 'Сальдо денежных потоков от текущих операций', code: '4100', values: opFlow, strong: true },
-    { label: 'Сальдо денежных потоков от инвестиционных операций', code: '4200', values: investFlow, strong: true },
-    { label: 'Сальдо денежных потоков от финансовых операций', code: '4300', values: finFlow, strong: true },
-    { label: 'Сальдо денежных потоков за отчётный период', code: '4400', values: totalFlow, strong: true },
+    { label: 'Сальдо денежных потоков от текущих операций', code: '4100', values: opFlow },
+    { label: 'Сальдо денежных потоков от инвестиционных операций', code: '4200', values: investFlow },
+    { label: 'Сальдо денежных потоков от финансовых операций', code: '4300', values: finFlow },
+    { label: 'Сальдо денежных потоков за отчётный период', code: '4400', values: totalFlow },
   ];
 
   return {
     periods,
+    sources,
     balanceCheck: true,
-    note: 'Источник: годовая бухгалтерская (финансовая) отчётность по РСБУ (ГИР БО ФНС России). Валюта отчётности — рубль, единицы измерения — тыс. руб.',
+    note: 'Отчётность по РСБУ. Источник по каждому периоду указан под датой: «ФНС» — годовая бухгалтерская (финансовая) отчётность из СПАРК (ГИР БО ФНС России), «Данные компании» — отчётность внесена вручную. Валюта — рубль, единицы измерения — тыс. руб.',
     blocks: [
       { title: 'Бухгалтерский баланс (Форма №1)', rows: form1 },
       { title: 'Отчёт о финансовых результатах (Форма №2)', rows: form2 },
@@ -248,7 +256,8 @@ function buildFullStatements(
 export function buildStatements(cp: Counterparty): StatementsData {
   const anchor = REAL_ANCHORS[cp.uid];
   if (anchor) {
-    return buildFullStatements(anchor.periods, anchor.revenue, anchor.netProfit, anchor.totalAssets, anchor.equity);
+    // «герои» — три закрытых года, подтверждённых годовой отчётностью из ФНС
+    return buildFullStatements(anchor.periods, anchor.periods.map((): StatementSource => 'ФНС'), anchor.revenue, anchor.netProfit, anchor.totalAssets, anchor.equity);
   }
 
   const year = NOW.getFullYear();
@@ -262,5 +271,9 @@ export function buildStatements(cp: Counterparty): StatementsData {
   const seed = seedOf(cp.uid);
   const decay = [1, 0.88 + (seed % 8) / 100, 0.76 + ((seed >> 4) % 12) / 100];
   const revenue = decay.map((d) => (cp.revenue / 1000) * d);
-  return buildFullStatements(periods, revenue, null, null, null);
+  // Годовая отчётность за закрытый год (31.12) приходит из СПАРК — источник ФНС.
+  // Свежий период, подписанный датой актуализации (не конец года), в ФНС ещё нет —
+  // он заполнен вручную: «Данные компании».
+  const sources = periods.map((d): StatementSource => (d.endsWith('-12-31') ? 'ФНС' : 'Данные компании'));
+  return buildFullStatements(periods, sources, revenue, null, null, null);
 }

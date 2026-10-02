@@ -194,3 +194,49 @@ export function buildAssessment(cp: Counterparty): Record<Direction, DirectionRe
     ADVANCE: buildDirection(cp, 'ADVANCE', -2),
   };
 }
+
+/* ----------- Дополнительные показатели оценки (вкладка «Оценка» профиля) -----------
+   Графовый и исковый индикаторы, дополнительные баллы, штраф, лимит авансового
+   платежа и претензионно-исковая работа. Детерминированы по uid/оценке (П-1). */
+
+const hashStr = (s: string): number => s.split('').reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+
+const LETTERS: Record<RiskGroup, [string, string]> = { 1: ['AAA', 'AA'], 2: ['A', 'BBB'], 3: ['BB', 'B'], 4: ['CCC', 'CC'] };
+
+export interface AssessmentExtras {
+  /** лимит авансового платежа, руб. (по методике М-13.08-02 он намного ниже КЛ) */
+  advanceLimit: number;
+  /** дополнительные баллы к скорингу, 0..10 */
+  extraPoints: number;
+  /** штраф, баллы (0 — нет); положительное число, показывается со знаком «−» */
+  penalty: number;
+}
+
+export function assessmentExtras(uid: string, a: { id: string; group: RiskGroup; limit: number }): AssessmentExtras {
+  const h = hashStr(uid + a.id);
+  const advanceLimit = a.limit ? Math.round((a.limit * (0.02 + (h % 4) / 100)) / 1000) * 1000 : 0;
+  return {
+    advanceLimit,
+    extraPoints: h % 11,
+    penalty: a.group >= 3 ? (h >>> 3) % 6 : 0,
+  };
+}
+
+/** Буквенные индикаторы по графу связей и по исковой работе — шкала AAA…CC, привязанная к группе. */
+export function creditIndicators(cp: Counterparty, group: RiskGroup): { graph: string; claim: string } {
+  const h = hashStr(cp.uid);
+  return { graph: LETTERS[group][h % 2], claim: LETTERS[group][(h >>> 2) % 2] };
+}
+
+const plural = (n: number, one: string, few: string, many: string) =>
+  n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
+
+/** Наличие претензионно-исковой работы с контрагентом — по делам из судебного блока. */
+export function claimsSummary(cp: Counterparty): { preTrial: string; lawsuits: string } {
+  const claims = cp.courtCases.filter((c) => c.kind === 'claim').length;
+  const suits = cp.courtCases.filter((c) => c.kind === 'lawsuit').length;
+  return {
+    preTrial: claims ? `${claims} ${plural(claims, 'претензия', 'претензии', 'претензий')}` : 'Отсутствуют',
+    lawsuits: suits ? `${suits} ${plural(suits, 'иск', 'иска', 'исков')}` : 'Отсутствуют',
+  };
+}

@@ -107,7 +107,8 @@ export interface Counterparty {
   flags: string[]; // короткие сигнальные метки для реестра/командного центра
 }
 
-export type AffiliationLinkType = 'owner' | 'beneficiary' | 'affiliate' | 'subsidiary';
+/** Типы аффилированности — id из справочника (см. affiliationKinds.ts, 19 типов). */
+export type AffiliationKindId = number;
 
 export interface AffiliationNode {
   id: string;
@@ -116,12 +117,14 @@ export interface AffiliationNode {
   isPerson: boolean;
   directShare?: number; // % прямого владения (белая заливка)
   indirectShare?: number; // % косвенного (жёлтая заливка)
-  inRegistry: boolean; // есть в реестре ПМРК → оранжевая обводка, кликабельно
+  inRegistry: boolean; // есть в реестре ПМРК → синяя обводка, кликабельно
   uid?: string; // если inRegistry
   underSanctions?: boolean;
   /** руководитель — единоличный исполнительный орган анализируемой компании или лица в цепочке */
   isDirector?: boolean;
-  linkType: AffiliationLinkType;
+  /** типы аффилированности лица (справочник affiliationKinds.ts): у одного лица
+      их может быть несколько — например, руководитель и совладелец */
+  kinds: AffiliationKindId[];
   level: number;
 }
 
@@ -130,6 +133,12 @@ export interface AffiliationGraph {
   rootName: string;
   rootInn: string;
   nodes: AffiliationNode[];
+  /** Конечные бенефициары — ФИЗИЧЕСКИЕ лица, которые в конечном счёте прямо или
+      косвенно владеют компанией (доля — по всей цепочке владения). На диаграмме
+      не рисуются, показываются в таблице в блоке «Структура собственников»
+      (там же, где владельцы). Пустой массив — бенефициар-физлицо не установлен
+      (например, компания контролируется государством); undefined — данных нет. */
+  beneficiaries?: AffiliationNode[];
   asOf: string;
 }
 

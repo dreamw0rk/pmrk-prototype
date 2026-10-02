@@ -13,13 +13,14 @@ import { IconGeo } from '@consta/icons/IconGeo';
 import { IconConnection } from '@consta/icons/IconConnection';
 import { IconTeam } from '@consta/icons/IconTeam';
 import { IconMail } from '@consta/icons/IconMail';
+import { IconFlagFilled } from '@consta/icons/IconFlagFilled';
 import { IconSpeed } from '@consta/icons/IconSpeed';
 import { IconLineAndBarChart } from '@consta/icons/IconLineAndBarChart';
 import { IconTable2 } from '@consta/icons/IconTable2';
 import { IconBook } from '@consta/icons/IconBook';
 import { useApp } from '@/app/AppContext';
 import { ROLES } from '@/shared/roles';
-import { PageHeader, SectionCard, GroupBadge } from '@/shared/ui/kit';
+import { PageHeader, SectionCard, GroupBadge, SimpleOverlay } from '@/shared/ui/kit';
 import { REGISTRY, FAVORITES, BY_UID } from '@/shared/mock/data';
 import type { Counterparty } from '@/shared/mock/types';
 
@@ -41,7 +42,10 @@ const RECENT_UIDS = [...FAVORITES, 'cp-yugtrans', 'cp-nevsky'];
    ФТ-4.4/4.5 и ФТ-7.1/7.2. Сгруппированы по смыслу задачи, а не по номеру ФТ:
    так пользователь ищет глазами «что сделать», а не «какое требование». */
 type EdtIcon = typeof IconForward;
-const EDT_ACTION_GROUPS: { title: string; items: { label: string; hint: string; to: string; icon: EdtIcon }[] }[] = [
+/* У плитки либо переход (to), либо действие на самой главной (action) — окно
+   «Добавить контрагента в особый список» открывается поверх страницы. */
+type EdtAction = 'special-list';
+const EDT_ACTION_GROUPS: { title: string; items: { label: string; hint: string; to?: string; action?: EdtAction; icon: EdtIcon }[] }[] = [
   {
     title: 'Оценка',
     items: [
@@ -64,6 +68,7 @@ const EDT_ACTION_GROUPS: { title: string; items: { label: string; hint: string; 
       { label: 'Отчет по аффилированности', hint: 'Связи между заданными к/а (ФТ-4.5)', to: '/reports/affiliation', icon: IconConnection },
       { label: 'Связанные стороны', hint: 'Отчет по шаблону Приложения 4 (ФТ-4.4)', to: '/reports/related-parties', icon: IconTeam },
       { label: 'Мониторинг контрагентов', hint: 'Оповещения по ключевым событиям контрагентов', to: '/subscriptions', icon: IconMail },
+      { label: 'Добавить контрагента в особый список', hint: 'Предложение о включении в список «Под особым контролем»', action: 'special-list', icon: IconFlagFilled },
     ],
   },
 ];
@@ -137,6 +142,133 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
+/* Причины включения в особый список — по основаниям из регламента особого
+   контроля (КК-Блок инициирует, согласуют КК-Блок / КК-УФК / АДМ). */
+const SPECIAL_REASONS = [
+  'Просроченная задолженность (ПДЗ)',
+  'Судебные иски / признаки банкротства',
+  'Негативная информация службы безопасности',
+  'Санкции',
+  'Иное',
+];
+
+const FIELD_STYLE: React.CSSProperties = { width: '100%', border: '1px solid var(--color-bg-border)', borderRadius: 8, padding: '0 12px', background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)', fontSize: 13.5, outline: 'none' };
+
+/** «Добавить контрагента в особый список» — функционал бывшей вкладки «Под
+    особым контролем» (предложение о включении), вынесенный на главную: сначала
+    выбираем контрагента поиском по названию/ИНН, затем причину и комментарий.
+    В прототипе предложение не сохраняется — окно показывает итог внесения. */
+function SpecialListModal({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const [q, setQ] = useState('');
+  const [chosen, setChosen] = useState<Counterparty | null>(null);
+  const [reason, setReason] = useState('');
+  const [comment, setComment] = useState('');
+  const [done, setDone] = useState(false);
+
+  const query = q.trim().toLowerCase();
+  const found = useMemo(
+    () => (query ? REGISTRY.filter((c) => c.name.toLowerCase().includes(query) || c.inn.includes(query)).slice(0, 6) : []),
+    [query],
+  );
+  const already = !!chosen?.specialControl;
+  const canSubmit = !!chosen && !already && !!reason;
+
+  if (done && chosen) {
+    return (
+      <SimpleOverlay onClose={onClose} maxWidth="min(92vw, 480px)">
+        <div style={{ padding: 22 }}>
+          <h3 style={{ margin: '0 0 10px', fontSize: 16 }}>Предложение внесено</h3>
+          <div style={{ fontSize: 13.5, lineHeight: 1.55, marginBottom: 6 }}>
+            <b>{chosen.name}</b> (ИНН {chosen.inn}) — предложение о включении в особый список: <b>{reason}</b>.
+          </div>
+          <div className="pmrk-muted" style={{ fontSize: 12.5, lineHeight: 1.5, marginBottom: 16 }}>
+            Статус — «на согласовании». Согласование — КК-Блок / КК-УФК / АДМ; исключение из списка — КК-УФК / АДМ.
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button size="s" view="ghost" label="Закрыть" onClick={onClose} />
+            <Button size="s" label="Открыть карточку" onClick={() => navigate(`/counterparties/${chosen.uid}/general`)} />
+          </div>
+        </div>
+      </SimpleOverlay>
+    );
+  }
+
+  return (
+    <SimpleOverlay onClose={onClose} maxWidth="min(92vw, 560px)">
+      <div style={{ padding: 22 }}>
+        <h3 style={{ margin: '0 0 6px', fontSize: 16 }}>Добавить контрагента в особый список</h3>
+        <div className="pmrk-muted" style={{ fontSize: 12.5, lineHeight: 1.5, marginBottom: 16 }}>
+          Предложение о включении в список «Под особым контролем». Согласование — КК-Блок / КК-УФК / АДМ.
+        </div>
+
+        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Контрагент</div>
+        {chosen ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: '1px solid var(--color-bg-border)', borderRadius: 8, marginBottom: 6 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }} className="pmrk-truncate">{chosen.name}</div>
+              <div className="pmrk-muted pmrk-truncate" style={{ fontSize: 12 }}>ИНН {chosen.inn} · {chosen.region}</div>
+            </div>
+            <Button size="xs" view="ghost" label="Изменить" onClick={() => { setChosen(null); setQ(''); }} />
+          </div>
+        ) : (
+          <div style={{ marginBottom: 6 }}>
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Наименование или ИНН контрагента"
+              style={{ ...FIELD_STYLE, height: 38 }}
+            />
+            {query && (
+              <div style={{ marginTop: 6, border: '1px solid var(--color-bg-border)', borderRadius: 8, overflow: 'hidden' }}>
+                {found.length ? found.map((c) => (
+                  <div
+                    key={c.uid}
+                    className="pmrk-clickable"
+                    onClick={() => setChosen(c)}
+                    style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-bg-border)', cursor: 'pointer' }}
+                  >
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }} className="pmrk-truncate">{c.name}</div>
+                    <div className="pmrk-muted pmrk-truncate" style={{ fontSize: 12 }}>ИНН {c.inn} · {c.region}</div>
+                  </div>
+                )) : (
+                  <div className="pmrk-muted" style={{ padding: '10px 12px', fontSize: 13 }}>Ничего не найдено — проверьте написание или ИНН.</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {already && (
+          <div style={{ fontSize: 12.5, color: 'var(--pmrk-risk-4)', marginBottom: 6 }}>
+            Этот контрагент уже находится под особым контролем — повторное предложение не требуется.
+          </div>
+        )}
+
+        <div style={{ fontSize: 12.5, fontWeight: 600, margin: '14px 0 6px' }}>Причина включения</div>
+        <select value={reason} onChange={(e) => setReason(e.target.value)} style={{ ...FIELD_STYLE, height: 38 }}>
+          <option value="">Выберите причину</option>
+          {SPECIAL_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+
+        <div style={{ fontSize: 12.5, fontWeight: 600, margin: '14px 0 6px' }}>Комментарий</div>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={3}
+          placeholder="Обоснование предложения (необязательно)"
+          style={{ ...FIELD_STYLE, padding: '8px 12px', resize: 'vertical', fontFamily: 'inherit' }}
+        />
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+          <Button size="s" view="ghost" label="Отмена" onClick={onClose} />
+          <Button size="s" label="Внести предложение" disabled={!canSubmit} onClick={() => setDone(true)} />
+        </div>
+      </div>
+    </SimpleOverlay>
+  );
+}
+
 export function Home() {
   const navigate = useNavigate();
   const { role } = useApp();
@@ -144,6 +276,7 @@ export function Home() {
 
   const [q, setQ] = useState('');
   const [focused, setFocused] = useState(false);
+  const [specialOpen, setSpecialOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const term = q.trim();
@@ -284,8 +417,8 @@ export function Home() {
                         const TileIcon = a.icon;
                         return (
                           <button
-                            key={a.to}
-                            onClick={() => navigate(a.to)}
+                            key={a.to ?? a.action}
+                            onClick={() => (a.action === 'special-list' ? setSpecialOpen(true) : navigate(a.to!))}
                             className="pmrk-clickable"
                             style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: 8, width: '100%', height: 124, minWidth: 0, textAlign: 'left', padding: '12px 14px', border: '1px solid var(--color-bg-border)', borderRadius: 12, background: 'var(--color-bg-default)', cursor: 'pointer' }}
                           >
@@ -328,6 +461,8 @@ export function Home() {
           </SectionCard>
         </div>
       )}
+
+      {specialOpen && <SpecialListModal onClose={() => setSpecialOpen(false)} />}
     </div>
   );
 }

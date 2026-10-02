@@ -1,133 +1,122 @@
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '@consta/uikit/Button';
-import { Modal } from '@consta/uikit/Modal';
 import { IconQuestion } from '@consta/icons/IconQuestion';
-import type { AffiliationGraph, AffiliationNode, AffiliationLinkType } from '@/shared/mock/types';
+import { SimpleOverlay } from '@/shared/ui/kit';
+import type { AffiliationGraph, AffiliationNode } from '@/shared/mock/types';
+import { AFFILIATION_KINDS, AFFILIATION_KIND_BY_ID, kindOrder } from '@/shared/mock/affiliationKinds';
+import { BY_UID } from '@/shared/mock/data';
 
 /* Диаграмма связей (ФТ-4.2). SVG (не canvas): нужны клики, тултипы, доступность.
-   Компоновка — ЯРУСНАЯ ИЕРАРХИЯ (как в СПАРК): анализируемая компания слева,
-   справа — ярусы-полосы по типу связи (собственник / дочернее / аффилированное),
-   под заголовком яруса — критерий отнесения к нему; внутри полосы — карточки
-   сеткой; стрелки от корня к полосам.
+   Компоновка — как в исходной системе: анализируемая компания слева, правее —
+   полосы по ТИПАМ АФФИЛИРОВАННОСТИ из справочника (19 типов, см.
+   affiliationKinds.ts), в каждой полосе — карточки лиц этого типа, а справа от
+   полосы — синий ярлык с названием типа (оно длинное, поэтому переносится).
+   Показываются только типы, по которым у компании есть связи. Одно лицо может
+   иметь несколько типов сразу (руководитель и совладелец) — тогда его карточка
+   стоит в каждой из этих полос.
    - доля владения вынесена в «пилюлю» в углу карточки (белая — прямое, жёлтая —
      косвенное), чтобы не налезать на наименование (ФТ-4.2);
-   - оранжевая обводка + клик, если у лица есть опыт сотрудничества с ГК ГПН
+   - синяя обводка + клик, если у лица есть опыт сотрудничества с ГК ГПН
      (карточка в реестре ПМРК → профиль связанного);
    - красная обводка — под санкциями; легенда — НАД диаграммой;
    - подсветка результата поиска — оранжевым (ФТ-4.3). */
 
 export interface DiagramFilters {
-  types: Set<AffiliationLinkType>;
+  /** выбранные в фильтре типы аффилированности; пусто — показаны все типы,
+      выбраны один и более — только они */
+  selected: Set<number>;
   minDirect: number;
   maxLevel: number;
 }
-
-const TIERS: { type: AffiliationLinkType; label: string; desc: [string, string] }[] = [
-  {
-    type: 'owner',
-    label: 'СОБСТВЕННИК (УЧАСТНИК / АКЦИОНЕР)',
-    desc: ['Участники и акционеры с прямым владением долями', 'или акциями анализируемой компании.'],
-  },
-  {
-    type: 'subsidiary',
-    label: 'ДОЧЕРНЕЕ / ЗАВИСИМОЕ ОБЩЕСТВО',
-    desc: ['Компании под контролем анализируемой: дочерние —', 'доля > 50%, зависимые — от 20 до 50%.'],
-  },
-  {
-    type: 'affiliate',
-    label: 'АФФИЛИРОВАННОЕ ЛИЦО',
-    desc: ['Лица, способные влиять на решения компании: общий', 'контроль, органы управления, группа лиц (135-ФЗ).'],
-  },
-];
-
-const ROLE_SHORT: Record<AffiliationLinkType, string> = {
-  owner: 'Собственник',
-  beneficiary: 'Конечный бенефициар',
-  subsidiary: 'Дочернее / зависимое',
-  affiliate: 'Аффилированное лицо',
-};
 
 /** Цвет значка «руководитель» (ЕИО) — отдельный от orange/red (реестр/санкции),
     чтобы три признака не путались друг с другом на карточке. */
 export const DIRECTOR_COLOR = '#7c5cff';
 
-/** Порог доли владения по цепочке, ниже которого лицо не признаётся конечным
-    бенефициаром (реальный порог КЮРАСАО/СПАРК — 25%). Общий для диаграммы и
-    таблицы связей — источник один, чтобы «Да/Нет» не разъезжались между
-    вкладками «Диаграмма» и «Таблица» одного и того же графа. */
-export const FINAL_BENEFICIARY_THRESHOLD = 25;
+const fmtPct = (v: number) => v.toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 
-export function isFinalBeneficiary(n: AffiliationNode): boolean {
-  return (n.directShare ?? n.indirectShare ?? 0) >= FINAL_BENEFICIARY_THRESHOLD;
+/** Размер доли владения словами — для подсказки и таблицы связей. */
+export function describeShare(n: AffiliationNode): string | null {
+  if (n.directShare != null) return `Прямая доля владения — ${fmtPct(n.directShare)}%`;
+  if (n.indirectShare != null) return `Косвенная доля владения (по цепочке) — ${fmtPct(n.indirectShare)}%`;
+  return null;
 }
 
-/** Текстовое описание связи (как в отчётах СПАРК-Аффилированность) — по типу
-    связи и доле владения, плюс отдельно отмечает руководителя (ЕИО), если это
-    он же. Несколько оснований для одного лица — обычное дело (совладелец
-    и руководитель одновременно), поэтому части просто объединяются. */
-export function describeAffiliation(n: AffiliationNode): string {
-  const parts: string[] = [];
-  if (n.isDirector) parts.push('Руководитель (единоличный исполнительный орган)');
-
-  const indirect = n.directShare == null && n.indirectShare != null;
-  const share = n.directShare ?? n.indirectShare;
-
-  if (n.linkType === 'owner' && share != null) {
-    if (share >= 50) {
-      parts.push(`${indirect ? 'Косвенно' : 'Прямо'} контролирующее лицо — доля владения ${indirect ? 'по всей цепочке' : ''} больше 50% (${share}%)`.replace('  ', ' '));
-    } else if (share >= 20) {
-      parts.push(`Совладелец с долей ${indirect ? 'косвенного' : 'прямого'} владения ${share}% (равной или больше 20%)`);
-    } else {
-      parts.push(`Совладелец, доля ${indirect ? 'косвенного' : 'прямого'} владения ${share}%`);
-    }
-  } else if (n.linkType === 'beneficiary') {
-    parts.push(
-      isFinalBeneficiary(n)
-        ? `Конечный бенефициар — контролирует ${share ?? '—'}% по всей цепочке владения`
-        : `Не признан конечным бенефициаром — доля по цепочке (${share ?? 0}%) ниже порога ${FINAL_BENEFICIARY_THRESHOLD}%`,
-    );
-  } else if (n.linkType === 'subsidiary') {
-    parts.push(share != null && share >= 50
-      ? `Дочернее общество — доля владения больше 50% (${share}%)`
-      : `Зависимое общество, доля владения ${share ?? '—'}%`);
-  } else if (n.linkType === 'affiliate') {
-    parts.push(share != null
-      ? `Аффилированное лицо — общий контролирующий участник по цепочке, доля ${share}%`
-      : 'Аффилированное лицо — общий контролирующий участник по цепочке владения');
-  }
-  return parts.join('; ');
+/** Названия типов аффилированности лица (для ПМРК), в порядке справочника. */
+export function kindNames(n: AffiliationNode): string[] {
+  return [...n.kinds]
+    .sort((a, b) => kindOrder(a) - kindOrder(b))
+    .map((id) => AFFILIATION_KIND_BY_ID[id]?.pmrk ?? `Тип ${id}`);
 }
 
-// Геометрия: корень слева, ярусы-полосы справа
-const W = 1040;
+/** Тип лица различается цветом карточки (подписи на карточке нет, как в ПМРК):
+    юридическое лицо — голубоватая заливка, физическое — зеленоватая. Те же
+    цвета — в пунктах легенды. */
+const LEGAL_COLORS = { from: '#f5f9ff', to: '#d9e8fb', border: '#b7cde9', swatch: '#d9e8fb' };
+const PERSON_COLORS = { from: '#f6fbf6', to: '#d8eedc', border: '#aed3b6', swatch: '#d8eedc' };
+
+/** Синяя обводка карточки — «имеется опыт сотрудничества с ГК ГПН» (карточка в
+    реестре ПМРК). Оранжевый оставлен под подсветку результатов поиска, чтобы два
+    разных признака не делили один цвет. */
+export const EXPERIENCE_COLOR = '#1f5fd1';
+
+/** Цвет маркера «высокий риск по экспресс-оценке» (группа 4). */
+export const HIGH_RISK_COLOR = 'var(--pmrk-risk-4)';
+
+/** Высокий риск по результату экспресс-оценки связанного лица: у него есть
+    карточка в реестре ПМРК и последняя оценка относит его к группе 4 (тот же
+    порог, что и «Высокий риск» на главной). Лица без карточки не оценивались —
+    для них маркера нет. */
+export function highRiskInfo(n: AffiliationNode): { group: number; score: number } | null {
+  const c = n.uid ? BY_UID.get(n.uid) : undefined;
+  return c && c.group === 4 ? { group: c.group, score: c.score } : null;
+}
+
+// Геометрия: корень слева, полосы с карточками, справа от каждой — ярлык типа
 const ROOT_X = 22;
 const ROOT_W = 214;
 const ROOT_H = 74;
 const BAND_X = 270;
-const BAND_W = W - BAND_X - 18; // 752
+const CARDS_W = 752; // ширина области карточек (3 колонки)
+const LABEL_GAP = 10;
+const LABEL_W = 206;
+const LABEL_X = BAND_X + CARDS_W + LABEL_GAP;
+const W = LABEL_X + LABEL_W + 18;
 const BAND_PAD = 14;
-const BAND_HEADER_H = 58; // заголовок яруса + двухстрочное описание группы
 const CARD_W = 226;
-const CARD_H = 84; // имя (до 2 строк) + строка ИНН + строка типа лица под ней
+const CARD_H = 76; // имя (до 2 строк) + строка ИНН; тип лица — цветом заливки, без подписи
 const CARD_GAP = 14;
-const BAND_GAP = 16;
-const COLS = Math.max(1, Math.floor((BAND_W - 2 * BAND_PAD + CARD_GAP) / (CARD_W + CARD_GAP)));
+const BAND_GAP = 14;
+const COLS = Math.max(1, Math.floor((CARDS_W - 2 * BAND_PAD + CARD_GAP) / (CARD_W + CARD_GAP)));
+const LABEL_CHARS = 27; // знаков в строке ярлыка при шрифте 11.5 и ширине LABEL_W
+const LABEL_LINE_H = 15;
 
 interface Placed extends AffiliationNode {
   _x: number;
   _y: number;
+  _kind: number;
 }
 interface Band {
-  label: string;
-  desc: [string, string];
-  x: number;
+  kind: number;
+  lines: string[];
   y: number;
-  w: number;
   h: number;
 }
 
 function clip(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+/** Перенос по словам в строки не длиннее max знаков (длинное слово не режем). */
+function wrapWords(s: string, max: number): string[] {
+  const lines: string[] = [];
+  let cur = '';
+  for (const word of s.split(' ')) {
+    if (cur && (cur + ' ' + word).length > max) { lines.push(cur); cur = word; }
+    else cur = cur ? cur + ' ' + word : word;
+  }
+  if (cur) lines.push(cur);
+  return lines;
 }
 
 // Перенос наименования в две строки: выбираем самый поздний удобный разрыв
@@ -176,24 +165,27 @@ export function AffiliationDiagram(props: {
   const { placed, bands, rootCy, totalH } = useMemo(() => {
     const visible = props.graph.nodes.filter(
       (n) =>
-        props.filters.types.has(n.linkType) &&
         n.level <= props.filters.maxLevel &&
         (props.filters.minDirect === 0 || (n.directShare ?? n.indirectShare ?? 0) >= props.filters.minDirect),
     );
     const placed: Placed[] = [];
     const bands: Band[] = [];
     let y = 16;
-    for (const tier of TIERS) {
-      const list = visible.filter((n) => n.linkType === tier.type).sort((a, b) => a.level - b.level);
+    for (const kind of AFFILIATION_KINDS) {
+      if (props.filters.selected.size && !props.filters.selected.has(kind.id)) continue;
+      const list = visible.filter((n) => n.kinds.includes(kind.id)).sort((a, b) => a.level - b.level);
       if (!list.length) continue;
+      const lines = wrapWords(kind.pmrk, LABEL_CHARS);
       const rows = Math.ceil(list.length / COLS);
-      const h = BAND_HEADER_H + rows * CARD_H + (rows - 1) * CARD_GAP + BAND_PAD;
+      const cardsH = 2 * BAND_PAD + rows * CARD_H + (rows - 1) * CARD_GAP;
+      // полоса не ниже ярлыка: длинное название занимает до 6 строк
+      const h = Math.max(cardsH, 2 * 14 + lines.length * LABEL_LINE_H);
       list.forEach((n, i) => {
         const r = Math.floor(i / COLS);
         const c = i % COLS;
-        placed.push({ ...n, _x: BAND_X + BAND_PAD + c * (CARD_W + CARD_GAP), _y: y + BAND_HEADER_H + r * (CARD_H + CARD_GAP) });
+        placed.push({ ...n, _kind: kind.id, _x: BAND_X + BAND_PAD + c * (CARD_W + CARD_GAP), _y: y + BAND_PAD + r * (CARD_H + CARD_GAP) });
       });
-      bands.push({ label: tier.label, desc: tier.desc, x: BAND_X, y, w: BAND_W, h });
+      bands.push({ kind: kind.id, lines, y, h });
       y += h + BAND_GAP;
     }
     const totalH = Math.max(y - BAND_GAP + 16, 220);
@@ -208,6 +200,7 @@ export function AffiliationDiagram(props: {
 
   const H = props.height ?? Math.min(900, totalH);
   const rootY = rootCy - ROOT_H / 2;
+  const uniqueCount = new Set(placed.map((p) => p.id)).size;
 
   return (
     <div>
@@ -217,16 +210,19 @@ export function AffiliationDiagram(props: {
         <Button size="xs" view="ghost" label="Сброс" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} />
         <Button size="xs" view="ghost" label="+" onClick={() => setZoom((z) => Math.min(2, z + 0.15))} />
         <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 8 }}>
-          Колесо — зум, перетаскивание фона — панорама · {placed.length} связей
+          Колесо — зум, перетаскивание фона — панорама · {uniqueCount} связей в {bands.length} группах
         </span>
       </div>
 
       {/* ЛЕГЕНДА — сверху над диаграммой */}
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 18px', marginBottom: 10, fontSize: 12, padding: '10px 14px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius)' }}>
+        <Legend swatch={LEGAL_COLORS.swatch} border={LEGAL_COLORS.border} label="Юридическое лицо" />
+        <Legend swatch={PERSON_COLORS.swatch} border={PERSON_COLORS.border} label="Физическое лицо" />
         <Legend swatch="#ffffff" border="#cfd6e0" label="Владение (доля): прямое / косвенное" pill />
         <Legend swatch={DIRECTOR_COLOR} border={DIRECTOR_COLOR} label="Руководитель (ЕИО)" dot />
-        <Legend swatch="#ffffff" border="#ff7a00" label="Имеется опыт сотрудничества с ГК ГПН" thick />
+        <Legend swatch="#ffffff" border={EXPERIENCE_COLOR} label="Имеется опыт сотрудничества с ГК ГПН" thick />
         <Legend swatch="#ffffff" border="var(--pmrk-risk-4)" label="Под санкциями" thick />
+        <Legend swatch={HIGH_RISK_COLOR} border={HIGH_RISK_COLOR} label="Высокий риск по экспресс-оценке" dot glyph="!" />
         <Button
           size="xs"
           view="ghost"
@@ -237,54 +233,69 @@ export function AffiliationDiagram(props: {
         />
       </div>
 
-      {/* style.zIndex — без него окно оказывается ниже липкой шапки профиля
-          контрагента (position:sticky; z-index:3): у той z-index явно задан
-          и положительный, а у портала модалки — auto, и по правилам стекинга
-          он рисуется под позиционированными элементами с z-index > 0. */}
-      <Modal isOpen={helpOpen} onClickOutside={() => setHelpOpen(false)} onEsc={() => setHelpOpen(false)} style={{ zIndex: 1000 }}>
-        <div style={{ padding: 20, width: 460, maxWidth: '92vw' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 16 }}>Как читать диаграмму связей</h3>
-            <Button size="xs" view="clear" label="✕" onClick={() => setHelpOpen(false)} />
+      {helpOpen && (
+        <SimpleOverlay onClose={() => setHelpOpen(false)} maxWidth="min(92vw, 500px)">
+          <div style={{ padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 16 }}>Как читать диаграмму связей</h3>
+              <Button size="xs" view="clear" label="✕" onClick={() => setHelpOpen(false)} />
+            </div>
+            <div className="pmrk-stack" style={{ gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ display: 'flex', gap: 3, flex: 'none', marginTop: 2 }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 3, background: LEGAL_COLORS.swatch, border: `1px solid ${LEGAL_COLORS.border}` }} />
+                  <span style={{ width: 14, height: 14, borderRadius: 3, background: PERSON_COLORS.swatch, border: `1px solid ${PERSON_COLORS.border}` }} />
+                </span>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Юридическое и физическое лицо</div>
+                  <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Тип лица на карточке не подписывается — он виден по цвету заливки: голубоватая — юридическое лицо, зеленоватая — физическое лицо.</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ width: 24, height: 14, borderRadius: 9, background: '#ffffff', border: '1px solid #cfd6e0', flex: 'none', marginTop: 2 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Владение (доля)</div>
+                  <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Пилюля с процентом в углу карточки — размер доли владения. Прямое — лицо владеет долей в анализируемой компании напрямую, без промежуточных звеньев. Косвенное — через одну или несколько промежуточных компаний; процент — эффективная (расчётная) доля по всей цепочке. На диаграмме отличаются цветом пилюли: прямое — белым, косвенное — жёлтым.</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ width: 14, height: 14, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none', marginTop: 2 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Руководитель (ЕИО)</div>
+                  <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Лицо — единоличный исполнительный орган (директор, генеральный директор) анализируемой компании или другого лица в цепочке. Может одновременно быть совладельцем — тогда значок стоит на той же карточке, что и доля владения.</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: `2px solid ${EXPERIENCE_COLOR}`, flex: 'none', marginTop: 2 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Имеется опыт сотрудничества с ГК ГПН</div>
+                  <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>У этого лица есть опыт сотрудничества с ГК «Газпром нефть» и собственная карточка в реестре ПМРК — клик по карточке открывает его профиль.</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '2px solid var(--pmrk-risk-4)', flex: 'none', marginTop: 2 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Под санкциями</div>
+                  <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Лицо включено в один из санкционных списков (см. вкладку «Внешняя информация» его карточки).</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ width: 14, height: 14, borderRadius: '50%', background: HIGH_RISK_COLOR, color: '#fff', fontSize: 10, fontWeight: 800, lineHeight: '14px', textAlign: 'center', flex: 'none', marginTop: 2 }}>!</span>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Высокий риск по экспресс-оценке</div>
+                  <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>У связанного лица есть карточка в реестре ПМРК, и по результату экспресс-оценки оно отнесено к группе 4 (высокий риск). Карточка подсвечена красным, значок «!» — в верхнем углу. У лиц без карточки оценки нет — маркера они не получают.</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Группы диаграммы — типы аффилированности</div>
+              <div className="pmrk-muted" style={{ fontSize: 12.5 }}>
+                Связанные лица сгруппированы по типу аффилированности с анализируемой компанией (справочник из {AFFILIATION_KINDS.length} типов: владельцы, руководитель, члены правления и совета директоров, дочерние и контролируемые общества, управляющая компания и др.). Название типа — в синем блоке справа от группы; показываются только те типы, по которым есть связи. Одно лицо может иметь несколько типов (например, руководитель и совладелец) — тогда его карточка есть в каждой из этих групп. Оранжевая рамка карточки — совпадение с поисковым запросом.
+              </div>
+            </div>
           </div>
-          <div className="pmrk-stack" style={{ gap: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ width: 24, height: 14, borderRadius: 9, background: '#ffffff', border: '1px solid #cfd6e0', flex: 'none', marginTop: 2 }} />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Владение (доля)</div>
-                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Пилюля с процентом в углу карточки — размер доли владения. Прямое — лицо владеет долей в анализируемой компании напрямую, без промежуточных звеньев. Косвенное — через одну или несколько промежуточных компаний; процент — эффективная (расчётная) доля по всей цепочке. На диаграмме отличаются цветом пилюли: прямое — белым, косвенное — жёлтым.</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ width: 14, height: 14, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none', marginTop: 2 }} />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Руководитель (ЕИО)</div>
-                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Лицо — единоличный исполнительный орган (директор, генеральный директор) анализируемой компании или другого лица в цепочке. Может одновременно быть совладельцем — тогда значок стоит на той же карточке, что и доля владения.</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '2px solid #ff7a00', flex: 'none', marginTop: 2 }} />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Имеется опыт сотрудничества с ГК ГПН</div>
-                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>У этого лица есть опыт сотрудничества с ГК «Газпром нефть» и собственная карточка в реестре ПМРК — клик по карточке открывает его профиль.</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ width: 18, height: 14, borderRadius: 3, background: '#ffffff', border: '2px solid var(--pmrk-risk-4)', flex: 'none', marginTop: 2 }} />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Под санкциями</div>
-                <div className="pmrk-muted" style={{ fontSize: 12.5, marginTop: 2 }}>Лицо включено в один из санкционных списков (см. вкладку «Внешняя информация» его карточки).</div>
-              </div>
-            </div>
-          </div>
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-bg-border)' }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Ярусы диаграммы</div>
-            <div className="pmrk-muted" style={{ fontSize: 12.5 }}>
-              Связанные лица сгруппированы по типу связи с анализируемой компанией — собственники и акционеры, дочерние/зависимые общества, аффилированные лица; под заголовком каждого яруса указан критерий отнесения к нему. Оранжевая подсветка карточки — совпадение с поисковым запросом. Полное текстовое описание связи (как в примере ниже) — при наведении на карточку и в разделе «Таблица».
-            </div>
-          </div>
-        </div>
-      </Modal>
+        </SimpleOverlay>
+      )}
 
       <div
         style={{ position: 'relative', border: '1px solid var(--color-bg-border)', borderRadius: 'var(--pmrk-radius-lg)', overflow: 'hidden', background: 'var(--color-bg-secondary)', height: H, cursor: drag.current ? 'grabbing' : 'grab' }}
@@ -299,9 +310,17 @@ export function AffiliationDiagram(props: {
             <marker id="aff-arr" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto">
               <path d="M0,0 L6.5,3 L0,6 Z" fill="#9aa7b8" />
             </marker>
-            <linearGradient id="aff-card" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#fcfdff" />
-              <stop offset="1" stopColor="#e9edf4" />
+            <linearGradient id="aff-card-legal" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={LEGAL_COLORS.from} />
+              <stop offset="1" stopColor={LEGAL_COLORS.to} />
+            </linearGradient>
+            <linearGradient id="aff-card-person" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={PERSON_COLORS.from} />
+              <stop offset="1" stopColor={PERSON_COLORS.to} />
+            </linearGradient>
+            <linearGradient id="aff-card-risk" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#fff7f7" />
+              <stop offset="1" stopColor="#fbe3e3" />
             </linearGradient>
           </defs>
 
@@ -318,22 +337,29 @@ export function AffiliationDiagram(props: {
                   <path d={`M ${stubX} ${rootCy} H ${trunkX}`} />
                   <path d={`M ${trunkX} ${top} V ${bot}`} />
                   {bands.map((b, i) => (
-                    <path key={`c-${i}`} d={`M ${trunkX} ${b.y + b.h / 2} H ${b.x - 6}`} markerEnd="url(#aff-arr)" />
+                    <path key={`c-${i}`} d={`M ${trunkX} ${b.y + b.h / 2} H ${BAND_X - 6}`} markerEnd="url(#aff-arr)" />
                   ))}
                 </g>
               );
             })()}
 
-            {/* ярусы-полосы (фон + заголовок + описание группы) */}
-            {bands.map((b, i) => (
-              <g key={`b-${i}`}>
-                <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={12} fill="var(--color-bg-default)" stroke="var(--color-bg-border)" />
-                <text x={b.x + 16} y={b.y + 19} fontSize={11} fontWeight={700} letterSpacing={0.5} fill="var(--color-typo-secondary)">
-                  {b.label}
-                </text>
-                {/* критерий отнесения к группе — под заголовком яруса */}
-                <text x={b.x + 16} y={b.y + 36} fontSize={10.5} fill="#8a94a6">{b.desc[0]}</text>
-                <text x={b.x + 16} y={b.y + 50} fontSize={10.5} fill="#8a94a6">{b.desc[1]}</text>
+            {/* полосы типов: область карточек + справа синий ярлык с названием типа */}
+            {bands.map((b) => (
+              <g key={`b-${b.kind}`}>
+                <rect x={BAND_X} y={b.y} width={CARDS_W} height={b.h} rx={12} fill="var(--color-bg-default)" stroke="var(--color-bg-border)" />
+                <rect x={LABEL_X} y={b.y} width={LABEL_W} height={b.h} rx={12} fill="var(--color-bg-brand)" />
+                {b.lines.map((line, li) => (
+                  <text
+                    key={li}
+                    x={LABEL_X + 14}
+                    y={b.y + b.h / 2 - ((b.lines.length - 1) * LABEL_LINE_H) / 2 + li * LABEL_LINE_H + 4}
+                    fontSize={11.5}
+                    fontWeight={700}
+                    fill="#ffffff"
+                  >
+                    {line}
+                  </text>
+                ))}
               </g>
             ))}
 
@@ -355,34 +381,33 @@ export function AffiliationDiagram(props: {
             {/* карточки связанных лиц */}
             {placed.map((n) => {
               const hl = matches(n);
-              const clickable = true; // кликабельны все карточки: профиль или заявка на карточку
-              const border = hl ? '#ff7a00' : n.inRegistry ? '#ff7a00' : n.underSanctions ? 'var(--pmrk-risk-4)' : '#d4dae3';
+              const tc = n.isPerson ? PERSON_COLORS : LEGAL_COLORS;
+              const border = hl ? '#ff7a00' : n.inRegistry ? EXPERIENCE_COLOR : n.underSanctions ? 'var(--pmrk-risk-4)' : tc.border;
               const bw = hl ? 2.5 : n.inRegistry || n.underSanctions ? 2 : 1;
               const share = n.directShare ?? n.indirectShare;
               const [l1, l2] = wrap2(n.name, 19);
               const pillFill = n.directShare != null ? '#ffffff' : '#fff3c4';
               const pillStroke = n.directShare != null ? '#cfd6e0' : '#e6cf6a';
-              // Тип лица показываем всегда: у юрлица с ИНН — отдельной строкой
-              // под ИНН, иначе (физлицо / юрлицо без ИНН) — единственной строкой.
-              const typeLabel = n.isPerson ? 'Физ. лицо' : 'Юр. лицо';
+              const risk = highRiskInfo(n);
               return (
                 <g
-                  key={n.id}
-                  style={{ cursor: clickable ? 'pointer' : 'default' }}
+                  key={`${n.id}:${n._kind}`}
+                  style={{ cursor: 'pointer' }} // кликабельны все карточки: профиль или заявка на карточку
                   onClick={() => { if (!moved.current) props.onOpenNode?.(n); }}
                   onMouseEnter={() => setHover(n)}
                   onMouseLeave={() => setHover(null)}
                 >
-                  <rect x={n._x} y={n._y} width={CARD_W} height={CARD_H} rx={11} fill="url(#aff-card)" stroke={border} strokeWidth={bw} />
+                  <rect x={n._x} y={n._y} width={CARD_W} height={CARD_H} rx={11} fill={risk ? 'url(#aff-card-risk)' : n.isPerson ? 'url(#aff-card-person)' : 'url(#aff-card-legal)'} stroke={border} strokeWidth={bw} />
                   <text x={n._x + 15} y={n._y + 25} fontSize={12.5} fontWeight={700} fill="#15233b">{l1}</text>
                   {l2 && <text x={n._x + 15} y={n._y + 42} fontSize={12.5} fontWeight={700} fill="#15233b">{l2}</text>}
-                  {n.inn ? (
+                  {n.inn && <text x={n._x + 15} y={n._y + 62} fontSize={10.5} fill="#6b7689">ИНН {n.inn}</text>}
+                  {risk && (
+                    // значок «!» — высокий риск по экспресс-оценке; левее значка
+                    // руководителя, если он есть на той же карточке
                     <>
-                      <text x={n._x + 15} y={n._y + 60} fontSize={10.5} fill="#6b7689">ИНН {n.inn}</text>
-                      <text x={n._x + 15} y={n._y + 74} fontSize={10.5} fill="#8a94a6">{typeLabel}</text>
+                      <circle cx={n._x + CARD_W - (n.isDirector ? 38 : 15)} cy={n._y + 15} r={9} fill={HIGH_RISK_COLOR} />
+                      <text x={n._x + CARD_W - (n.isDirector ? 38 : 15)} y={n._y + 19} textAnchor="middle" fontSize={12} fontWeight={800} fill="#ffffff">!</text>
                     </>
-                  ) : (
-                    <text x={n._x + 15} y={n._y + 60} fontSize={10.5} fill="#6b7689">{typeLabel}</text>
                   )}
                   {n.isDirector && (
                     <>
@@ -393,7 +418,7 @@ export function AffiliationDiagram(props: {
                   {share != null && (
                     <>
                       <rect x={n._x + CARD_W - 68} y={n._y + CARD_H - 30} width={56} height={20} rx={10} fill={pillFill} stroke={pillStroke} />
-                      <text x={n._x + CARD_W - 40} y={n._y + CARD_H - 16} textAnchor="middle" fontSize={11.5} fontWeight={700} fill="#15233b">{share}%</text>
+                      <text x={n._x + CARD_W - 40} y={n._y + CARD_H - 16} textAnchor="middle" fontSize={11.5} fontWeight={700} fill="#15233b">{fmtPct(share)}%</text>
                     </>
                   )}
                 </g>
@@ -403,16 +428,25 @@ export function AffiliationDiagram(props: {
         </svg>
 
         {hover && (
-          <div style={{ position: 'absolute', right: 16, top: 16, background: 'var(--color-bg-default)', border: '1px solid var(--color-bg-border)', borderRadius: 8, boxShadow: 'var(--pmrk-shadow-2)', padding: '8px 12px', fontSize: 12, maxWidth: 268, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', right: 16, top: 16, background: 'var(--color-bg-default)', border: '1px solid var(--color-bg-border)', borderRadius: 8, boxShadow: 'var(--pmrk-shadow-2)', padding: '8px 12px', fontSize: 12, maxWidth: 300, pointerEvents: 'none' }}>
             <b>{hover.name}</b>
             <div className="pmrk-muted" style={{ marginTop: 4 }}>
-              {ROLE_SHORT[hover.linkType]} · {hover.isPerson ? 'физлицо' : hover.inn ? `юрлицо · ИНН ${hover.inn}` : 'юрлицо'}
+              {hover.isPerson ? 'Физическое лицо' : hover.inn ? `Юридическое лицо · ИНН ${hover.inn}` : 'Юридическое лицо'}
             </div>
-            <div style={{ marginTop: 4 }}>{describeAffiliation(hover)}</div>
+            <div style={{ marginTop: 6, fontWeight: 600 }}>Тип аффилированности</div>
+            <ul style={{ margin: '2px 0 0', paddingLeft: 16 }}>
+              {kindNames(hover).map((name) => <li key={name}>{name}</li>)}
+            </ul>
+            {describeShare(hover) && <div style={{ marginTop: 6 }}>{describeShare(hover)}</div>}
+            {hover.isDirector && <div style={{ marginTop: 4 }}>Руководитель (единоличный исполнительный орган)</div>}
             {hover.inRegistry
-              ? <div style={{ color: '#ff7a00', marginTop: 4 }}>Имеется опыт сотрудничества с ГК ГПН → клик откроет карточку компании</div>
+              ? <div style={{ color: EXPERIENCE_COLOR, marginTop: 4 }}>Имеется опыт сотрудничества с ГК ГПН → клик откроет карточку компании</div>
               : <div className="pmrk-muted" style={{ marginTop: 4 }}>Карточки в ПМРК нет → клик откроет заявку на её создание</div>}
             {hover.underSanctions && <div style={{ color: 'var(--pmrk-risk-4)', marginTop: 4 }}>Под санкциями</div>}
+            {(() => {
+              const r = highRiskInfo(hover);
+              return r ? <div style={{ color: HIGH_RISK_COLOR, marginTop: 4 }}>Высокий риск по экспресс-оценке — группа {r.group}, {r.score} баллов</div> : null;
+            })()}
           </div>
         )}
       </div>
@@ -420,11 +454,11 @@ export function AffiliationDiagram(props: {
   );
 }
 
-function Legend({ swatch, border, label, thick, pill, dot, dashed }: { swatch: string; border: string; label: string; thick?: boolean; pill?: boolean; dot?: boolean; dashed?: boolean }) {
+function Legend({ swatch, border, label, thick, pill, dot, dashed, glyph }: { swatch: string; border: string; label: string; thick?: boolean; pill?: boolean; dot?: boolean; dashed?: boolean; glyph?: string }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       {dot ? (
-        <span style={{ width: 14, height: 14, borderRadius: '50%', background: swatch, flex: 'none' }} />
+        <span style={{ width: 14, height: 14, borderRadius: '50%', background: swatch, color: '#fff', fontSize: 10, fontWeight: 800, lineHeight: '14px', textAlign: 'center', flex: 'none' }}>{glyph}</span>
       ) : (
         <span style={{ width: pill ? 24 : 18, height: 14, borderRadius: pill ? 9 : 3, background: swatch, border: `${thick ? 2 : 1}px solid ${border}`, borderStyle: dashed ? 'dashed' : 'solid' }} />
       )}
