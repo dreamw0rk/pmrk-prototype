@@ -525,3 +525,73 @@
   letter-spacing: 0.04em;
   opacity: 0.7;
 }
+
+/* Плотные таблицы претензионно-исковой работы — оформление как в исходной системе:
+   шапка без заливки и капса, светло-серый обычный шрифт по центру; значения по центру и
+   по вертикали; слова переносятся целиком (при необходимости — с дефисом), а не рвутся. */
+.pmrk-legal {
+  font-family: 'Roboto Condensed', 'Arial Narrow', Inter, sans-serif;
+  font-size: 11.5px;
+}
+.pmrk-legal .pmrk-table__head {
+  position: static;
+  background: var(--color-bg-default);
+  border-bottom: 1px solid var(--color-bg-border);
+  color: var(--color-typo-secondary);
+  font-weight: 400;
+  letter-spacing: 0;
+  align-items: stretch;
+}
+.pmrk-legal .pmrk-th {
+  cursor: default;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 12px 2px;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.3;
+  text-transform: none;
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.pmrk-legal .pmrk-th:hover {
+  color: var(--color-typo-secondary);
+}
+.pmrk-legal .pmrk-tr {
+  align-items: stretch;
+}
+.pmrk-legal .pmrk-tr:nth-child(even) {
+  background: var(--color-bg-secondary);
+}
+.pmrk-legal .pmrk-td {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px 2px;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  hyphens: manual;
+}
+.pmrk-legal .pmrk-chip {
+  font-family: inherit;
+  white-space: normal;
+  align-items: flex-start;
+  text-align: left;
+  padding: 1px 4px;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 14px;
+}
+.pmrk-legal .pmrk-chip .pmrk-dot {
+  margin-top: 3px;
+  flex: none;
+}

@@ -249,7 +249,7 @@ export function buildIfrsStatements(entries: IfrsEntry[]): StatementsData {
     periods: formed.map((e) => e.date),
     sources: formed.map(() => 'Данные компании'),
     blocks,
-    balanceCheck: calc.length > 0 && calc.every((c) => c.balanceDiff === 0),
+    balanceCheck: calc.length > 0 && calc.every((c) => Math.abs(c.balanceDiff) <= 2),
     note: 'Отчётность по МСФО внесена вручную (источник — «Данные компании»): СПАРК и ГИР БО ФНС отчётность по МСФО не передают. Итоги и контрольные суммы рассчитываются автоматически по введённым статьям. Валюта — рубль, единицы измерения — тыс. руб.',
   };
 }

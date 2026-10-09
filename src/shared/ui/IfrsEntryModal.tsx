@@ -63,7 +63,8 @@ export function IfrsEntryModal({
   const unnamed = lines.some((l) => !l.label.trim() && (values[l.key] || 0) !== 0);
   const dupLabel = lines.some((l, i) => l.label.trim() && lines.findIndex((o) => o.section === l.section && o.label.trim().toLowerCase() === l.label.trim().toLowerCase()) !== i);
   const dup = !!date && takenDates.includes(date);
-  const balanced = t.balanceDiff === 0;
+  // допустимое отклонение активов от пассивов — до 2 тыс. руб. (как в проверке на вкладке)
+  const balanced = Math.abs(t.balanceDiff) <= 2;
   const canForm = !!date && !dup && filled && balanced && !unnamed && !dupLabel;
 
   const save = (status: IfrsEntry['status']) => {
@@ -244,7 +245,7 @@ export function IfrsEntryModal({
             ) : dupLabel ? (
               <span style={{ color: 'var(--pmrk-risk-4)' }}>В разделе баланса есть статьи с одинаковым названием</span>
             ) : balanced ? (
-              <span style={{ color: 'var(--pmrk-risk-1)' }}>✓ Баланс сходится: активы = капитал + обязательства</span>
+              <span style={{ color: 'var(--pmrk-risk-1)' }}>✓ Баланс сходится: активы = капитал + обязательства (допустимо отклонение до 2 тыс. руб.)</span>
             ) : (
               <span style={{ color: 'var(--pmrk-risk-4)' }}>Баланс не сходится: активы − (капитал + обязательства) = {fmt(t.balanceDiff)}</span>
             )}

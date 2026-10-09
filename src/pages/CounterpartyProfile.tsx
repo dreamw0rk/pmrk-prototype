@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useMemo, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@consta/uikit/Button';
 import { IconFavoriteStroked } from '@consta/icons/IconFavoriteStroked';
@@ -19,7 +19,7 @@ import iconPdf from '@/assets/icons/icon-pdf.png';
 import { DebtChart, GroupDynamicsChart } from '@/shared/ui/MiniChart';
 import { AffiliationDiagram, describeShare, highRiskInfo, DIRECTOR_COLOR, HIGH_RISK_COLOR, type DiagramFilters } from '@/shared/ui/AffiliationDiagram';
 import { AFFILIATION_KINDS } from '@/shared/mock/affiliationKinds';
-import { BY_UID, GRAPHS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
+import { BY_UID, GRAPHS, LIMIT_REQUESTS, groupLabel, NOW, BLOCKS, type BlockCode } from '@/shared/mock/data';
 import { AI_SUMMARY, AI_GROUP_RISK, SCORE_EXPLAIN } from '@/shared/mock/ai';
 import { useMockQuery } from '@/shared/mock/useMockQuery';
 import { buildExternal, rbSignal, type Indicator } from '@/shared/mock/external';
@@ -449,7 +449,7 @@ function GeneralTab({ c }: { c: Counterparty }) {
   // (кредитный лимит, отсрочка, орган утверждения) здесь не выводятся: это
   // предмет вкладки «Кредитный лимит», дублировать их в общих сведениях незачем.
   const doLinks = useMemo(() => buildDoLinks(c), [c.uid]);
-  const doRows = useMemo(() => {
+  const doGroups = useMemo(() => {
     const byBlock = new Map<string, DoLink[]>();
     doLinks.forEach((link) => {
       const key = link.block ?? '—';
@@ -461,12 +461,20 @@ function GeneralTab({ c }: { c: Counterparty }) {
     const order = Object.keys(BLOCKS);
     return [...byBlock.entries()]
       .sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))
-      .flatMap(([block, items]) =>
-        [...items]
-          .sort((x, y) => Number(y.primary) - Number(x.primary) || x.subsidiary.localeCompare(y.subsidiary, 'ru'))
-          .map((link) => ({ block, blockName: BLOCKS[block as BlockCode] as string | undefined, link })),
-      );
+      .map(([block, items]) => ({
+        block,
+        blockName: BLOCKS[block as BlockCode] as string | undefined,
+        items: [...items].sort((x, y) => Number(y.primary) - Number(x.primary) || x.subsidiary.localeCompare(y.subsidiary, 'ru')),
+      }));
   }, [doLinks]);
+  // Блоки с несколькими ДО в таблице свёрнуты в одну строку; раскрытые — здесь.
+  const [openBlocks, setOpenBlocks] = useState<Set<string>>(new Set());
+  const toggleBlock = (block: string) =>
+    setOpenBlocks((prev) => {
+      const next = new Set(prev);
+      if (next.has(block)) next.delete(block); else next.add(block);
+      return next;
+    });
 
   const interaction = useMemo(() => buildInteractionInfo(c), [c.uid]);
   const pdHorizonLabel: Record<string, string> = { '30+ дней': '1 месяц', '90+ дней': '3 месяца', '180+ дней': '6 месяцев' };
@@ -539,27 +547,64 @@ function GeneralTab({ c }: { c: Counterparty }) {
         title="Взаимодействие контрагента с ГК Газпром нефть"
         extra={<DateActuality date={c.asOf.general} source="справочник ДО ГК ГПН" />}
       >
-        {/* Плоская таблица: блок — отдельным столбцом в каждой строке, без
-            вложенности и без подсчёта ДО */}
+        {/* Блок с несколькими ДО — одна сворачиваемая строка (по умолчанию свёрнута),
+            под ней при раскрытии — ДО блока; блок с одним ДО — обычная строка */}
         <div className="pmrk-table">
           <div className="pmrk-table__head">
             <div className="pmrk-th" style={{ flex: 1 }}>Блок/КБЕ, с которыми работает контрагент</div>
             <div className="pmrk-th" style={{ flex: 1.4 }}>Наименование ДО</div>
           </div>
-          {doRows.map(({ block, blockName, link }) => (
-            <div key={link.subsidiary} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-              <div className="pmrk-td" style={{ flex: 1, whiteSpace: 'normal', fontSize: 12.5, fontWeight: 600 }}>
-                {blockName ? `${block} - ${blockName}` : 'Блок не определён'}
-              </div>
-              <div className="pmrk-td" style={{ flex: 1.4, fontWeight: 600, whiteSpace: 'normal' }}>
+          {doGroups.map(({ block, blockName, items }) => {
+            const blockLabel = blockName ? `${block} - ${blockName}` : 'Блок не определён';
+            const doCell = (link: DoLink) => (
+              <>
                 {link.subsidiary}
                 {/* основное ДО карточки — то самое значение поля «Работает с ДО» */}
                 {link.primary && (
                   <span className="pmrk-chip" style={{ marginLeft: 8, background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11, fontWeight: 500 }}>основное</span>
                 )}
-              </div>
-            </div>
-          ))}
+              </>
+            );
+            if (items.length === 1) {
+              return (
+                <div key={block} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+                  <div className="pmrk-td" style={{ flex: 1, whiteSpace: 'normal', fontSize: 12.5, fontWeight: 600, paddingLeft: 36 }}>{blockLabel}</div>
+                  <div className="pmrk-td" style={{ flex: 1.4, fontWeight: 600, whiteSpace: 'normal' }}>{doCell(items[0])}</div>
+                </div>
+              );
+            }
+            const open = openBlocks.has(block);
+            return (
+              <Fragment key={block}>
+                <div
+                  className="pmrk-tr"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={open}
+                  onClick={() => toggleBlock(block)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBlock(block); } }}
+                  style={{ cursor: 'pointer', alignItems: 'flex-start' }}
+                >
+                  <div className="pmrk-td" style={{ flex: 1, whiteSpace: 'normal', fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <span style={{ width: 16, flex: '0 0 16px', color: 'var(--color-typo-secondary)', fontSize: 10, lineHeight: '18px', textAlign: 'center' }}>{open ? '▾' : '▸'}</span>
+                    <span>{blockLabel}</span>
+                  </div>
+                  <div className="pmrk-td pmrk-muted" style={{ flex: 1.4, whiteSpace: 'normal', fontSize: 12.5 }}>
+                    {open ? 'Свернуть' : `${items.length} ДО — развернуть`}
+                    {!open && items.some((l) => l.primary) && (
+                      <span className="pmrk-chip" style={{ marginLeft: 8, background: 'var(--color-bg-secondary)', color: 'var(--color-typo-secondary)', fontSize: 11, fontWeight: 500 }}>есть основное</span>
+                    )}
+                  </div>
+                </div>
+                {open && items.map((link) => (
+                  <div key={link.subsidiary} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start', background: 'var(--color-bg-secondary)' }}>
+                    <div className="pmrk-td" style={{ flex: 1 }} />
+                    <div className="pmrk-td" style={{ flex: 1.4, fontWeight: 600, whiteSpace: 'normal' }}>{doCell(link)}</div>
+                  </div>
+                ))}
+              </Fragment>
+            );
+          })}
         </div>
 
         {/* Наличие обеспечения/негативной информации и показатели деловой
@@ -575,9 +620,9 @@ function GeneralTab({ c }: { c: Counterparty }) {
             ]}
           />
         </div>
-        {/* Контроль ЛФП — по регламенту КТ-555; два независимых признака */}
+        {/* Проверка авторизации сделок в рамках ЛФП (бывш. «Контроль ЛФП») — по регламенту КТ-555; два независимых признака */}
         <div style={{ marginTop: 16 }}>
-          <ExtAccordion title="Контроль ЛФП" softHead collapsible={false}>
+          <ExtAccordion title="Проверка авторизации сделок с контрагентом в рамках ЛФП" softHead collapsible={false}>
             <KeyValue
               cols={2}
               items={[
@@ -588,7 +633,7 @@ function GeneralTab({ c }: { c: Counterparty }) {
           </ExtAccordion>
         </div>
         <div style={{ marginTop: 16 }}>
-          <ExtAccordion title="Показатели деловой репутации с ГК Газпром нефть" softHead collapsible={false}>
+          <ExtAccordion title="История деловых отношений с ГК ГПН" softHead collapsible={false}>
             <KeyValue
               cols={2}
               items={[
@@ -1219,7 +1264,7 @@ function AffiliationTabView({ c }: { c: Counterparty }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск связи по наименованию или ИНН (подсветка оранжевым)"
+            placeholder="Поиск связи по наименованию или ИНН (подсветка малиновым)"
             style={{ flex: 1, height: 34, padding: '0 12px', border: '1px solid var(--color-bg-border)', borderRadius: 8, background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)', outline: 'none' }}
           />
           <Segmented value={mode} onChange={setMode} items={[{ key: 'diagram', label: 'Диаграмма' }, { key: 'table', label: 'Таблица' }]} />
@@ -1267,10 +1312,11 @@ function AffiliationTable({ graph, search, selected, onOpen }: { graph: typeof G
   const q = search.trim().toLowerCase();
   const hit = (n: AffiliationNode) => !!q && (n.name.toLowerCase().includes(q) || (n.inn ?? '').includes(q));
 
-  const NameCell = ({ n }: { n: AffiliationNode }) => (
+  // точка «руководитель» — только в группе «Руководитель компании» (тип 3), как значок «Р» на диаграмме
+  const NameCell = ({ n, kindId }: { n: AffiliationNode; kindId?: number }) => (
     <div className="pmrk-td" style={{ flex: 1.8, whiteSpace: 'normal' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        {n.isDirector && <span title="Руководитель (ЕИО)" style={{ width: 8, height: 8, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none' }} />}
+        {n.isDirector && kindId === 3 && <span title="Руководитель (ЕИО)" style={{ width: 8, height: 8, borderRadius: '50%', background: DIRECTOR_COLOR, flex: 'none' }} />}
         <span style={{ fontWeight: 600 }}>{n.name}</span>
       </span>{' '}{n.underSanctions && <SanctionBadge />}
       {highRiskInfo(n) && (
@@ -1282,9 +1328,9 @@ function AffiliationTable({ graph, search, selected, onOpen }: { graph: typeof G
     </div>
   );
 
-  const Row = ({ n }: { n: AffiliationNode }) => (
+  const Row = ({ n, kindId }: { n: AffiliationNode; kindId: number }) => (
     <div className={`pmrk-tr ${hit(n) ? 'pmrk-search-hit' : ''}`} style={{ cursor: 'pointer', alignItems: 'flex-start' }} onClick={() => onOpen(n)}>
-      <NameCell n={n} />
+      <NameCell n={n} kindId={kindId} />
       <div className="pmrk-td pmrk-tnum" style={{ flex: 0.9 }}>{n.inn ?? '—'}</div>
       <div className="pmrk-td" style={{ flex: 0.8 }}>{n.isPerson ? 'Физ. лицо' : 'Юр. лицо'}</div>
       <div className="pmrk-td pmrk-muted" style={{ flex: 1.6, whiteSpace: 'normal' }}>{describeShare(n) ?? '—'}</div>
@@ -1355,7 +1401,7 @@ function AffiliationTable({ graph, search, selected, onOpen }: { graph: typeof G
                 <div className="pmrk-th" style={{ flex: 0.8 }}>Тип лица</div>
                 <div className="pmrk-th" style={{ flex: 1.6 }}>Доля владения</div>
               </div>
-              {nodes.map((n) => <Row key={n.id} n={n} />)}
+              {nodes.map((n) => <Row key={n.id} n={n} kindId={kind.id} />)}
             </div>
           </ExtAccordion>
         </div>
@@ -1443,6 +1489,10 @@ function DzKzDetailCard({
 }) {
   const years = [NOW.getFullYear(), NOW.getFullYear() - 1, NOW.getFullYear() - 2];
   const allCols = dzKz.groups.flatMap((g) => g.columns);
+  // «Задолженность Просроченная» раскрывается по срокам просрочки (до 5 / 6–30 / более 30 дней);
+  // по умолчанию свёрнута — остаётся одна строка с итогом
+  const [overdueOpen, setOverdueOpen] = useState(false);
+  const OVERDUE_DETAIL = ['dzOverdue5', 'dzOverdue30', 'dzOverdueMore'];
   const fmtCell = (v: number | undefined) => (v ? money(v, { unit: '' }) : '—');
   const selectStyle: React.CSSProperties = { height: 32, border: '1px solid var(--color-bg-border)', borderRadius: 8, padding: '0 10px', background: 'var(--color-bg-default)', color: 'var(--color-typo-primary)', fontSize: 13 };
   const stickyCol: React.CSSProperties = { position: 'sticky', left: 0, background: 'var(--color-bg-default)', zIndex: 1 };
@@ -1524,10 +1574,21 @@ function DzKzDetailCard({
                 ))}
                 <td className="pmrk-tnum" style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-bg-border)', textAlign: 'right', color: 'var(--color-typo-secondary)', fontStyle: 'italic' }}>{dateRu(dzKz.periodDate)}</td>
               </tr>
-              {dzKz.rows.map((r) => (
+              {dzKz.rows.filter((r) => overdueOpen || !OVERDUE_DETAIL.includes(r.key)).map((r) => (
                 <tr key={r.key}>
                   <td style={{ ...stickyCol, padding: '8px 12px', paddingLeft: 12 + r.indent * 16, borderBottom: '1px solid var(--color-bg-border)', borderRight: '1px solid var(--color-bg-border)', fontWeight: r.indent === 0 ? 600 : 400, whiteSpace: 'normal' }}>
-                    {r.label}
+                    {r.key === 'dzOverdue' ? (
+                      <button
+                        type="button"
+                        onClick={() => setOverdueOpen((v) => !v)}
+                        aria-expanded={overdueOpen}
+                        title={overdueOpen ? 'Свернуть сроки просрочки' : 'Показать сроки просрочки'}
+                        style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 6, padding: 0, border: 'none', background: 'transparent', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+                      >
+                        <span style={{ width: 12, flex: '0 0 12px', fontSize: 10, lineHeight: '18px', color: 'var(--color-typo-secondary)' }}>{overdueOpen ? '▾' : '▸'}</span>
+                        <span>{r.label}</span>
+                      </button>
+                    ) : r.label}
                   </td>
                   {allCols.map((col) => (
                     <td key={col.name} className="pmrk-tnum" style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-bg-border)', textAlign: 'right' }}>
@@ -1578,16 +1639,16 @@ function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; on
   const dzRows = detail.dz.map((r, i) => ({ id: `${r.number}-${i}`, ...r }));
   const dzCols: LegalCol<typeof dzRows[0]>[] = [
     { label: 'Номер договора', width: 160, render: (r) => r.number },
-    { label: 'Задолженность Общая, ₽', width: 140, align: 'right', render: (r) => m(r.general) },
-    { label: 'Задолженность Текущая, ₽', width: 140, align: 'right', render: (r) => m(r.current) },
-    { label: 'Задолженность Просроченная, ₽', width: 150, align: 'right', render: (r) => rub(r.overdue) },
-    { label: 'Просроченная до 5 дней, ₽', width: 140, align: 'right', render: (r) => rub(r.overdue5) },
-    { label: 'Просроченная от 6 до 30 дней, ₽', width: 150, align: 'right', render: (r) => rub(r.overdue30) },
-    { label: 'Просроченная более 30 дней, ₽', width: 150, align: 'right', render: (r) => rub(r.overdueMore) },
-    { label: 'Выставленные претензии и штрафы, ₽', width: 160, align: 'right', render: (r) => rub(r.claims) },
-    { label: 'Сумма резервов по сомнительным долгам, ₽', width: 170, align: 'right', render: (r) => rub(r.reserve) },
+    { label: 'Задолженность Общая, руб.', width: 140, align: 'right', render: (r) => m(r.general) },
+    { label: 'Задолженность Текущая, руб.', width: 140, align: 'right', render: (r) => m(r.current) },
+    { label: 'Задолженность Просроченная, руб.', width: 150, align: 'right', render: (r) => rub(r.overdue) },
+    { label: 'Просроченная до 5 дней, руб.', width: 140, align: 'right', render: (r) => rub(r.overdue5) },
+    { label: 'Просроченная от 6 до 30 дней, руб.', width: 150, align: 'right', render: (r) => rub(r.overdue30) },
+    { label: 'Просроченная более 30 дней, руб.', width: 150, align: 'right', render: (r) => rub(r.overdueMore) },
+    { label: 'Выставленные претензии и штрафы, руб.', width: 160, align: 'right', render: (r) => rub(r.claims) },
+    { label: 'Сумма резервов по сомнительным долгам, руб.', width: 170, align: 'right', render: (r) => rub(r.reserve) },
     { label: 'Комментарий относительно просроченной задолженности', width: 220, render: () => '—' },
-    { label: 'Сумма обеспечения, ₽', width: 130, align: 'right', render: () => '—' },
+    { label: 'Сумма обеспечения, руб.', width: 130, align: 'right', render: () => '—' },
     { label: 'Вид обеспечения', width: 120, render: () => '—' },
     { label: 'Номер обеспечения', width: 130, render: () => '—' },
     { label: 'Наименование гаранта / поручителя / залогодателя / страховщика', width: 220, render: () => '—' },
@@ -1598,9 +1659,9 @@ function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; on
   const advRows = detail.advances.map((r, i) => ({ id: `${r.number}-${i}`, ...r }));
   const advCols: LegalCol<typeof advRows[0]>[] = [
     { label: 'Номер договора', width: 160, render: (r) => r.number },
-    { label: 'Авансы Сумма на конец периода, ₽ (без отрицательных сальдо)', width: 220, align: 'right', render: (r) => m(r.amount) },
+    { label: 'Авансы Сумма на конец периода, руб. (без отрицательных сальдо)', width: 220, align: 'right', render: (r) => m(r.amount) },
     { label: 'Комментарий по авансам', width: 180, render: () => '—' },
-    { label: 'Сумма обеспечения, ₽', width: 130, align: 'right', render: () => '—' },
+    { label: 'Сумма обеспечения, руб.', width: 130, align: 'right', render: () => '—' },
     { label: 'Вид обеспечения', width: 120, render: () => '—' },
     { label: 'Номер обеспечения', width: 130, render: () => '—' },
     { label: 'Наименование гаранта / поручителя / залогодателя / страховщика', width: 220, render: () => '—' },
@@ -1611,12 +1672,12 @@ function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; on
   const payRows = detail.payable.map((r, i) => ({ id: `${r.number}-${i}`, ...r }));
   const payCols: LegalCol<typeof payRows[0]>[] = [
     { label: 'Номер договора', width: 200, render: (r) => r.number },
-    { label: 'Кредиторская задолженность, ₽', width: 180, align: 'right', render: (r) => m(r.amount) },
+    { label: 'Кредиторская задолженность, руб.', width: 180, align: 'right', render: (r) => m(r.amount) },
   ];
 
   const otherCols: LegalCol<{ id: string }>[] = [
     { label: 'Номер договора', width: 200, render: () => '—' },
-    { label: 'Сумма обеспечения, ₽', width: 150, align: 'right', render: () => '—' },
+    { label: 'Сумма обеспечения, руб.', width: 150, align: 'right', render: () => '—' },
     { label: 'Вид обеспечения', width: 140, render: () => '—' },
     { label: 'Номер обеспечения', width: 140, render: () => '—' },
     { label: 'Наименование гаранта / поручителя / залогодателя / страховщика', width: 240, render: () => '—' },
@@ -1679,6 +1740,9 @@ function DzKzContractModal({ detail, onClose }: { detail: DzKzContractDetail; on
 /** Ширина колонки показателя в таблицах отчётности (px). */
 const STMT_LABEL_W = 400;
 
+/** Допустимое отклонение активов от пассивов, тыс. руб.: больше — баннер «Проверьте отчётность». */
+const BALANCE_TOLERANCE = 2;
+
 function StatementsTab({ c }: { c: Counterparty }) {
   // Столбцы — отчётные периоды от свежего к старому. По «героям» это реальная
   // годовая отчётность (три закрытых года), по остальным карточкам — прежняя
@@ -1697,16 +1761,50 @@ function StatementsTab({ c }: { c: Counterparty }) {
   const codeW = hasCodes ? 100 : 0;
   const emptyIfrs = standard === 'МСФО' && ifrs.periods.length === 0;
   const actualDate = standard === 'РСБУ' ? c.asOf.statements : ifrs.periods[0];
+  // сходимость баланса по каждой отчётной дате: в РСБУ — коды 1600 и 1700, в МСФО — итоги
+  // «ИТОГО АКТИВЫ» и «ИТОГО КАПИТАЛ И ОБЯЗАТЕЛЬСТВА»
+  const balanceRows = st.blocks[0]?.rows ?? [];
+  const totalAssets = balanceRows.find((r) => r.code === '1600' || r.label === 'ИТОГО АКТИВЫ');
+  const totalLiab = balanceRows.find((r) => r.code === '1700' || r.label === 'ИТОГО КАПИТАЛ И ОБЯЗАТЕЛЬСТВА');
+  const imbalances = totalAssets && totalLiab
+    ? st.periods.map((date, i) => ({ date, diff: totalAssets.values[i] - totalLiab.values[i] })).filter((x) => Math.abs(x.diff) > BALANCE_TOLERANCE)
+    : [];
 
   return (
     <SectionCard title="Финансовая отчётность контрагента" extra={<DateActuality date={actualDate} source={[...new Set(st.sources)].join(' / ')} />}>
       <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Segmented value={standard} onChange={setStandard} items={[{ key: 'РСБУ', label: 'РСБУ' }, { key: 'МСФО', label: 'МСФО' }]} />
-        <span className="pmrk-muted" style={{ fontSize: 12 }}>Стандарт: {standard} · тыс. руб.</span>
+        <Segmented value={standard} onChange={setStandard} items={[{ key: 'РСБУ', label: 'РСБУ отчётность' }, { key: 'МСФО', label: 'МСФО отчётность' }]} />
         <div style={{ flex: 1 }} />
         {standard === 'МСФО' && <Button size="xs" view="primary" label="Внести отчётность по МСФО" iconLeft={IconAdd as never} onClick={() => setEditing('new')} />}
         {!emptyIfrs && <Button size="xs" view="secondary" label={`${standard} отчётность (PDF)`} iconLeft={IconDownload as never} />}
       </div>
+
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 12, fontSize: 13 }}>
+        <span><span className="pmrk-muted">Валюта отчётности: </span>рубль</span>
+        <span><span className="pmrk-muted">Единица измерения: </span>тыс.</span>
+      </div>
+
+      {/* Проверка сходимости баланса: активы ≠ пассивы с отклонением больше 2 тыс. руб. на любую
+          из отчётных дат — крупное уведомление над таблицами */}
+      {!emptyIfrs && imbalances.length > 0 && (
+        <div
+          role="alert"
+          style={{ display: 'flex', gap: 16, alignItems: 'flex-start', padding: '18px 20px', marginBottom: 16, borderRadius: 'var(--pmrk-radius-lg)', background: 'var(--pmrk-risk-4-bg)', border: '2px solid var(--pmrk-risk-4)' }}
+        >
+          <span style={{ flex: '0 0 40px', width: 40, height: 40, borderRadius: '50%', background: 'var(--pmrk-risk-4)', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: '40px', textAlign: 'center' }}>!</span>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>Проверьте отчётность</div>
+            <div style={{ fontSize: 13.5 }}>
+              Активы не равны пассивам (допустимое отклонение — до {BALANCE_TOLERANCE} тыс. руб.):
+            </div>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13.5 }}>
+              {imbalances.map((x) => (
+                <li key={x.date}>на {dateRu(x.date)} — отклонение {money(Math.abs(x.diff), { unit: '' })} тыс. руб. ({x.diff > 0 ? 'активы больше пассивов' : 'пассивы больше активов'})</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {standard === 'МСФО' && ifrsEntries.length > 0 && (
         <div style={{ marginBottom: 14 }}>
@@ -1746,16 +1844,16 @@ function StatementsTab({ c }: { c: Counterparty }) {
               <div className="pmrk-th" style={{ flex: `1 1 ${STMT_LABEL_W}px`, minWidth: 0 }}>{block.title}</div>
               {hasCodes && <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>Код строки</div>}
               {st.periods.map((d, i) => (
-                // под датой периода — источник отчётности: «ФНС» (из СПАРК) или
-                // «Данные компании» (внесено вручную)
+                // над датой периода — источник отчётности: «ФНС» (из СПАРК) или
+                // «Данные компании» (внесено вручную); дата — ниже
                 <div key={d} className="pmrk-th" style={{ flex: '0 0 120px', minWidth: 0, flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 1 }}>
-                  <span>{dateRu(d)}</span>
                   <span
                     title={st.sources[i] === 'ФНС' ? 'Годовая отчётность из СПАРК (ГИР БО ФНС России)' : 'Отчётность внесена вручную'}
                     style={{ fontSize: 10.5, fontWeight: 400, opacity: 0.85, whiteSpace: 'nowrap' }}
                   >
                     {st.sources[i]}
                   </span>
+                  <span>{dateRu(d)}</span>
                 </div>
               ))}
             </div>
@@ -1769,7 +1867,7 @@ function StatementsTab({ c }: { c: Counterparty }) {
           </div>
         ))
       )}
-      {!emptyIfrs && st.balanceCheck && (
+      {!emptyIfrs && st.balanceCheck && imbalances.length === 0 && (
         <div style={{ marginTop: 8, fontSize: 12, color: 'var(--pmrk-risk-1)' }}>
           {standard === 'РСБУ' ? '✓ Проверка пройдена: активы = пассивам на каждую отчётную дату (ФТ-3.4).' : '✓ Проверка пройдена: активы = капитал + обязательства на каждую отчётную дату.'}
         </div>
@@ -1812,11 +1910,11 @@ function AssessmentScoreChip({ block }: { block: ScoreBlock }) {
 }
 
 /** Плитка «значение + подпись» для дополнительных показателей оценки. */
-function InfoTile({ value, caption }: { value: string; caption: string }) {
+function InfoTile({ value, caption, big }: { value: string; caption: string; big?: boolean }) {
   return (
-    <div style={{ flex: 1, minWidth: 130, padding: '10px 12px', borderRadius: 10, background: 'var(--color-bg-secondary)' }}>
-      <div style={{ fontSize: 16, fontWeight: 700 }}>{value}</div>
-      <div className="pmrk-muted" style={{ fontSize: 11.5, marginTop: 2 }}>{caption}</div>
+    <div style={{ flex: 1, minWidth: big ? 170 : 130, padding: big ? '14px 16px' : '10px 12px', borderRadius: 10, background: 'var(--color-bg-secondary)' }}>
+      <div className="pmrk-tnum" style={{ fontSize: big ? 26 : 16, fontWeight: big ? 800 : 700, lineHeight: big ? '30px' : undefined }}>{value}</div>
+      <div className="pmrk-muted" style={{ fontSize: big ? 12.5 : 11.5, marginTop: 2 }}>{caption}</div>
     </div>
   );
 }
@@ -1913,6 +2011,12 @@ function AssessmentTab({ c }: { c: Counterparty }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}><span className="pmrk-muted">Категория</span><span>{r.category}</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10 }}><span className="pmrk-muted">Период отчётности</span><span>{dateRu(last?.reportPeriod ?? c.asOf.statements ?? r.date)}</span></div>
 
+          {/* лимиты — самые важные результаты оценки: сразу под периодом отчётности, очень крупно */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <InfoTile big value={limitK(creditLimit)} caption="Кредитный лимит, тыс. руб." />
+            <InfoTile big value={limitK(extras.advanceLimit)} caption="Лимит авансового платежа, тыс. руб." />
+          </div>
+
           {/* итог: группа и скоринг-балл — две сплошные синие полосы */}
           <div style={{ borderRadius: 'var(--pmrk-radius)', overflow: 'hidden', background: 'var(--color-bg-brand)', color: '#fff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 14px', fontSize: 14, fontWeight: 700 }}>
@@ -1947,13 +2051,6 @@ function AssessmentTab({ c }: { c: Counterparty }) {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             <InfoTile value={claims.preTrial} caption="Наличие досудебных требований" />
             <InfoTile value={claims.lawsuits} caption="Наличие исковых требований" />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '8px 0', borderTop: '1px solid var(--color-bg-border)' }}>
-            <span>Кредитный лимит, тыс. руб.</span><span className="pmrk-tnum" style={{ fontWeight: 600 }}>{limitK(creditLimit)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '8px 0', borderTop: '1px solid var(--color-bg-border)', borderBottom: '1px solid var(--color-bg-border)' }}>
-            <span>Лимит авансового платежа, тыс. руб.</span><span className="pmrk-tnum" style={{ fontWeight: 600 }}>{limitK(extras.advanceLimit)}</span>
           </div>
 
           <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
@@ -2054,17 +2151,66 @@ function SpecialControlTab({ c }: { c: Counterparty }) {
   );
 }
 
-/** Столбец широкой таблицы претензионно-исковой работы — ширина фиксирована
-    (не flex-резина): в исходной системе это плотные таблицы на 12–18 колонок,
-    и содержимое сверяется взглядом по столбцам, а не «влезает» в карточку. */
-interface LegalCol<T> { label: string; width: number; align?: 'right'; render: (row: T) => React.ReactNode }
+/** Столбец таблицы претензионно-исковой работы. width — не пиксели, а «вес» колонки:
+    таблицы плотные (до 18 столбцов, как в исходной системе), поэтому колонки делят
+    ширину карточки пропорционально весу, текст в ячейках переносится, и вся таблица —
+    с первой строкой — умещается на экране без горизонтальной прокрутки. */
+interface LegalCol<T> { label: string; width: number; align?: 'right'; /** своя минимальная ширина, px (для статусов-чипов) */ min?: number; render: (row: T) => React.ReactNode }
 
 function safeDateRu(v: string): string {
   return v && v !== '—' ? dateRu(v) : '—';
 }
 
-function LegalWideTable<T extends { id: string }>({ columns, rows, empty }: { columns: LegalCol<T>[]; rows: T[]; empty: string }) {
+/** Минимальная ширина колонки, px: дата или сумма не должны ломаться посреди числа, а слова
+    заголовков — рваться на слоги. Если карточка уже суммы минимумов — горизонтальная прокрутка. */
+const legalColMin = (width: number, min?: number) => min ?? (width <= 140 ? 64 : Math.max(66, Math.round(width * 0.26)));
+
+/** `fit` — режим вкладки «Претензионно-исковая работа» (LegalFitTable): оформление по образцу
+    исходной системы (стили — .pmrk-legal в components.css), ширину колонок задают веса `width`. Без `fit` (расшифровка по договорам ДЗ/КЗ) — колонки фиксированной ширины
+    и горизонтальная прокрутка. */
+/** Таблица вкладки «Претензионно-исковая работа»: если колонки с комфортными минимумами не
+    помещаются в карточку, вся таблица пропорционально уменьшается (CSS zoom, не меньше 0.7) —
+    она целиком, с шапкой и первой строкой, видна на экране без горизонтальной прокрутки. */
+function LegalFitTable<T extends { id: string }>({ columns, rows }: { columns: LegalCol<T>[]; rows: T[] }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState(0);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => setBox(el.clientWidth - 20); // минус боковые поля обёртки
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const need = columns.reduce((sum, col) => sum + legalColMin(col.width, col.min), 0);
+  const scale = box > 0 && box < need ? Math.max(0.7, box / need) : 1;
+  const flexOf = (col: LegalCol<T>) => `${col.width} 1 ${legalColMin(col.width, col.min)}px`;
+  return (
+    // таблица выходит за внутренние поля карточки (почти от края до края)
+    <div ref={wrapRef} style={{ overflowX: 'auto', margin: '0 -18px', padding: '0 10px' }}>
+      <div className="pmrk-table pmrk-legal" style={{ minWidth: need, width: scale < 1 ? need : undefined, zoom: scale }}>
+        <div className="pmrk-table__head">
+          {columns.map((col, i) => (
+            <div key={i} className="pmrk-th" style={{ flex: flexOf(col) }}>{col.label}</div>
+          ))}
+        </div>
+        {rows.map((r) => (
+          <div key={r.id} className="pmrk-tr" style={{ cursor: 'default' }}>
+            {columns.map((col, i) => (
+              <div key={i} className="pmrk-td" style={{ flex: flexOf(col) }}>{col.render(r)}</div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LegalWideTable<T extends { id: string }>({ columns, rows, empty, fit }: { columns: LegalCol<T>[]; rows: T[]; empty: string; fit?: boolean }) {
   if (!rows.length) return <EmptyState text={empty} />;
+  if (fit) return <LegalFitTable columns={columns} rows={rows} />;
   return (
     <div style={{ overflowX: 'auto' }}>
       <div className="pmrk-table" style={{ minWidth: columns.reduce((s, col) => s + col.width, 0) }}>
@@ -2108,8 +2254,8 @@ function LegalTab({ c }: { c: Counterparty }) {
   const claimCols: LegalCol<typeof legal.claims[0]>[] = [
     { label: 'Заявитель претензии', width: 190, render: (x) => x.applicant },
     { label: 'Направление деятельности, из которого возникла претензия', width: 170, render: (x) => x.activity },
-    { label: 'Номер договора', width: 110, render: (x) => x.contractNo },
-    { label: 'Номер исходящей претензии', width: 130, render: (x) => x.claimNo },
+    { label: 'Номер договора', width: 110, min: 76, render: (x) => x.contractNo },
+    { label: 'Номер исходящей претензии', width: 130, min: 76, render: (x) => x.claimNo },
     { label: 'Дата направления претензии', width: 110, render: (x) => dateRu(x.sentDate) },
     { label: 'Предмет и основание претензии', width: 260, render: (x) => x.subject },
     { label: 'Сумма претензии (общая), руб.', width: 130, align: 'right', render: (x) => m(x.total) },
@@ -2119,22 +2265,22 @@ function LegalTab({ c }: { c: Counterparty }) {
     { label: 'Удовлетворено, руб.', width: 110, align: 'right', render: (x) => m(x.satisfied) },
     { label: 'Событие по претензии', width: 180, render: (x) => x.event },
     { label: 'Дата события', width: 100, render: (x) => dateRu(x.eventDate) },
-    { label: 'Статус', width: 150, render: (x) => <StatusBadge status={x.status} /> },
+    { label: 'Статус', width: 150, min: 84, render: (x) => <StatusBadge status={x.status} /> },
     { label: 'Комментарий', width: 200, render: (x) => x.comment },
-    { label: 'Связь с судебным делом', width: 140, render: (x) => x.lawsuitLink },
+    { label: 'Связь с судебным делом', width: 140, min: 84, render: (x) => x.lawsuitLink },
     curacaoCol<typeof legal.claims[0]>(),
     { label: 'Юрист сопровождающий претензию', width: 170, render: (x) => x.lawyer },
   ];
 
   const lawsuitCols: LegalCol<typeof legal.lawsuits[0]>[] = [
     { label: 'Истец', width: 190, render: (x) => x.plaintiff },
-    { label: 'Номер дела', width: 130, render: (x) => x.caseNo },
+    { label: 'Номер дела', width: 130, min: 80, render: (x) => x.caseNo },
     { label: 'Дата регистрации дела', width: 120, render: (x) => dateRu(x.regDate) },
     { label: 'Сумма иска текущая, руб.', width: 140, align: 'right', render: (x) => m(x.currentClaim) },
     { label: 'Удовлетворено, руб.', width: 110, align: 'right', render: (x) => m(x.satisfied) },
     { label: 'Текущая судебная инстанция', width: 170, render: (x) => x.instance },
     { label: 'Ближайшее судебное заседание', width: 130, render: (x) => dateRu(x.nextHearing) },
-    { label: 'Статус дела', width: 150, render: (x) => <StatusBadge status={x.status} /> },
+    { label: 'Статус дела', width: 150, min: 84, render: (x) => <StatusBadge status={x.status} /> },
     { label: 'Результат решения суда', width: 240, render: (x) => x.courtResult },
     { label: 'Исход дела', width: 160, render: (x) => x.outcome },
     { label: 'Связь с исполнительным производством', width: 150, render: (x) => x.enforcementLink },
@@ -2163,7 +2309,7 @@ function LegalTab({ c }: { c: Counterparty }) {
   const bankCols: LegalCol<typeof legal.bankruptcy[0]>[] = [
     { label: 'Кредитор в деле о банкротстве', width: 220, render: (x) => x.creditor },
     { label: 'Название дела о банкротстве', width: 220, render: (x) => x.caseName },
-    { label: 'Стадия банкротства', width: 150, render: (x) => <StatusBadge status={x.stage} /> },
+    { label: 'Стадия банкротства', width: 150, min: 84, render: (x) => <StatusBadge status={x.stage} /> },
     { label: 'Сумма требований Кредитора в реестре требований, руб.', width: 160, align: 'right', render: (x) => m(x.claimInRegistry) },
     { label: 'Сумма исполнения требований в деле о банкротстве, руб.', width: 160, align: 'right', render: (x) => m(x.execution) },
     { label: 'Дата последнего платежа', width: 130, render: (x) => safeDateRu(x.lastPaymentDate) },
@@ -2182,10 +2328,10 @@ function LegalTab({ c }: { c: Counterparty }) {
         <Segmented value={sec} onChange={setSec} items={SECTIONS.map((s) => ({ key: s.key, label: s.label, count: s.count }))} />
       </div>
 
-      {sec === 'claims' && <LegalWideTable columns={claimCols} rows={legal.claims} empty="Данные по контрагенту отсутствуют" />}
-      {sec === 'lawsuits' && <LegalWideTable columns={lawsuitCols} rows={legal.lawsuits} empty="Данные по контрагенту отсутствуют" />}
-      {sec === 'enforcement' && <LegalWideTable columns={enfCols} rows={legal.enforcement} empty="Данные по контрагенту отсутствуют" />}
-      {sec === 'bankruptcy' && <LegalWideTable columns={bankCols} rows={legal.bankruptcy} empty="Данные по контрагенту отсутствуют" />}
+      {sec === 'claims' && <LegalWideTable fit columns={claimCols} rows={legal.claims} empty="Данные по контрагенту отсутствуют" />}
+      {sec === 'lawsuits' && <LegalWideTable fit columns={lawsuitCols} rows={legal.lawsuits} empty="Данные по контрагенту отсутствуют" />}
+      {sec === 'enforcement' && <LegalWideTable fit columns={enfCols} rows={legal.enforcement} empty="Данные по контрагенту отсутствуют" />}
+      {sec === 'bankruptcy' && <LegalWideTable fit columns={bankCols} rows={legal.bankruptcy} empty="Данные по контрагенту отсутствуют" />}
 
       {/* Уведомление о доступах КЮРАСАО 2.0 */}
       {curacao && (
@@ -2220,80 +2366,84 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
     { label: 'Совокупный кредитный лимит контрагента и аффилированных лиц, руб.', value: money(groupAggregateLimit + affiliatedLimit, { unit: '' }) },
   ];
 
+  const m = (n: number) => money(n, { unit: '' });
+  type KlRow = (typeof doLimits)[number] & { id: string };
+  const limitCols: LegalCol<KlRow>[] = [
+    { label: 'Наименование ДО ГК ГПН', width: 150, render: (r) => r.subsidiary },
+    { label: 'Действительность', width: 100, render: (r) => (isDoLimitActive(r) ? 'Да' : 'Нет') },
+    { label: 'Сегмент', width: 150, render: (r) => r.segment },
+    { label: 'Утверждённый кредитный лимит, валюта', width: 130, render: (r) => m(r.amountRub) },
+    { label: 'Валюта утверждённого КЛ', width: 100, render: () => 'рубль' },
+    { label: 'Утверждённый кредитный лимит, руб.', width: 130, render: (r) => m(r.amountRub) },
+    { label: 'Утверждённая отсрочка платежа, кол-во дней', width: 110, render: (r) => r.deferralDays },
+    { label: 'Коллегиальный орган, утвердивший КЛ', width: 140, render: (r) => r.approvalBody },
+    { label: 'Реквизиты документа, согласно которому утверждён КЛ', width: 160, render: (r) => r.documentRef },
+    { label: 'Утверждённая дата начала действия КЛ', width: 120, render: (r) => dateRu(r.startDate) },
+    { label: 'Утверждённая дата окончания действия КЛ', width: 120, render: (r) => dateRu(r.endDate) },
+    { label: 'Описание обеспечения', width: 130, render: (r) => (r.collateral === 'нет' ? 'Без обеспечения' : r.collateral) },
+    { label: 'Комментарии по обеспечению', width: 150, render: (r) => r.comment || '' },
+  ];
+  // заявки по контрагенту: у ещё не утверждённых заявок лимит, валюта и даты в реестре пустые («-»)
+  const requests = useMemo(() => LIMIT_REQUESTS.filter((q) => q.counterpartyUid === c.uid), [c.uid]);
+  const requestCols: LegalCol<(typeof requests)[number]>[] = [
+    { label: 'Номер заявки', width: 120, render: (q) => q.number },
+    { label: 'Наименование ДО ГК ГПН', width: 160, render: (q) => q.subsidiary },
+    { label: 'Действительность', width: 100, render: (q) => (q.status === 'Утверждено' ? 'Да' : 'Нет') },
+    { label: 'Утверждённый кредитный лимит, валюта', width: 140, render: (q) => (q.status === 'Утверждено' ? m(q.requestedLimit) : '-') },
+    { label: 'Валюта утверждённого КЛ', width: 110, render: (q) => (q.status === 'Утверждено' ? 'рубль' : '-') },
+    { label: 'Утверждённый кредитный лимит, руб.', width: 140, render: (q) => (q.status === 'Утверждено' ? m(q.requestedLimit) : '-') },
+    { label: 'Утверждённая отсрочка платежа, кол-во дней', width: 120, render: (q) => (q.status === 'Утверждено' ? q.deferralDays : '-') },
+    { label: 'Утверждённая дата начала действия КЛ', width: 130, render: (q) => (q.status === 'Утверждено' ? dateRu(q.createdAt) : '-') },
+    { label: 'Утверждённая дата окончания действия КЛ', width: 130, render: () => '-' },
+    { label: 'Статус заявки', width: 140, min: 90, render: (q) => <StatusBadge status={q.status} /> },
+  ];
+
   return (
     <>
       {/* Сводка — тем же компонентом и тем же списочным стилем, что и «Налоги
           и взносы» во «Внешней информации» (обычный indicators-список внутри
           ExtAccordion, без отдельной вёрстки). */}
       <ExtAccordion
-        title="Утверждённые совокупные кредитные лимиты по ГК Газпром нефть"
+        title="Утверждённый совокупный кредитный лимит по ГК Газпром нефть"
         indicators={summaryIndicators}
         defaultOpen
         valueLeft
         extra={<DateActuality date={c.asOf['credit-limit']} source="limit-workflow" />}
       />
 
-      {/* Распределение совокупного КЛ по ДО ГК ГПН, работающим с контрагентом
-          (реестр «Кредитные лимиты», ФТ-1.7) — раскладка агрегата из блока выше.
-          Свой сворачиваемый блок, тем же ExtAccordion, что и разделы «Внешней
-          информации» — вместо прежней вложенной секции внутри общей карточки. */}
+      {/* Утверждённые КЛ самого контрагента по ДО ГК ГПН (реестр «Кредитные лимиты», ФТ-1.7) —
+          раскладка совокупного КЛ из блока выше; колонки и порядок — как в исходной системе. */}
       <ExtAccordion
-        title="Утверждённые кредитные лимиты аффилированных лиц по ГК Газпром нефть"
+        title="Утверждённые кредитные лимиты по ГК Газпром нефть"
         defaultOpen
         flush
         extra={<DateActuality date={c.asOf['credit-limit']} source="Реестр КЛ ГК ГПН" />}
       >
-        {doLimits.length === 0 ? (
-          <EmptyState text="Действующих лимитов по ДО нет — заявка на открытие КЛ не подавалась или отклонена." />
-        ) : (
-          /* paddingBottom — под горизонтальную прокрутку: при flush (padding: 0
-             у тела) полоса прокрутки прижималась к нижнему краю блока */
-          <div style={{ overflowX: 'auto', paddingBottom: 10 }}>
-            <div className="pmrk-table" style={{ minWidth: 1680, border: 0, borderTop: '2px solid #e0e5e9', borderRadius: '0 0 var(--pmrk-radius-lg) var(--pmrk-radius-lg)' }}>
-              <div className="pmrk-table__head" style={{ position: 'static' }}>
-                {/* minWidth: 0 — без него длинные заголовки распирают свою ячейку сверх
-                    flex-доли по min-content самого длинного слова. overflow: hidden —
-                    у .pmrk-th (в отличие от .pmrk-td) его нет по умолчанию, поэтому
-                    перенесённая строка чуть шире своей колонки визуально наезжает на
-                    соседнюю; с overflow:hidden она просто обрезается, как и в теле
-                    таблицы. «Действует» вместо «Действительность» — та же причина. */}
-                <div className="pmrk-th" style={{ flex: '0 0 190px', minWidth: 0, overflow: 'hidden' }}>Наименование ДО ГК ГПН</div>
-                <div className="pmrk-th" style={{ flex: '0 0 110px', minWidth: 0, overflow: 'hidden' }}>ИНН</div>
-                <div className="pmrk-th" style={{ flex: '0 0 160px', minWidth: 0, overflow: 'hidden' }}>Сегмент</div>
-                <div className="pmrk-th" style={{ flex: '0 0 160px', minWidth: 0, overflow: 'hidden' }}>Утверждённый кредитный лимит, руб.</div>
-                <div className="pmrk-th" style={{ flex: '0 0 100px', minWidth: 0, overflow: 'hidden' }}>Утверждённая отсрочка платежа, кол-во дней</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Коллегиальный орган, утвердивший КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 150px', minWidth: 0, overflow: 'hidden' }}>Реквизиты документа, согласно которому утверждён КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 90px', minWidth: 0, overflow: 'hidden' }}>Действует</div>
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Утверждённая дата начала действия КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 130px', minWidth: 0, overflow: 'hidden' }}>Утверждённая дата окончания действия КЛ</div>
-                <div className="pmrk-th" style={{ flex: '0 0 140px', minWidth: 0, overflow: 'hidden' }}>Описание обеспечения</div>
-                <div className="pmrk-th" style={{ flex: '0 0 170px', minWidth: 0, overflow: 'hidden' }}>Комментарии по обеспечению</div>
-              </div>
-              {doLimits.map((row, i) => {
-                const active = isDoLimitActive(row);
-                return (
-                  <div key={i} className="pmrk-tr" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-                    <div className="pmrk-td" style={{ flex: '0 0 190px', minWidth: 0, fontWeight: 600, whiteSpace: 'normal' }}>{row.subsidiary}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 110px', minWidth: 0 }}>{row.subsidiaryInn}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 160px', minWidth: 0, whiteSpace: 'normal' }}>{row.segment}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 160px', minWidth: 0 }}>{money(row.amountRub, { unit: '' })}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 100px', minWidth: 0 }}>{row.deferralDays}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 150px', minWidth: 0, whiteSpace: 'normal' }}>{row.approvalBody}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 150px', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{row.documentRef}</div>
-                    <div className="pmrk-td" style={{ flex: '0 0 90px', minWidth: 0 }}>
-                      <span style={{ color: active ? 'var(--pmrk-risk-1)' : 'var(--pmrk-risk-4)', fontWeight: 600, fontSize: 12 }}>{active ? 'Да' : 'Нет'}</span>
-                    </div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 130px', minWidth: 0 }}>{dateRu(row.startDate)}</div>
-                    <div className="pmrk-td pmrk-tnum" style={{ flex: '0 0 130px', minWidth: 0 }}>{dateRu(row.endDate)}</div>
-                    <div className="pmrk-td pmrk-muted" style={{ flex: '0 0 140px', minWidth: 0, whiteSpace: 'normal' }}>{row.collateral}</div>
-                    <div className="pmrk-td pmrk-muted" style={{ flex: '0 0 170px', minWidth: 0, whiteSpace: 'normal' }}>{row.comment || '—'}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        <div style={{ paddingBottom: 10 }}>
+          <LegalWideTable
+            fit
+            columns={limitCols}
+            rows={doLimits.map((r, i) => ({ ...r, id: `kl-${i}` }))}
+            empty="Действующих лимитов по ДО нет — заявка на открытие КЛ не подавалась или отклонена."
+          />
+        </div>
+      </ExtAccordion>
+
+      {/* Заявки на кредитный лимит, поданные через платформу — по контрагенту */}
+      <ExtAccordion
+        title="Заявки на кредитный лимит (платформа)"
+        defaultOpen
+        flush
+        extra={<DateActuality date={c.asOf['credit-limit']} source="limit-workflow" />}
+      >
+        <div style={{ paddingBottom: 10 }}>
+          <LegalWideTable
+            fit
+            columns={requestCols}
+            rows={requests}
+            empty="Заявок на кредитный лимит по контрагенту нет."
+          />
+        </div>
       </ExtAccordion>
 
     </>

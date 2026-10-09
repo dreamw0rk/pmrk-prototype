@@ -14,7 +14,7 @@ export interface InteractionInfo {
   pmrkStatus: 'Потенциальный' | 'Действующий';
   gpnAffiliationFlag: string;
   hasCollateral: boolean;
-  /** «Контроль ЛФП» (КТ-555): подлежит ли контролю по сумме договора и/или
+  /** «Проверка авторизации сделок с контрагентом в рамках ЛФП» (КТ-555): подлежит ли контролю по сумме договора и/или
       отсрочке платежа и по сумме аванса — два независимых признака */
   lfpContractControl: boolean;
   lfpAdvanceControl: boolean;

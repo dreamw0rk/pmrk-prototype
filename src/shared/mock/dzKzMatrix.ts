@@ -98,20 +98,20 @@ interface MetricDef {
 }
 
 const METRICS: MetricDef[] = [
-  { key: 'dzTotal', label: 'Дебиторская Задолженность Общая, ₽', indent: 0, activity: 0.3, base: (t) => t.dz },
-  { key: 'dzCurrent', label: 'Задолженность Текущая, ₽', indent: 1, activity: 0.3, base: (t) => t.dz - t.pdz },
-  { key: 'dzOverdue', label: 'Задолженность Просроченная, ₽', indent: 1, activity: 0.3, base: (t) => t.pdz },
-  { key: 'dzOverdue5', label: 'Задолженность просроченная до 5 дней, ₽', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.35) },
-  { key: 'dzOverdue30', label: 'Задолженность просроченная от 6 до 30 дней, ₽', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.4) },
-  { key: 'dzOverdueMore', label: 'Задолженность просроченная более 30 дней, ₽', indent: 2, activity: 0.15, base: (t) => t.pdz - Math.round(t.pdz * 0.35) - Math.round(t.pdz * 0.4) },
-  { key: 'claims', label: 'Выставленные претензии и штрафы в адрес контрагента, ₽', indent: 1, activity: 0.08, base: (t) => Math.round(t.pdz * 0.06) },
-  { key: 'dzCollateral', label: 'Сумма обеспечения дебиторской задолженности, ₽', indent: 0, activity: 0.1, base: () => 0 },
-  { key: 'advanceTotal', label: 'Авансы Сумма на конец периода, ₽ (без отрицательных сальдо)', indent: 0, activity: 0.35, base: (t) => t.advance },
-  { key: 'advanceCollateral', label: 'Аванс Сумма обеспечения, ₽', indent: 0, activity: 0.05, base: () => 0 },
-  { key: 'reservesDz', label: 'Сумма резервов по сомнительным долгам по ДЗ на конец периода, ₽', indent: 0, activity: 0.1, base: (t) => Math.round(t.pdz * 0.07) },
-  { key: 'reservesAdvance', label: 'Сумма резервов по сомнительным долгам по авансам на конец периода, ₽', indent: 0, activity: 0.05, base: (t) => Math.round(t.advance * 0.015) },
-  { key: 'payable', label: 'Кредиторская задолженность, ₽', indent: 0, activity: 0.4, base: (t) => t.payable },
-  { key: 'otherCollateral', label: 'Сумма прочего обеспечения, ₽', indent: 0, activity: 0.05, base: () => 0 },
+  { key: 'dzTotal', label: 'Дебиторская Задолженность Общая, руб.', indent: 0, activity: 0.3, base: (t) => t.dz },
+  { key: 'dzCurrent', label: 'Задолженность Текущая, руб.', indent: 1, activity: 0.3, base: (t) => t.dz - t.pdz },
+  { key: 'dzOverdue', label: 'Задолженность Просроченная, руб.', indent: 1, activity: 0.3, base: (t) => t.pdz },
+  { key: 'dzOverdue5', label: 'Задолженность просроченная до 5 дней, руб.', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.35) },
+  { key: 'dzOverdue30', label: 'Задолженность просроченная от 6 до 30 дней, руб.', indent: 2, activity: 0.2, base: (t) => Math.round(t.pdz * 0.4) },
+  { key: 'dzOverdueMore', label: 'Задолженность просроченная более 30 дней, руб.', indent: 2, activity: 0.15, base: (t) => t.pdz - Math.round(t.pdz * 0.35) - Math.round(t.pdz * 0.4) },
+  { key: 'claims', label: 'Выставленные претензии и штрафы в адрес контрагента, руб.', indent: 1, activity: 0.08, base: (t) => Math.round(t.pdz * 0.06) },
+  { key: 'dzCollateral', label: 'Сумма обеспечения дебиторской задолженности, руб.', indent: 0, activity: 0.1, base: () => 0 },
+  { key: 'advanceTotal', label: 'Авансы Сумма на конец периода, руб. (без отрицательных сальдо)', indent: 0, activity: 0.35, base: (t) => t.advance },
+  { key: 'advanceCollateral', label: 'Аванс Сумма обеспечения, руб.', indent: 0, activity: 0.05, base: () => 0 },
+  { key: 'reservesDz', label: 'Сумма резервов по сомнительным долгам по ДЗ на конец периода, руб.', indent: 0, activity: 0.1, base: (t) => Math.round(t.pdz * 0.07) },
+  { key: 'reservesAdvance', label: 'Сумма резервов по сомнительным долгам по авансам на конец периода, руб.', indent: 0, activity: 0.05, base: (t) => Math.round(t.advance * 0.015) },
+  { key: 'payable', label: 'Кредиторская задолженность, руб.', indent: 0, activity: 0.4, base: (t) => t.payable },
+  { key: 'otherCollateral', label: 'Сумма прочего обеспечения, руб.', indent: 0, activity: 0.05, base: () => 0 },
 ];
 
 function fallbackTotals(c: Counterparty): Totals {
@@ -129,16 +129,17 @@ export function buildDzKzTable(c: Counterparty, month: number, year: number): Dz
   const doLinks = buildDoLinks(c);
   const columns: DzKzColumn[] = doLinks.map((l) => ({ name: l.subsidiary, block: l.block }));
 
-  const byBlock = new Map<string, DzKzColumn[]>();
-  columns.forEach((col) => {
-    const key = col.block ?? '—';
-    if (!byBlock.has(key)) byBlock.set(key, []);
-    byBlock.get(key)!.push(col);
-  });
-  const order = Object.keys(BLOCKS);
-  const groups: DzKzBlockGroup[] = [...byBlock.entries()]
-    .sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))
-    .map(([key, cols]) => ({ key, label: key === '—' ? 'Блок не указан' : (BLOCKS as Record<string, string>)[key], columns: cols }));
+  // Всего три варианта блока: БРД, БЛПС и «Внеблоковые ДО» — в последний попадают
+  // все остальные ДО (аппарат управления, БЭФ, БЦТ и ДО без блока).
+  const GROUPS: { key: string; label: string }[] = [
+    { key: 'БРД', label: `БРД - ${BLOCKS['БРД']}` },
+    { key: 'БЛПС', label: `БЛПС - ${BLOCKS['БЛПС']}` },
+    { key: 'ВНЕ', label: 'Внеблоковые ДО' },
+  ];
+  const groupKeyOf = (col: DzKzColumn) => (col.block === 'БРД' || col.block === 'БЛПС' ? col.block : 'ВНЕ');
+  const groups: DzKzBlockGroup[] = GROUPS
+    .map((g) => ({ key: g.key, label: g.label, columns: columns.filter((col) => groupKeyOf(col) === g.key) }))
+    .filter((g) => g.columns.length > 0);
 
   const allCols = groups.flatMap((g) => g.columns.map((col) => col.name));
 
