@@ -2408,7 +2408,7 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
         indicators={summaryIndicators}
         defaultOpen
         valueLeft
-        extra={<DateActuality date={c.asOf['credit-limit']} source="limit-workflow" />}
+        extra={<DateActuality date={c.asOf['credit-limit']} source="ПМРК, АРМ КК" />}
       />
 
       {/* Утверждённые КЛ самого контрагента по ДО ГК ГПН (реестр «Кредитные лимиты», ФТ-1.7) —
@@ -2417,7 +2417,7 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
         title="Утверждённые кредитные лимиты по ГК Газпром нефть"
         defaultOpen
         flush
-        extra={<DateActuality date={c.asOf['credit-limit']} source="Реестр КЛ ГК ГПН" />}
+        extra={<DateActuality date={c.asOf['credit-limit']} source="ПМРК, АРМ КК" />}
       >
         <div style={{ paddingBottom: 10 }}>
           <LegalWideTable
@@ -2434,7 +2434,7 @@ function CreditLimitTab({ c }: { c: Counterparty }) {
         title="Заявки на кредитный лимит (платформа)"
         defaultOpen
         flush
-        extra={<DateActuality date={c.asOf['credit-limit']} source="limit-workflow" />}
+        extra={<DateActuality date={c.asOf['credit-limit']} source="ПМРК" />}
       >
         <div style={{ paddingBottom: 10 }}>
           <LegalWideTable
@@ -2472,7 +2472,7 @@ function AdvanceLimitTab({ c }: { c: Counterparty }) {
   const navigate = useNavigate();
   const hasAdvance = c.assessments.some((a) => a.direction === 'ADVANCE') || c.uid === 'cp-yugtrans';
   return (
-    <SectionCard title="Лимит авансирования" extra={<DateActuality date={c.asOf['credit-limit']} source="scoring" />}>
+    <SectionCard title="Лимит авансирования" extra={<DateActuality date={c.asOf['credit-limit']} source="ПМРК" />}>
       {hasAdvance ? (
         <div className="pmrk-table">
           <div className="pmrk-table__head"><div className="pmrk-th" style={{ flex: 1 }}>Заявка</div><div className="pmrk-th" style={{ flex: 1, justifyContent: 'flex-end' }}>Лимит авансирования, руб.</div><div className="pmrk-th" style={{ flex: 1 }}>Дата</div><div className="pmrk-th" style={{ flex: 1 }}>Статус</div></div>
@@ -2494,7 +2494,7 @@ function ProfileProtocolsTab({ c }: { c: Counterparty }) {
   const navigate = useNavigate();
   const has = c.group <= 2 || c.uid === 'cp-sibur';
   return (
-    <SectionCard title="Протоколы" extra={<DateActuality date={c.asOf['credit-limit']} source="limit-workflow" />}>
+    <SectionCard title="Протоколы" extra={<DateActuality date={c.asOf['credit-limit']} source="ПМРК" />}>
       {has ? (
         <div className="pmrk-route">
           <div className="pmrk-route__step pmrk-route__step--upcoming" style={{ cursor: 'pointer' }} onClick={() => navigate('/protocols')}>
