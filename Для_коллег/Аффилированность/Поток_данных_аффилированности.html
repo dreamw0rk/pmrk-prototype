@@ -1,0 +1,734 @@
+<title>Поток данных аффилированности</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Unbounded:wght@500;600&display=swap">
+<style>
+/* Layout: технический справочник — узкая колонка чтения, слева оглавление; этапы потока помечены цветом своей системы */
+:root {
+  --bg: #f5f6f4;
+  --surface: #ffffff;
+  --fg: #1b2124;
+  --muted: #5d676b;
+  --line: #d9dedb;
+  --accent: #0e6b5c;
+  --accent-soft: #e2f0ec;
+  --ext: #a35a12;        /* внешние системы: СПАРК, X-Compliance */
+  --ext-soft: #f6ebdd;
+  --hub: #3a4fa0;        /* integration-hub */
+  --hub-soft: #e6e9f6;
+  --core: #0e6b5c;       /* модуль affiliation (ядро) */
+  --core-soft: #e2f0ec;
+  --front: #6a3d8f;      /* фронт */
+  --front-soft: #efe6f5;
+  --warn: #9a3412;
+  --code-bg: #f0f2ef;
+  --font-display: "Unbounded", "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121615; --surface: #1a1f1e; --fg: #e4e9e7; --muted: #9aa5a2; --line: #2d3533;
+    --accent: #5cc4ae; --accent-soft: #1d3430;
+    --ext: #e0a15c; --ext-soft: #3a2a18; --hub: #9aaaf0; --hub-soft: #232946;
+    --core: #5cc4ae; --core-soft: #1d3430; --front: #c9a2e8; --front-soft: #2f2340;
+    --warn: #f0926a; --code-bg: #151a19; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121615; --surface: #1a1f1e; --fg: #e4e9e7; --muted: #9aa5a2; --line: #2d3533;
+  --accent: #5cc4ae; --accent-soft: #1d3430;
+  --ext: #e0a15c; --ext-soft: #3a2a18; --hub: #9aaaf0; --hub-soft: #232946;
+  --core: #5cc4ae; --core-soft: #1d3430; --front: #c9a2e8; --front-soft: #2f2340;
+  --warn: #f0926a; --code-bg: #151a19; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; padding-block: 40px 80px; }
+nav.toc { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); align-self: start; font-size: 13px; }
+nav.toc p { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
+nav.toc li { counter-increment: s; }
+nav.toc a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--muted); text-decoration: none; }
+nav.toc a::before { content: counter(s) ". "; font-family: var(--font-mono); font-size: 11px; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); background: var(--surface); outline: none; }
+main { min-width: 0; }
+header.hero { padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 10px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 14px; text-wrap: balance; letter-spacing: -.01em; }
+h2 { font-family: var(--font-display); font-weight: 500; font-size: 21px; line-height: 1.25; margin: 0 0 12px; text-wrap: balance; }
+h3 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
+p, li { max-width: 72ch; }
+p { margin: 0 0 12px; }
+.lead { font-size: 17px; color: var(--muted); max-width: 66ch; }
+section { padding-top: 40px; scroll-margin-top: 16px; }
+a { color: var(--accent); }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; }
+.code { position: relative; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; margin: 10px 0 16px; }
+.code .cap { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.code .cap b { font-weight: 600; color: var(--fg); font-family: var(--font-mono); font-size: 12px; }
+.code pre { overflow-x: auto; padding: 12px 14px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; tab-size: 2; }
+.code pre code { background: none; padding: 0; font-size: inherit; }
+button.copy { font: inherit; font-size: 12px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+button.copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 22px 0 6px; }
+.flow .st { border-radius: 8px; padding: 12px; border: 1px solid var(--line); background: var(--surface); min-width: 0; }
+.flow .st small { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.flow .st strong { display: block; font-size: 14px; margin: 2px 0 4px; }
+.flow .st span { font-size: 12.5px; color: var(--muted); line-height: 1.45; display: block; }
+.st.ext { border-top: 3px solid var(--ext); } .st.hub { border-top: 3px solid var(--hub); }
+.st.core { border-top: 3px solid var(--core); } .st.front { border-top: 3px solid var(--front); }
+.tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 1px 8px; border-radius: 999px; vertical-align: middle; }
+.tag.ext { background: var(--ext-soft); color: var(--ext); } .tag.hub { background: var(--hub-soft); color: var(--hub); }
+.tag.core { background: var(--core-soft); color: var(--core); } .tag.front { background: var(--front-soft); color: var(--front); }
+.tbl { overflow-x: auto; margin: 10px 0 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--code-bg); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mono td, td.mono { font-family: var(--font-mono); font-size: 12.5px; }
+.note { border-left: 3px solid var(--line); padding: 8px 14px; color: var(--muted); font-size: 14px; margin: 12px 0; max-width: 72ch; }
+.note.warn { border-color: var(--warn); color: var(--fg); }
+.note strong { color: var(--fg); }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 12px 0 18px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0; }
+ol.steps { padding-left: 20px; display: grid; gap: 6px; }
+ul.check { list-style: none; padding: 0; display: grid; gap: 6px; }
+ul.check li { padding-left: 24px; position: relative; }
+ul.check li::before { content: ""; position: absolute; left: 2px; top: .45em; width: 12px; height: 12px; border: 1.5px solid var(--muted); border-radius: 3px; }
+.merge { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; margin: 12px 0; }
+.merge .arrow { font-family: var(--font-mono); color: var(--muted); }
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+@media (max-width: 900px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; padding-block: 24px 56px; }
+  nav.toc { position: static; margin-bottom: 8px; }
+  nav.toc ol { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .merge { grid-template-columns: minmax(0, 1fr); }
+  .merge .arrow { justify-self: center; transform: rotate(90deg); }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+<nav class="toc" aria-label="Оглавление">
+  <p>Содержание</p>
+  <ol>
+    <li><a href="#overview">Схема потока</a></li>
+    <li><a href="#triggers">Когда запускается</a></li>
+    <li><a href="#spark">Вызовы СПАРК</a></li>
+    <li><a href="#merge">Склейка в узлы</a></li>
+    <li><a href="#event">Событие в ядро</a></li>
+    <li><a href="#db">Хранение в БД</a></li>
+    <li><a href="#sanctions">Санкции связанных лиц</a></li>
+    <li><a href="#api">Отдача на фронт</a></li>
+    <li><a href="#limits">Кто ещё слушает граф</a></li>
+    <li><a href="#errors">Ошибки и граничные случаи</a></li>
+    <li><a href="#firstcall">Проверить на первом вызове</a></li>
+    <li><a href="#sources">Источники</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <p class="eyebrow">ПМРК · группа 21 · для разработчика</p>
+  <h1>Аффилированность: от вызова СПАРК до схемы на экране</h1>
+  <p class="lead">Сквозной пример на одном контрагенте: какие методы СПАРК вызываются и что они возвращают, как три ответа склеиваются в один граф, что лежит в таблицах схемы <code>affiliation</code> и что получает фронт в <code>GET /affiliation-graphs/v1/{uid}</code>.</p>
+  <div class="flow" role="list">
+    <div class="st ext" role="listitem"><small>шаг 1</small><strong>Триггер</strong><span>Создана карточка, мониторинг СПАРК, «Обновить внешние данные»</span></div>
+    <div class="st ext" role="listitem"><small>шаг 2</small><strong>СПАРК, 3 метода</strong><span>Владельцы, доли в дочерних, бенефициары и типы связи</span></div>
+    <div class="st hub" role="listitem"><small>шаг 3</small><strong>integration-hub</strong><span>Склеивает записи в узлы и отправляет полный граф в ядро</span></div>
+    <div class="st core" role="listitem"><small>шаг 4</small><strong>Модуль affiliation</strong><span>Заменяет граф целиком в схеме <code>affiliation</code></span></div>
+    <div class="st front" role="listitem"><small>шаг 5</small><strong>Фронт</strong><span>Читает граф, обогащённый карточками, оценками и санкциями</span></div>
+  </div>
+  <p class="note">Данные в примерах — условные: контрагент, ИНН и SparkID придуманы, но имена элементов XML и полей JSON — реальные, по XSD СПАРК и OpenAPI ПМРК. В СПАРК при открытии вкладки никто не ходит: экран читает только локальные таблицы (НФТ-Пр-2).</p>
+</header>
+
+<section id="overview">
+  <h2>1. Схема потока</h2>
+  <p>Запросы в СПАРК делает отдельное приложение <code>pmrk-integration</code> (модуль <code>integration-hub</code>). Граф хранит модуль <code>affiliation</code> внутри ядра <code>pmrk-core</code>. Между приложениями события ходят по HTTP через outbox отправителя и inbox получателя, Kafka в первой версии нет.</p>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  T([Триггер]) --> IH
+  subgraph EXT[Внешние системы]
+    SP[СПАРК API<br/>SOAP]
+    XC[X-Compliance<br/>пакетная выгрузка]
+  end
+  IH[integration-hub<br/>pmrk-integration] -->|3 метода| SP
+  IH -->|архив раз в сутки| XC
+  IH -->|spark.affiliation.updated| AF
+  IH -->|xcompliance.registry.updated| AF
+  CP[модуль counterparty] -->|profile.created / deleted| AF
+  SC[модуль scoring] -->|assessment.completed| AF
+  AF[(модуль affiliation<br/>схема affiliation)] -->|affiliation.links.updated| LM[модуль limits]
+  FE[Фронт<br/>вкладка «Аффилированность»] -->|GET /affiliation-graphs/v1/uid| AF
+</pre>
+  </div>
+  <div class="legend"><span class="tag ext">внешняя система</span><span class="tag hub">integration-hub</span><span class="tag core">модуль affiliation</span><span class="tag front">фронт</span></div>
+</section>
+
+<section id="triggers">
+  <h2>2. Когда запускается загрузка</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Триггер</th><th>Откуда приходит</th><th>Что делает integration-hub</th></tr></thead>
+    <tbody>
+      <tr><td>Создана карточка контрагента</td><td>событие <code>pmrk.counterparty.profile.created</code></td><td>Первичная загрузка: все три метода</td></tr>
+      <tr><td>Изменились совладельцы или дочерние компании</td><td>ночной мониторинг СПАРК (<code>MonGetEventsList</code>, после 02:00 МСК)</td><td>Все три метода: событие несёт полный граф, поэтому частичной перезагрузки нет</td></tr>
+      <tr><td>Пользователь нажал «Обновить внешние данные»</td><td>команда <code>pmrk.integration.spark.refresh.requested</code></td><td>Все три метода</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="spark">
+  <h2>3. Вызовы СПАРК</h2>
+  <p>СПАРК — SOAP-сервис. Сессия открывается <code>Authmethod</code> и живёт в cookie <code>ASP.NET_SessionId</code>; внутри одной сессии вызовы идут строго последовательно. Каждый метод возвращает статус в <code>…Result</code> и данные строкой XML в <code>xmlData</code>. Классы для разбора генерируются из XSD (JAXB).</p>
+  <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant IH as integration-hub
+  participant SP as СПАРК
+  IH->>SP: Authmethod(login, password)
+  SP-->>IH: True + cookie ASP.NET_SessionId
+  IH->>SP: GetOwnershipHierarchy(code = 7801234567)
+  SP-->>IH: xmlData — Report/Coowners
+  IH->>SP: GetCompanyStructure(inn = 7801234567)
+  SP-->>IH: xmlData — Report/AffiliatedCompanies*
+  IH->>SP: OrderCompanyBeneficiariesAndAffiliates(inn = 7801234567)
+  SP-->>IH: orderId = 4471020
+  Note over IH: фоновое задание ждёт готовности заказа
+  IH->>SP: GetCompanyBeneficiariesAndAffiliates(orderId = 4471020)
+  SP-->>IH: Order is in progress — повторить позже
+  IH->>SP: GetCompanyBeneficiariesAndAffiliates(orderId = 4471020)
+  SP-->>IH: xmlData — Beneficiaries, Affiliates
+  IH->>SP: End()
+</pre>
+  </div>
+
+  <div class="tbl"><table>
+    <thead><tr><th>Метод</th><th>Параметры (WSDL)</th><th>Что берём</th><th>XSD ответа</th></tr></thead>
+    <tbody>
+      <tr><td><code>GetOwnershipHierarchy</code></td><td><code>sparkId</code> или <code>code</code> (ИНН), <code>idCountry</code></td><td>Совладельцы всех уровней: доли, тип совладельца, руководитель, ссылка на компанию, которой владеет</td><td><code>OwnershipHierarchy.xsd</code></td></tr>
+      <tr><td><code>GetCompanyStructure</code></td><td><code>sparkId</code> / <code>inn</code> / <code>ogrn</code></td><td>Только доли корневого контрагента в дочерних обществах</td><td><code>CompanyStructure.xsd</code></td></tr>
+      <tr><td><code>OrderCompanyBeneficiariesAndAffiliates</code> → <code>GetCompanyBeneficiariesAndAffiliates</code></td><td><code>sparkId</code> / <code>inn</code> / <code>ogrn</code> → <code>orderId</code></td><td>Бенефициары с признаком конечного и аффилированные лица с типом связи</td><td><code>CompanyBeneficiariesAndAffiliates.xsd</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Запрос</h3>
+  <div class="code"><div class="cap"><b>SOAP · GetOwnershipHierarchy</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>&lt;soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"&gt;
+  &lt;soap:Body&gt;
+    &lt;GetOwnershipHierarchy xmlns="http://interfax.ru/ifax"&gt;
+      &lt;code&gt;7801234567&lt;/code&gt;
+    &lt;/GetOwnershipHierarchy&gt;
+  &lt;/soap:Body&gt;
+&lt;/soap:Envelope&gt;</code></pre></div>
+
+  <h3>Ответ 1. Цепочка владения — <code>GetOwnershipHierarchy</code></h3>
+  <p>Каждый совладелец — элемент <code>Coowner</code> со своим суррогатным <code>Id</code>. У владельца 2-го уровня есть <code>ParentId</code> — это <code>Id</code> компании 1-го уровня, которой он владеет. <code>Id</code> действует только внутри этого ответа.</p>
+  <div class="code"><div class="cap"><b>xmlData · OwnershipHierarchy.xsd</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>&lt;Response&gt;
+  &lt;ResultInfo ResultType="True" DateTime="2026-10-21T02:14:03" ExecutionTime="412"/&gt;
+  &lt;Data&gt;
+    &lt;Report&gt;
+      &lt;SparkID&gt;1185320&lt;/SparkID&gt;
+      &lt;ShortName&gt;ООО «Северная нефтесервисная компания»&lt;/ShortName&gt;
+      &lt;INN&gt;7801234567&lt;/INN&gt;
+      &lt;Coowners&gt;
+        &lt;Coowner&gt;
+          &lt;Id&gt;1&lt;/Id&gt;
+          &lt;Level&gt;1&lt;/Level&gt;
+          &lt;Name&gt;АО «Северная логистика»&lt;/Name&gt;
+          &lt;SparkID&gt;2210457&lt;/SparkID&gt;
+          &lt;INN&gt;7802345678&lt;/INN&gt;
+          &lt;Manager&gt;Орлов Игорь Викторович&lt;/Manager&gt;
+          &lt;SharePart&gt;60&lt;/SharePart&gt;
+          &lt;SharePartRUR&gt;6000000&lt;/SharePartRUR&gt;
+          &lt;CoownerType&gt;0&lt;/CoownerType&gt;
+          &lt;ActualDate&gt;2026-10-01&lt;/ActualDate&gt;
+        &lt;/Coowner&gt;
+        &lt;Coowner&gt;
+          &lt;Id&gt;2&lt;/Id&gt;
+          &lt;Level&gt;1&lt;/Level&gt;
+          &lt;Name&gt;Смирнов Павел Андреевич&lt;/Name&gt;
+          &lt;INN&gt;780512345678&lt;/INN&gt;
+          &lt;SharePart&gt;40&lt;/SharePart&gt;
+          &lt;SharePartRUR&gt;4000000&lt;/SharePartRUR&gt;
+          &lt;CoownerType&gt;2&lt;/CoownerType&gt;
+          &lt;ActualDate&gt;2026-10-01&lt;/ActualDate&gt;
+        &lt;/Coowner&gt;
+        &lt;Coowner&gt;
+          &lt;Id&gt;3&lt;/Id&gt;
+          &lt;ParentId&gt;1&lt;/ParentId&gt;          &lt;!-- владеет «Северной логистикой» --&gt;
+          &lt;Level&gt;2&lt;/Level&gt;
+          &lt;Name&gt;ООО «Норд Холдинг»&lt;/Name&gt;
+          &lt;SparkID&gt;2210460&lt;/SparkID&gt;
+          &lt;INN&gt;7804567890&lt;/INN&gt;
+          &lt;Manager&gt;Лебедев Олег Сергеевич&lt;/Manager&gt;
+          &lt;SharePart&gt;0&lt;/SharePart&gt;
+          &lt;IndirectSharePart&gt;60&lt;/IndirectSharePart&gt;
+          &lt;CoownerType&gt;0&lt;/CoownerType&gt;
+          &lt;ActualDate&gt;2026-09-28&lt;/ActualDate&gt;
+        &lt;/Coowner&gt;
+      &lt;/Coowners&gt;
+    &lt;/Report&gt;
+  &lt;/Data&gt;
+&lt;/Response&gt;</code></pre></div>
+
+  <h3>Ответ 2. Доли в дочерних обществах — <code>GetCompanyStructure</code></h3>
+  <p>Берём только блоки дочерних компаний. Источник выбирается по порядку: ЕГРЮЛ, если компании там нет — Росстат, затем раскрытие (там только процент). Совладельцев из этого метода не берём, они уже есть в ответе 1.</p>
+  <div class="code"><div class="cap"><b>xmlData · CompanyStructure.xsd (фрагмент)</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>&lt;Response&gt;
+  &lt;ResultInfo ResultType="True" DateTime="2026-10-21T02:14:04" ExecutionTime="288"/&gt;
+  &lt;Data&gt;
+    &lt;Report&gt;
+      &lt;SparkID&gt;1185320&lt;/SparkID&gt;
+      &lt;INN&gt;7801234567&lt;/INN&gt;
+      &lt;AffiliatedCompaniesEGRUL ActualDate="2026-10-01"&gt;
+        &lt;AffiliatedCompanyEGRUL&gt;
+          &lt;Name&gt;ООО «Северный бурсервис»&lt;/Name&gt;
+          &lt;SparkID&gt;2210512&lt;/SparkID&gt;
+          &lt;INN&gt;7803456789&lt;/INN&gt;
+          &lt;SharePart&gt;75&lt;/SharePart&gt;
+          &lt;SharePartRUR&gt;7500000&lt;/SharePartRUR&gt;
+          &lt;ActualDate&gt;2026-10-01&lt;/ActualDate&gt;
+        &lt;/AffiliatedCompanyEGRUL&gt;
+      &lt;/AffiliatedCompaniesEGRUL&gt;
+    &lt;/Report&gt;
+  &lt;/Data&gt;
+&lt;/Response&gt;</code></pre></div>
+
+  <h3>Ответ 3. Бенефициары и аффилированные — <code>GetCompanyBeneficiariesAndAffiliates</code></h3>
+  <p>У каждого <code>Affiliate</code> ровно один <code>AffiliationType</code>. Лицо с несколькими типами связи приходит несколькими записями: здесь у Смирнова две записи (владелец и руководитель), у «Северного бурсервиса» тоже две.</p>
+  <div class="code"><div class="cap"><b>xmlData · CompanyBeneficiariesAndAffiliates.xsd</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>&lt;Response&gt;
+  &lt;ResultInfo ResultType="True" DateTime="2026-10-21T02:31:40" ExecutionTime="96"/&gt;
+  &lt;Data&gt;
+    &lt;Report&gt;
+      &lt;SparkID&gt;1185320&lt;/SparkID&gt;
+      &lt;INN&gt;7801234567&lt;/INN&gt;
+      &lt;Status IsActing="true" Text="Действующая"/&gt;
+      &lt;Beneficiaries&gt;
+        &lt;Beneficiary Type="2" IsFinal="true"&gt;
+          &lt;Name&gt;Смирнов Павел Андреевич&lt;/Name&gt;
+          &lt;INN&gt;780512345678&lt;/INN&gt;
+        &lt;/Beneficiary&gt;
+      &lt;/Beneficiaries&gt;
+      &lt;Affiliates&gt;
+        &lt;Affiliate Type="0"&gt;
+          &lt;Name&gt;АО «Северная логистика»&lt;/Name&gt;&lt;SparkID&gt;2210457&lt;/SparkID&gt;&lt;INN&gt;7802345678&lt;/INN&gt;
+          &lt;AffiliationType Id="2" Name="Совладельцы с долей равной или больше 20%"/&gt;
+        &lt;/Affiliate&gt;
+        &lt;Affiliate Type="0"&gt;
+          &lt;Name&gt;АО «Северная логистика»&lt;/Name&gt;&lt;SparkID&gt;2210457&lt;/SparkID&gt;&lt;INN&gt;7802345678&lt;/INN&gt;
+          &lt;AffiliationType Id="9" Name="Прямо или косвенно контролирующие юридические лица или физические лица-владельцы (доля владения в каждом звене по всей цепочке больше 50%)"/&gt;
+        &lt;/Affiliate&gt;
+        &lt;Affiliate Type="2"&gt;
+          &lt;Name&gt;Смирнов Павел Андреевич&lt;/Name&gt;&lt;INN&gt;780512345678&lt;/INN&gt;
+          &lt;AffiliationType Id="2" Name="Совладельцы с долей равной или больше 20%"/&gt;
+        &lt;/Affiliate&gt;
+        &lt;Affiliate Type="2"&gt;
+          &lt;Name&gt;Смирнов Павел Андреевич&lt;/Name&gt;&lt;INN&gt;780512345678&lt;/INN&gt;
+          &lt;AffiliationType Id="3" Name="Руководитель (единоличный исполнительный орган)"/&gt;
+        &lt;/Affiliate&gt;
+        &lt;Affiliate Type="0"&gt;
+          &lt;Name&gt;ООО «Норд Холдинг»&lt;/Name&gt;&lt;SparkID&gt;2210460&lt;/SparkID&gt;&lt;INN&gt;7804567890&lt;/INN&gt;
+          &lt;AffiliationType Id="9" Name="Прямо или косвенно контролирующие юридические лица или физические лица-владельцы (доля владения в каждом звене по всей цепочке больше 50%)"/&gt;
+        &lt;/Affiliate&gt;
+        &lt;Affiliate Type="0"&gt;
+          &lt;Name&gt;ООО «Северный бурсервис»&lt;/Name&gt;&lt;SparkID&gt;2210512&lt;/SparkID&gt;&lt;INN&gt;7803456789&lt;/INN&gt;
+          &lt;AffiliationType Id="1" Name="Дочерние и зависимые общества, с долей в УК равной или больше 20%"/&gt;
+        &lt;/Affiliate&gt;
+        &lt;Affiliate Type="0"&gt;
+          &lt;Name&gt;ООО «Северный бурсервис»&lt;/Name&gt;&lt;SparkID&gt;2210512&lt;/SparkID&gt;&lt;INN&gt;7803456789&lt;/INN&gt;
+          &lt;AffiliationType Id="8" Name="Прямо или косвенно контролируемые юридические лица (доля владения в каждом звене по всей цепочке больше 50%)"/&gt;
+        &lt;/Affiliate&gt;
+      &lt;/Affiliates&gt;
+    &lt;/Report&gt;
+  &lt;/Data&gt;
+&lt;/Response&gt;</code></pre></div>
+</section>
+
+<section id="merge">
+  <h2>4. Склейка в узлы <span class="tag hub">integration-hub</span></h2>
+  <p>Из трёх ответов получается 12 записей о четырёх лицах. integration-hub сводит их в четыре узла. Ключ лица и одновременно <code>id</code> узла строится так:</p>
+  <ol class="steps">
+    <li><code>spark:{SparkID}</code>, если в записи есть <code>SparkID</code>;</li>
+    <li>иначе <code>inn:{ИНН}</code>;</li>
+    <li>иначе <code>name:P:{хэш}</code> для физлица или <code>name:L:{хэш}</code> для юрлица — SHA-256 нормализованного наименования (верхний регистр, без кавычек, без организационно-правовой формы и лишних пробелов).</li>
+  </ol>
+  <p>Такой <code>id</code> не меняется между загрузками. У Смирнова нет <code>SparkID</code>, поэтому его ключ — <code>inn:780512345678</code>, и как бенефициар он получает тот же <code>id</code>.</p>
+
+  <h3>Пример: четыре записи о Смирнове → один узел</h3>
+  <div class="merge">
+    <div class="tbl"><table>
+      <thead><tr><th>Запись</th><th>Что даёт</th></tr></thead>
+      <tbody>
+        <tr><td><code>Coowner</code> Id=2</td><td>level 1, доля 40 % / 4 000 000 ₽, тип совладельца 2</td></tr>
+        <tr><td><code>Affiliate</code> тип 2</td><td>kinds += 2</td></tr>
+        <tr><td><code>Affiliate</code> тип 3</td><td>kinds += 3 → isDirector</td></tr>
+        <tr><td><code>Beneficiary</code></td><td>IsFinal = true</td></tr>
+      </tbody>
+    </table></div>
+    <div class="arrow" aria-hidden="true">──▶</div>
+    <div class="code"><div class="cap"><b>узел</b></div>
+<pre><code>{
+  "id": "inn:780512345678",
+  "name": "Смирнов Павел Андреевич",
+  "inn": "780512345678",
+  "isPerson": true,
+  "kinds": [2, 3],
+  "level": 1,
+  "directShare": 40.0,
+  "directShareRub": 4000000.0,
+  "coownerType": "PERSON",
+  "isDirector": true,
+  "isFinalBeneficiary": true
+}</code></pre></div>
+  </div>
+
+  <h3>Маппинг полей</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Поле узла</th><th>Откуда</th><th>Правило</th></tr></thead>
+    <tbody>
+      <tr><td><code>name</code>, <code>inn</code></td><td><code>Name</code>, <code>INN</code> любой записи</td><td>Первое непустое: совладелец, бенефициар, аффилированное лицо</td></tr>
+      <tr><td><code>isPerson</code></td><td><code>CoownerType = 2</code> или <code>@Type = 2</code></td><td>Признак ФЛ в любой записи</td></tr>
+      <tr><td><code>kinds</code></td><td><code>Affiliate/AffiliationType/@Id</code></td><td>Объединение без повторов в порядке справочника. Подпись типа — из нашего справочника, <code>@Name</code> источника не выводится</td></tr>
+      <tr><td><code>level</code></td><td><code>Coowner/Level</code></td><td>Минимальный уровень; лицо не из числа совладельцев — 1</td></tr>
+      <tr><td><code>parentIds[]</code></td><td><code>Coowner/ParentId</code></td><td>Суррогатный <code>Id</code> переводится в <code>id</code> узла компании, которой этот совладелец владеет</td></tr>
+      <tr><td><code>directShare</code>, <code>directShareRub</code>, <code>indirectShare</code></td><td>Совладелец: <code>SharePart</code>, <code>SharePartRUR</code>, <code>IndirectSharePart</code></td><td><code>SharePart = 0</code> при заполненной косвенной доле — прямой доли нет</td></tr>
+      <tr><td><code>directShare</code>, <code>directShareRub</code> дочернего</td><td><code>GetCompanyStructure</code>: ЕГРЮЛ → Росстат → раскрытие</td><td>Только для узлов с типом 1. Дочерние, которых нет среди аффилированных, узлов не создают</td></tr>
+      <tr><td><code>coownerType</code>, <code>manager</code></td><td><code>CoownerType</code> (0 → <code>RU_LEGAL</code>, 1 → <code>FOREIGN_LEGAL</code>, 2 → <code>PERSON</code>), <code>Manager</code></td><td>Только у совладельцев</td></tr>
+      <tr><td><code>isFinalBeneficiary</code>, <code>notFinalReason</code></td><td><code>Beneficiary/@IsFinal</code>, <code>NotFinalReason/@Name</code></td><td>Только у бенефициаров</td></tr>
+      <tr><td><code>isDirector</code></td><td>—</td><td>Тип 3 в <code>kinds</code>; отдельного признака в ответах нет</td></tr>
+      <tr><td>дата графа</td><td><code>Coowner/ActualDate</code></td><td>Самая поздняя</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Корневой контрагент в узлы не попадает. Признака санкций в этих трёх ответах нет — он считается отдельно, раздел 7.</p>
+</section>
+
+<section id="event">
+  <h2>5. Событие в ядро <span class="tag hub">integration-hub</span> → <span class="tag core">affiliation</span></h2>
+  <p>После успешного ответа всех трёх методов integration-hub кладёт в свой outbox событие <code>pmrk.integration.spark.affiliation.updated</code> и доставляет его по HTTP в модуль <code>affiliation</code>. Событие несёт полный граф: получатель заменяет сохранённый граф, а не дополняет его. Конверт (<code>eventId</code>, <code>occurredAt</code>, источник) — по разделу 1 документа событий.</p>
+  <div class="code"><div class="cap"><b>payload · spark.affiliation.updated</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>{
+  "counterpartyUid": "5b0c1d9e-3f6a-4c2b-9d1e-7a8b9c0d1e2f",
+  "rootInn": "7801234567",
+  "rootName": "ООО «Северная нефтесервисная компания»",
+  "sourceUpdatedAt": "2026-10-01",
+  "sourceVersion": 7,
+  "loadedAt": "2026-10-21T02:31:41Z",
+  "beneficiariesLoaded": true,
+  "nodes": [
+    { "id": "spark:2210457", "name": "АО «Северная логистика»", "inn": "7802345678",
+      "isPerson": false, "kinds": [2, 9], "level": 1,
+      "directShare": 60.0, "directShareRub": 6000000.0, "coownerType": "RU_LEGAL",
+      "manager": "Орлов Игорь Викторович", "isDirector": false, "isFinalBeneficiary": false },
+    { "id": "inn:780512345678", "name": "Смирнов Павел Андреевич", "inn": "780512345678",
+      "isPerson": true, "kinds": [2, 3], "level": 1,
+      "directShare": 40.0, "directShareRub": 4000000.0, "coownerType": "PERSON",
+      "isDirector": true, "isFinalBeneficiary": true },
+    { "id": "spark:2210460", "name": "ООО «Норд Холдинг»", "inn": "7804567890",
+      "isPerson": false, "kinds": [9], "level": 2, "parentIds": ["spark:2210457"],
+      "indirectShare": 60.0, "coownerType": "RU_LEGAL",
+      "manager": "Лебедев Олег Сергеевич", "isDirector": false, "isFinalBeneficiary": false },
+    { "id": "spark:2210512", "name": "ООО «Северный бурсервис»", "inn": "7803456789",
+      "isPerson": false, "kinds": [1, 8], "level": 1,
+      "directShare": 75.0, "directShareRub": 7500000.0,
+      "isDirector": false, "isFinalBeneficiary": false }
+  ]
+}</code></pre></div>
+</section>
+
+<section id="db">
+  <h2>6. Хранение в БД <span class="tag core">схема affiliation</span></h2>
+  <p>Модуль в одной транзакции: фиксирует <code>eventId</code> в inbox (повтор не задвоит данные), проверяет <code>sourceVersion</code> (старое событие отклоняется), удаляет узлы контрагента и пишет новые, обновляет шапку и публикует <code>affiliation.links.updated</code>. Признак «есть карточка», оценка, вердикт и санкции не хранятся в узле — они подставляются при чтении из трёх служебных таблиц.</p>
+  <div class="diagram">
+<pre class="mermaid">
+erDiagram
+  affiliation_graph ||--o{ affiliation_node : "root_uid"
+  affiliation_graph {
+    uuid root_uid PK
+    string root_name
+    string root_inn
+    date source_updated_at
+    datetime loaded_at
+  }
+  affiliation_node {
+    uuid root_uid PK
+    string id PK
+    string inn
+    json kinds
+    json parent_ids
+  }
+  inn_registry {
+    string inn PK
+    uuid counterparty_uid
+  }
+  assessment_risk_ref {
+    uuid counterparty_uid PK
+    int credit_group
+    number score
+  }
+  sanctions_ref {
+    string inn PK
+    string subject_type
+    date source_date
+  }
+</pre>
+  </div>
+
+  <h3><code>affiliation.affiliation_graph</code> — шапка, одна строка на контрагента</h3>
+  <div class="tbl"><table class="mono">
+    <thead><tr><th>root_uid</th><th>root_name</th><th>root_inn</th><th>source_updated_at</th><th>loaded_at</th></tr></thead>
+    <tbody><tr><td>5b0c1d9e-…</td><td>ООО «Северная нефтесервисная компания»</td><td>7801234567</td><td>2026-10-01</td><td>2026-10-21 02:31:41</td></tr></tbody>
+  </table></div>
+
+  <h3><code>affiliation.affiliation_node</code> — узлы графа</h3>
+  <div class="tbl"><table class="mono">
+    <thead><tr><th>id</th><th>name</th><th>inn</th><th>is_person</th><th>kinds</th><th>level</th><th>parent_ids</th><th>direct_share</th><th>indirect_share</th><th>direct_share_rub</th><th>coowner_type</th><th>manager</th><th>is_director</th><th>is_final_beneficiary</th></tr></thead>
+    <tbody>
+      <tr><td>spark:2210457</td><td>АО «Северная логистика»</td><td>7802345678</td><td>false</td><td>[2,9]</td><td class="num">1</td><td>null</td><td class="num">60.0</td><td>null</td><td class="num">6000000</td><td>RU_LEGAL</td><td>Орлов И. В.</td><td>false</td><td>false</td></tr>
+      <tr><td>inn:780512345678</td><td>Смирнов Павел Андреевич</td><td>780512345678</td><td>true</td><td>[2,3]</td><td class="num">1</td><td>null</td><td class="num">40.0</td><td>null</td><td class="num">4000000</td><td>PERSON</td><td>null</td><td>true</td><td>true</td></tr>
+      <tr><td>spark:2210460</td><td>ООО «Норд Холдинг»</td><td>7804567890</td><td>false</td><td>[9]</td><td class="num">2</td><td>["spark:2210457"]</td><td>null</td><td class="num">60.0</td><td>null</td><td>RU_LEGAL</td><td>Лебедев О. С.</td><td>false</td><td>false</td></tr>
+      <tr><td>spark:2210512</td><td>ООО «Северный бурсервис»</td><td>7803456789</td><td>false</td><td>[1,8]</td><td class="num">1</td><td>null</td><td class="num">75.0</td><td>null</td><td class="num">7500000</td><td>null</td><td>null</td><td>false</td><td>false</td></tr>
+    </tbody>
+  </table></div>
+  <p>Ключ таблицы — <code>(root_uid, id)</code>; колонка <code>root_uid</code> в примере опущена. Колонка <code>not_final_reason</code> пустая: единственный бенефициар — конечный.</p>
+
+  <h3>Служебные таблицы — наполняются другими событиями</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Таблица</th><th>Источник</th><th>Пример строк</th></tr></thead>
+    <tbody>
+      <tr><td><code>inn_registry</code><br/>ИНН → карточка ПМРК</td><td><code>counterparty.profile.created</code> / <code>.deleted</code></td><td class="mono">7802345678 → 8e1f2a3b-…<br/>7803456789 → c2d3e4f5-…</td></tr>
+      <tr><td><code>assessment_risk_ref</code><br/>последняя оценка</td><td><code>scoring.assessment.completed</code></td><td class="mono">8e1f2a3b-… → группа 3, балл 51<br/>c2d3e4f5-… → группа 4, балл 32</td></tr>
+      <tr><td><code>sanctions_ref</code><br/>ИНН под санкциями</td><td><code>xcompliance.registry.updated</code></td><td class="mono">7804567890 · COMPANY · 2026-10-19</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="sanctions">
+  <h2>7. Санкции связанных лиц <span class="tag ext">X-Compliance</span></h2>
+  <p>Проверять каждого связанного по отдельности дорого: это вызов на лицо. Поэтому integration-hub раз в сутки забирает пакетную выгрузку X-Compliance и передаёт в ядро только ИНН лиц под санкциями. Санкции самого контрагента загружаются по алгоритму ЕДТ (<code>GetCompanySanctionList</code>), этот поток их не касается.</p>
+  <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant IH as integration-hub
+  participant XC as СПАРК X-Compliance
+  participant AF as модуль affiliation
+  IH->>XC: GetCompanyComplianceData(type, changeDate)
+  XC-->>IH: ссылка на архив (живёт 5 минут, только для этого IP)
+  IH->>XC: скачать архив
+  IH->>XC: GetPersonComplianceData(type, changeDate)
+  XC-->>IH: ссылка на архив физлиц
+  Note over IH: разбор XML, отбор лиц с действующей санкцией
+  IH->>AF: xcompliance.registry.updated (FULL по воскресеньям / DELTA за сутки)
+  Note over AF: sanctions_ref: FULL — заменить, DELTA — применить
+</pre>
+  </div>
+  <div class="code"><div class="cap"><b>запись архива · ComplianceCompanies.xsd (фрагмент)</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>&lt;response&gt;
+  &lt;system_info&gt;&lt;total&gt;48211&lt;/total&gt;&lt;/system_info&gt;
+  &lt;entities&gt;
+    &lt;entity&gt;
+      &lt;system_id&gt;5531207&lt;/system_id&gt;
+      &lt;updated_at&gt;2026-10-18T22:40:11&lt;/updated_at&gt;
+      &lt;acting&gt;true&lt;/acting&gt;
+      &lt;full_name&gt;ООО «НОРД ХОЛДИНГ»&lt;/full_name&gt;
+      &lt;reg_data&gt;
+        &lt;item type="…ИНН…" country="RU" label="ИНН"&gt;7804567890&lt;/item&gt;  &lt;!-- код type сверить --&gt;
+      &lt;/reg_data&gt;
+      &lt;sanctions&gt;
+        &lt;item id="90311" date_start="2026-05-20" date_end=""&gt;   &lt;!-- date_end пуст → действует --&gt;
+          &lt;sanction sanlist_id="12" sanlist="…" authority="…"&gt;…&lt;/sanction&gt;
+        &lt;/item&gt;
+      &lt;/sanctions&gt;
+    &lt;/entity&gt;
+  &lt;/entities&gt;
+&lt;/response&gt;</code></pre></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Что нужно</th><th>Юрлица</th><th>Физлица</th></tr></thead>
+    <tbody>
+      <tr><td>ИНН</td><td><code>entity/reg_data/item</code> с типом «ИНН»</td><td>Отдельного поля нет: документ <code>entity/persdocs/item</code> с типом «ИНН», номер в <code>number</code></td></tr>
+      <tr><td>Под санкциями</td><td colspan="2">Есть <code>entity/sanctions/item</code>, у которого <code>@date_end</code> пуст или ещё не наступил</td></tr>
+      <tr><td>Не считается</td><td colspan="2">Списки наблюдения (<code>watch_lists</code>), правило 50 % (<code>sanction_ownerships</code>), санкционные лицензии</td></tr>
+    </tbody>
+  </table></div>
+  <div class="code"><div class="cap"><b>payload · xcompliance.registry.updated</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>{
+  "mode": "DELTA",
+  "sourceDate": "2026-10-19",
+  "sourceVersion": 312,
+  "entries": [
+    { "inn": "7804567890", "subjectType": "COMPANY", "underSanctions": true },
+    { "inn": "7712000001", "subjectType": "COMPANY", "underSanctions": false }
+  ]
+}</code></pre></div>
+  <p>Запись с <code>underSanctions: false</code> в режиме <code>DELTA</code> означает, что санкции сняты: модуль удаляет ИНН из <code>sanctions_ref</code>. Узел без ИНН никогда не получает признак санкций.</p>
+</section>
+
+<section id="api">
+  <h2>8. Отдача на фронт <span class="tag core">affiliation</span> → <span class="tag front">фронт</span></h2>
+  <div class="code"><div class="cap"><b>HTTP</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>GET /affiliation-graphs/v1/5b0c1d9e-3f6a-4c2b-9d1e-7a8b9c0d1e2f
+Authorization: Bearer …</code></pre></div>
+  <p>Что делает модуль при чтении. Внешних вызовов нет, только локальные таблицы:</p>
+  <ol class="steps">
+    <li>Читает шапку и узлы графа. Графа нет и контрагент неизвестен — <code>404</code>; контрагент известен, но граф не загружен — пустой <code>nodes</code>.</li>
+    <li>Для каждого узла с ИНН ищет его в <code>inn_registry</code> → <code>inRegistry</code>, <code>counterpartyUid</code>.</li>
+    <li>Для найденных карточек берёт оценку из <code>assessment_risk_ref</code> → <code>creditGroup</code>, <code>score</code>.</li>
+    <li>Проверяет ИНН в <code>sanctions_ref</code> → <code>underSanctions</code>.</li>
+    <li>Для узлов с карточкой считает вердикт: санкции, банкротство или ликвидация, группа 4 → «Высокий риск»; группа 3 → «С осторожностью»; иначе «Можно работать».</li>
+    <li>Собирает <code>kinds[]</code> — записи справочника НСИ «Типы аффилированности» только по кодам, которые есть в графе, в порядке справочника.</li>
+    <li>Делит узлы на <code>nodes[]</code> и <code>beneficiaries[]</code> (по признаку конечного бенефициара; одно лицо может быть в обоих списках с одним <code>id</code>), подставляет порог бенефициара из НСИ (25).</li>
+  </ol>
+  <div class="code"><div class="cap"><b>200 · AffiliationGraphV1</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>{
+  "rootUid": "5b0c1d9e-3f6a-4c2b-9d1e-7a8b9c0d1e2f",
+  "rootName": "ООО «Северная нефтесервисная компания»",
+  "rootInn": "7801234567",
+  "finalBeneficiaryThreshold": 25,
+  "kinds": [
+    { "id": 1, "name": "Дочерние и зависимые общества (с долей в УК более 20%)", "shortName": "Дочерние и зависимые", "sortOrder": 1 },
+    { "id": 2, "name": "Владельцы (с долей более 20 %)", "shortName": "Владельцы", "sortOrder": 2 },
+    { "id": 3, "name": "Руководитель компании", "shortName": "Руководитель", "sortOrder": 3 },
+    { "id": 8, "name": "Прямо или косвенно контролируемые юридические лица (доля владения в каждом звене по всей цепочке больше 50%)", "shortName": "…", "sortOrder": 8 },
+    { "id": 9, "name": "Прямо или косвенно контролирующие юридические лица или физические лица-владельцы (доля владения в каждом звене по всей цепочке больше 50%)", "shortName": "…", "sortOrder": 9 }
+  ],
+  "nodes": [
+    { "id": "spark:2210457", "name": "АО «Северная логистика»", "inn": "7802345678", "isPerson": false,
+      "kinds": [2, 9], "level": 1, "directShare": 60.0, "directShareRub": 6000000.0,
+      "coownerType": "RU_LEGAL", "manager": "Орлов Игорь Викторович",
+      "isDirector": false, "underSanctions": false,
+      "inRegistry": true, "counterpartyUid": "8e1f2a3b-4c5d-4e6f-8a9b-0c1d2e3f4a5b",
+      "creditGroup": 3, "score": 51, "verdictTone": "WARN", "verdictLabel": "С осторожностью" },
+    { "id": "inn:780512345678", "name": "Смирнов Павел Андреевич", "inn": "780512345678", "isPerson": true,
+      "kinds": [2, 3], "level": 1, "directShare": 40.0, "directShareRub": 4000000.0,
+      "coownerType": "PERSON", "isDirector": true, "underSanctions": false, "inRegistry": false },
+    { "id": "spark:2210460", "name": "ООО «Норд Холдинг»", "inn": "7804567890", "isPerson": false,
+      "kinds": [9], "level": 2, "parentIds": ["spark:2210457"], "indirectShare": 60.0,
+      "coownerType": "RU_LEGAL", "manager": "Лебедев Олег Сергеевич",
+      "isDirector": false, "underSanctions": true, "inRegistry": false },
+    { "id": "spark:2210512", "name": "ООО «Северный бурсервис»", "inn": "7803456789", "isPerson": false,
+      "kinds": [1, 8], "level": 1, "directShare": 75.0, "directShareRub": 7500000.0,
+      "isDirector": false, "underSanctions": false,
+      "inRegistry": true, "counterpartyUid": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+      "creditGroup": 4, "score": 32, "verdictTone": "BAD", "verdictLabel": "Высокий риск" }
+  ],
+  "beneficiaries": [
+    { "id": "inn:780512345678", "name": "Смирнов Павел Андреевич", "inn": "780512345678", "isPerson": true,
+      "kinds": [], "level": 1, "isDirector": true, "underSanctions": false, "inRegistry": false }
+  ],
+  "updatedAt": "2026-10-01"
+}</code></pre></div>
+  <p class="note"><strong>shortName</strong> для типов 8 и 9 в примере не указан: короткие подписи этих типов берутся из справочника НСИ, в постановке они не заданы.</p>
+
+  <h3>Что из этого строит фронт</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>На экране</th><th>Из чего</th></tr></thead>
+    <tbody>
+      <tr><td>Корень слева, группы справа по типам связи</td><td><code>kinds[]</code> ответа, порядок — <code>sortOrder</code>. Узел попадает в каждую группу из своего <code>kinds</code>: Смирнов — в «Владельцы» и «Руководитель»</td></tr>
+      <tr><td>Чипы фильтра</td><td><code>kinds[].shortName</code>; фильтрация на клиенте</td></tr>
+      <tr><td>Доля на карточке узла</td><td><code>directShare</code> или <code>indirectShare</code></td></tr>
+      <tr><td>Синяя обводка, переход в карточку</td><td><code>inRegistry</code>, <code>counterpartyUid</code></td></tr>
+      <tr><td>Красный «!», чип вердикта</td><td><code>verdictTone</code>, <code>verdictLabel</code> — фронт правило не повторяет</td></tr>
+      <tr><td>Чип «Под санкциями»</td><td><code>underSanctions</code></td></tr>
+      <tr><td>Таблица «Структура собственников»</td><td>Узлы с типом 2 и <code>beneficiaries[]</code>: наименование, ИНН, тип совладельца, доля % и ₽, руководитель компании</td></tr>
+      <tr><td>Цепочка владения</td><td><code>parentIds[]</code>: «Норд Холдинг» → «Северная логистика» → контрагент</td></tr>
+      <tr><td>«Актуально на 01.10.2026 · СПАРК-Аффилированность»</td><td><code>updatedAt</code>; подпись задаёт фронт</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="limits">
+  <h2>9. Кто ещё слушает граф <span class="tag core">limits</span></h2>
+  <p>После замены графа (и когда у связанного лица появляется или пропадает карточка) модуль <code>affiliation</code> публикует <code>pmrk.affiliation.links.updated</code>. Модуль лимитов держит копию в <code>limits.affiliate_link</code> и пересчитывает «Совокупный КЛ аффилированных лиц» на вкладке «Кредитный лимит». В событие попадают только лица с карточкой в ПМРК.</p>
+  <div class="code"><div class="cap"><b>payload · affiliation.links.updated</b><button class="copy" type="button">Копировать</button></div>
+<pre><code>{
+  "counterpartyUid": "5b0c1d9e-3f6a-4c2b-9d1e-7a8b9c0d1e2f",
+  "graphVersion": 7,
+  "linkedCounterparties": [
+    { "counterpartyUid": "8e1f2a3b-4c5d-4e6f-8a9b-0c1d2e3f4a5b", "kinds": [2, 9], "level": 1 },
+    { "counterpartyUid": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f", "kinds": [1, 8], "level": 1 }
+  ]
+}</code></pre></div>
+  <p class="note">Каких связанных лиц учитывать в сумме КЛ (все типы и уровни или часть) — открытый вопрос заказчику В-29. Типы и уровень передаются, чтобы отбор можно было включить без доработки события.</p>
+</section>
+
+<section id="errors">
+  <h2>10. Ошибки и граничные случаи</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Ситуация</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td><code>ResultType="True"</code> у всех трёх методов</td><td>Событие публикуется, граф заменяется целиком</td></tr>
+      <tr><td><code>Data not found</code></td><td>Данных этого метода нет: у <code>GetOwnershipHierarchy</code> — нет совладельцев; у <code>GetCompanyStructure</code> — доли дочерних не заполняются; у бенефициаров — пустой <code>beneficiaries[]</code> («не установлен»)</td></tr>
+      <tr><td><code>Order is in progress</code></td><td>Заказ ещё готовится: фоновое задание повторяет <code>GetCompanyBeneficiariesAndAffiliates</code> позже</td></tr>
+      <tr><td><code>Queue limit exceeded</code></td><td>Очередь заказов логина заполнена (не более 20): заказ откладывается заданием</td></tr>
+      <tr><td><code>Authentication error</code></td><td>Сессия умерла: открыть новую и повторить вызов один раз</td></tr>
+      <tr><td><code>Error</code>, <code>Access denied</code> или повторы исчерпаны</td><td>Событие не публикуется, прежний граф остаётся, ошибка видна в мониторинге интеграций</td></tr>
+      <tr><td>Корневая компания не сопоставилась с контрагентом по ИНН</td><td>Запись в карантин, граф не меняется</td></tr>
+      <tr><td>Неизвестный код типа связи</td><td>Карантин маппинга с исходным кодом; узел сохраняется с известными типами</td></tr>
+      <tr><td>Повтор события с тем же <code>eventId</code></td><td>Inbox отбрасывает, эффект не повторяется</td></tr>
+      <tr><td><code>sourceVersion</code> старее сохранённой</td><td>Событие отклоняется</td></tr>
+      <tr><td>Узел без ИНН</td><td>Нет карточки, нет оценки, нет санкций; в сумму КЛ аффилированных не попадает</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="firstcall">
+  <h2>11. Проверить на первом реальном вызове</h2>
+  <p>Схемы не перечисляют часть значений. Их нужно зафиксировать по первому ответу с логином СПАРК:</p>
+  <ul class="check">
+    <li>Направление <code>Coowner/ParentId</code>: у владельца 2-го уровня он указывает на компанию 1-го уровня (так следует из описания «непосредственный совладелец»).</li>
+    <li>Приходит ли <code>SparkID</code> у физлиц-совладельцев и бенефициаров; без него ключ — ИНН.</li>
+    <li>Значения параметра <code>type</code> у <code>GetCompanyComplianceData</code> и <code>GetPersonComplianceData</code>: какое даёт полный массив, какое — изменения за сутки.</li>
+    <li>Код типа ИНН в <code>reg_data/item/@type</code> (юрлица) и в <code>persdocs/item</code> (<code>name</code>, <code>tag</code>) у физлиц.</li>
+    <li>Формат архива пакетной выгрузки: один XML или несколько, кодировка.</li>
+  </ul>
+</section>
+
+<section id="sources">
+  <h2>12. Источники</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Что</th><th>Где</th></tr></thead>
+    <tbody>
+      <tr><td>Постановка, БО 21.1–21.3, раздел «Загрузка графа из СПАРК»</td><td><code>pmrk-design / Архитектура/Постановки/21_Профиль_Аффилированность.md</code></td></tr>
+      <tr><td>Состав событий</td><td><code>Архитектура/06_События.md</code>, раздел 2.2</td></tr>
+      <tr><td>СПАРК: сессии, квоты, пакет вызовов, маппинг, X-Compliance</td><td><code>Архитектура/05_Интеграции.md</code>, разделы 4–5</td></tr>
+      <tr><td>Даты актуальности и подписи источника</td><td><code>Архитектура/07_Сквозные_механизмы.md</code>, раздел 8</td></tr>
+      <tr><td>Таблицы схемы <code>affiliation</code></td><td><code>Модель_данных/10_Логическая_модель.md</code></td></tr>
+      <tr><td>Контракт API</td><td><code>Архитектура/OpenAPI/pmrk-affiliation-service.yaml</code></td></tr>
+      <tr><td>XSD ответов СПАРК</td><td><a href="http://sparkgatetest.interfax.ru/iFaxWebService/Schemas/OwnershipHierarchy.xsd">OwnershipHierarchy</a>, <a href="http://sparkgatetest.interfax.ru/iFaxWebService/Schemas/CompanyStructure.xsd">CompanyStructure</a>, <a href="http://sparkgatetest.interfax.ru/iFaxWebService/Schemas/CompanyBeneficiariesAndAffiliates.xsd">CompanyBeneficiariesAndAffiliates</a>, <a href="http://sparkgatetest.interfax.ru/iFaxWebService/Schemas/CommonTypes.xsd">CommonTypes</a></td></tr>
+      <tr><td>XSD пакетных выгрузок X-Compliance</td><td><a href="http://sparkgatetest.interfax.ru/iFaxWebService/Schemas/ComplianceCompanies.xsd">ComplianceCompanies</a>, <a href="http://sparkgatetest.interfax.ru/iFaxWebService/Schemas/CompliancePersons.xsd">CompliancePersons</a></td></tr>
+      <tr><td>WSDL тестового шлюза</td><td><a href="http://sparkgatetest.interfax.ru/iFaxWebService/iFaxWebService.asmx?WSDL">iFaxWebService.asmx?WSDL</a></td></tr>
+    </tbody>
+  </table></div>
+  <footer>Сверено с веткой <code>affiliation-load-and-credit-limit-wording</code> пакета pmrk-design на 21.10.2026.</footer>
+</section>
+</main>
+</div>
+
+<script>
+document.querySelectorAll('button.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var code = btn.closest('.code').querySelector('pre');
+    var text = code.innerText;
+    var done = function () { btn.textContent = 'Скопировано'; setTimeout(function () { btn.textContent = 'Копировать'; }, 1500); };
+    try {
+      navigator.clipboard.writeText(text).then(done, function () { select(code); });
+    } catch (e) { select(code); }
+  });
+});
+function select(el) {
+  var r = document.createRange(); r.selectNodeContents(el);
+  var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+</script>

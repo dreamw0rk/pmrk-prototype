@@ -44,7 +44,7 @@ erDiagram
 
 Вид: Read-модель внешнего источника. БО: 21.2.SIMPLE. Источник: СПАРК. Ключ: `root_uid`, `id`.
 
-inRegistry/counterpartyUid вычисляются по inn_registry при чтении.
+inRegistry/counterpartyUid вычисляются по inn_registry, underSanctions — по sanctions_ref при чтении.
 
 | Атрибут | Тип | Обяз. | Ключ | Описание |
 |---|---|---|---|---|
@@ -59,13 +59,11 @@ inRegistry/counterpartyUid вычисляются по inn_registry при чт�
 | `direct_share_rub` | Число | − |  | Доля прямого владения, руб. `Coowner/SharePartRUR` у совладельцев, `SharePartRUR` из `GetCompanyStructure` у дочерних обществ; колонка … |
 | `coowner_type` | Перечисление CoownerType | − |  | Тип совладельца. `Coowner/CoownerType`: `RU_LEGAL` — российское ЮЛ (0), `FOREIGN_LEGAL` — иностранное ЮЛ (1), `PERSON` — ФЛ (2). Только у … |
 | `manager` | Строка | − |  | Руководитель компании-совладельца. `Coowner/Manager` — ФИО руководителя этой компании; колонка «Руководитель компании» структуры … |
-| `parent_ids` | JSON (массив) | − |  | Непосредственные владельцы узла. `id` узлов, которые владеют этим узлом напрямую: `Coowner/ParentId`, суррогатные `Id` ответа переведены в … |
+| `parent_ids` | JSON (массив) | − |  | Компании, которыми узел владеет напрямую. `id` узлов, которые этот совладелец держит напрямую, — родитель в дереве владения, ближе к корню: … |
 | `not_final_reason` | Строка | − |  | Причина ненахождения конечного бенефициара. `Beneficiary/NotFinalReason/@Name`. Только в `beneficiaries[]` при `IsFinal = false`; колонка … |
 | `is_director` | Логическое | + |  | Руководитель (единоличный исполнительный орган). Фиолетовая метка на диаграмме и в таблице. `true`, если в `kinds` есть тип 3 «Руководитель … |
 | `root_uid` | UUID | + | PK, FK → affiliation_graph | Корневой контрагент |
 | `is_final_beneficiary` | Логическое | + |  | Признак IsFinal источника; включение в beneficiaries |
-
-Вычисляется при чтении, не хранится: `under_sanctions` (Под санкциями — Чип «Под санкциями» рядом с наименованием. В ответах методов аффилированности признака нет: значение вычисляется при …).
 
 #### `affiliation.inn_registry` — ИНН контрагентов ПМРК
 
