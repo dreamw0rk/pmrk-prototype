@@ -36,7 +36,8 @@ import { IconAdd } from '@consta/icons/IconAdd';
 import { buildDzKzTable, buildDzKzContractDetail, exportDzKzToExcel, MONTH_NAMES, shortDoLabel, type DzKzContractDetail } from '@/shared/mock/dzKzMatrix';
 import { buildInteractionInfo } from '@/shared/mock/interaction';
 import { buildAssessment, assessmentExtras, creditIndicators, claimsSummary, type Direction as AssessDirection, type ScoreBlock } from '@/shared/mock/assessment';
-import type { Counterparty, AffiliationNode, NewsSource } from '@/shared/mock/types';
+import type { Counterparty, AffiliationNode, NewsSource, NewsItem } from '@/shared/mock/types';
+import { buildMentionsFeed } from '@/shared/mock/mentions';
 import { dateRu, money, moneyCompact, moneyCompactText, pct, inn as fmtInn } from '@/shared/format';
 
 /* hidden — вкладка убрана из навигации карточки, но остаётся в коде вместе с
@@ -2082,38 +2083,90 @@ const NEWS_SOURCE_TITLE: Record<NewsSource, string> = {
   'zakon.ru': 'Новости (zakon.ru)',
 };
 
+/** Подсветка совпадений поиска в тексте ленты упоминаний. */
+function HighlightText({ text, query }: { text: string; query: string }) {
+  const q = query.trim();
+  if (!q) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  return <>{parts.map((p, i) => (p.toLowerCase() === q.toLowerCase() ? <mark key={i} style={{ background: 'var(--pmrk-risk-3-bg)', color: 'inherit', borderRadius: 3, padding: '0 1px' }}>{p}</mark> : p))}</>;
+}
+
+const sentimentColor = (s: NewsItem['sentiment']) => (s === 'negative' ? 'var(--pmrk-risk-4)' : s === 'positive' ? 'var(--pmrk-risk-1)' : 'var(--color-typo-ghost)');
+
+/* Вкладка «Новости» — два столбца: слева новости из статичных источников
+   (по разделу на источник, как раньше), справа — «Лента упоминаний»: все
+   упоминания контрагента из смешанных источников по дате, с поиском сверху. */
 function NewsTab({ c }: { c: Counterparty }) {
-  if (!c.news.length) return <SimpleTab title="Новости" text="По контрагенту нет значимых новостей за период." asOf={c.asOf.news} />;
+  const feed = useMemo(() => buildMentionsFeed(c), [c.uid]);
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const found = q ? feed.filter((m) => `${m.title} ${m.summary} ${m.source}`.toLowerCase().includes(q)) : feed;
+  const feedAsOf = feed.reduce((m, n) => (n.date > m ? n.date : m), c.asOf.news ?? '');
+
   return (
-    <SectionCard title="Новости" extra={<DateActuality date={c.asOf.news} source="PRIMO" />}>
-      {NEWS_SOURCES.map((src) => {
-        const items = c.news.filter((n) => n.source === src);
-        // дата актуализации раздела-источника — по самой свежей новости из него,
-        // иначе общая дата вкладки «Новости»
-        const srcAsOf = items.reduce((m, n) => (n.date > m ? n.date : m), c.asOf.news ?? '');
-        return (
-          <ExtAccordion
-            key={src}
-            title={NEWS_SOURCE_TITLE[src]}
-            defaultOpen={items.length > 0}
-            extra={<DateActuality date={srcAsOf || undefined} source="PRIMO" />}
-          >
-            {items.length === 0 ? (
-              <div className="pmrk-muted" style={{ fontSize: 13, padding: '4px 0' }}>Новостей не найдено.</div>
-            ) : items.map((n) => (
-              <div key={n.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-bg-border)' }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: n.sentiment === 'negative' ? 'var(--pmrk-risk-4)' : n.sentiment === 'positive' ? 'var(--pmrk-risk-1)' : 'var(--color-typo-ghost)' }} />
-                  <span style={{ fontWeight: 600 }}>{n.title}</span>
-                  <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{dateRu(n.date)}</span>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16, alignItems: 'start' }}>
+      <SectionCard title="Новости" extra={<DateActuality date={c.asOf.news} source="PRIMO" />} style={{ marginBottom: 0 }}>
+        {!c.news.length && <div className="pmrk-muted" style={{ fontSize: 13, marginBottom: 8 }}>По контрагенту нет значимых новостей за период.</div>}
+        {NEWS_SOURCES.map((src) => {
+          const items = c.news.filter((n) => n.source === src);
+          // дата актуализации раздела-источника — по самой свежей новости из него,
+          // иначе общая дата вкладки «Новости»
+          const srcAsOf = items.reduce((m, n) => (n.date > m ? n.date : m), c.asOf.news ?? '');
+          return (
+            <ExtAccordion
+              key={src}
+              title={NEWS_SOURCE_TITLE[src]}
+              defaultOpen={items.length > 0}
+              extra={<DateActuality date={srcAsOf || undefined} source="PRIMO" />}
+            >
+              {items.length === 0 ? (
+                <div className="pmrk-muted" style={{ fontSize: 13, padding: '4px 0' }}>Новостей не найдено.</div>
+              ) : items.map((n) => (
+                <div key={n.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-bg-border)' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', background: sentimentColor(n.sentiment) }} />
+                    <span style={{ fontWeight: 600 }}>{n.title}</span>
+                    <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{dateRu(n.date)}</span>
+                  </div>
+                  <div className="pmrk-muted" style={{ fontSize: 13, marginTop: 4, paddingLeft: 16 }}>{n.summary}</div>
                 </div>
-                <div className="pmrk-muted" style={{ fontSize: 13, marginTop: 4, paddingLeft: 16 }}>{n.summary}</div>
+              ))}
+            </ExtAccordion>
+          );
+        })}
+      </SectionCard>
+
+      <SectionCard title="Лента упоминаний" extra={<DateActuality date={feedAsOf || undefined} source="СМИ, агрегаторы, Telegram" />} style={{ marginBottom: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, padding: '0 12px', border: '1px solid var(--color-bg-border)', borderRadius: 10, background: 'var(--color-bg-default)' }}>
+          <IconSearchStroked size="s" className="pmrk-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Поиск по упоминаниям: слово, источник…"
+            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--color-typo-primary)' }}
+          />
+          {query && <button type="button" onClick={() => setQuery('')} title="Очистить" style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-typo-secondary)', fontSize: 16, lineHeight: 1 }}>×</button>}
+        </div>
+        <div className="pmrk-muted" style={{ fontSize: 12, margin: '8px 0 4px' }}>
+          {q ? `Найдено: ${found.length} из ${feed.length}` : `Всего упоминаний: ${feed.length}`}
+        </div>
+        <div style={{ maxHeight: 640, overflowY: 'auto', marginRight: -8, paddingRight: 8 }}>
+          {found.length === 0 ? (
+            <div className="pmrk-muted" style={{ fontSize: 13, padding: '12px 0' }}>Упоминаний по запросу «{query.trim()}» не найдено.</div>
+          ) : found.map((m) => (
+            <div key={m.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-bg-border)' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', background: sentimentColor(m.sentiment) }} />
+                <span style={{ fontWeight: 600 }}><HighlightText text={m.title} query={query} /></span>
+                <span className="pmrk-muted" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{dateRu(m.date)}</span>
               </div>
-            ))}
-          </ExtAccordion>
-        );
-      })}
-    </SectionCard>
+              <div className="pmrk-muted" style={{ fontSize: 13, marginTop: 4, paddingLeft: 16 }}><HighlightText text={m.summary} query={query} /></div>
+              <div style={{ fontSize: 12, marginTop: 4, paddingLeft: 16, color: 'var(--color-typo-brand)' }}><HighlightText text={m.source} query={query} /></div>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    </div>
   );
 }
 
@@ -2155,51 +2208,109 @@ function SpecialControlTab({ c }: { c: Counterparty }) {
     таблицы плотные (до 18 столбцов, как в исходной системе), поэтому колонки делят
     ширину карточки пропорционально весу, текст в ячейках переносится, и вся таблица —
     с первой строкой — умещается на экране без горизонтальной прокрутки. */
-interface LegalCol<T> { label: string; width: number; align?: 'right'; /** своя минимальная ширина, px (для статусов-чипов) */ min?: number; render: (row: T) => React.ReactNode }
+interface LegalCol<T> {
+  label: string; width: number; align?: 'right';
+  /** своя минимальная ширина, px (для статусов-чипов) */ min?: number;
+  /** колонка-«родитель» сворачиваемой группы: в её заголовке кнопка, раскрывающая колонки с тем же `group` */
+  groupToggle?: string;
+  /** колонка входит в сворачиваемую группу: по умолчанию скрыта, показывается по кнопке в заголовке родителя */
+  group?: string;
+  render: (row: T) => React.ReactNode;
+}
 
 function safeDateRu(v: string): string {
   return v && v !== '—' ? dateRu(v) : '—';
 }
 
 /** Минимальная ширина колонки, px: дата или сумма не должны ломаться посреди числа, а слова
-    заголовков — рваться на слоги. Если карточка уже суммы минимумов — горизонтальная прокрутка. */
-const legalColMin = (width: number, min?: number) => min ?? (width <= 140 ? 64 : Math.max(66, Math.round(width * 0.26)));
+    заголовков — рваться на слоги. Базовые минимумы подбирались под узкий шрифт 11.5px;
+    таблицы набраны общим шрифтом приложения (13px), поэтому минимумы ×1.35. Если карточка
+    уже суммы минимумов — горизонтальная прокрутка. */
+const legalColMin = (width: number, min?: number) => Math.round((min ?? (width <= 140 ? 64 : Math.max(66, Math.round(width * 0.26)))) * 1.35);
 
 /** `fit` — режим вкладки «Претензионно-исковая работа» (LegalFitTable): оформление по образцу
     исходной системы (стили — .pmrk-legal в components.css), ширину колонок задают веса `width`. Без `fit` (расшифровка по договорам ДЗ/КЗ) — колонки фиксированной ширины
     и горизонтальная прокрутка. */
-/** Таблица вкладки «Претензионно-исковая работа»: если колонки с комфортными минимумами не
-    помещаются в карточку, вся таблица пропорционально уменьшается (CSS zoom, не меньше 0.7) —
-    она целиком, с шапкой и первой строкой, видна на экране без горизонтальной прокрутки. */
-function LegalFitTable<T extends { id: string }>({ columns, rows }: { columns: LegalCol<T>[]; rows: T[] }) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState(0);
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const update = () => setBox(el.clientWidth - 20); // минус боковые поля обёртки
-    update();
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const need = columns.reduce((sum, col) => sum + legalColMin(col.width, col.min), 0);
-  const scale = box > 0 && box < need ? Math.max(0.7, box / need) : 1;
-  const flexOf = (col: LegalCol<T>) => `${col.width} 1 ${legalColMin(col.width, col.min)}px`;
+/** Таблица вкладки «Претензионно-исковая работа»: колонки тянутся по весам `width`; если с
+    комфортными минимумами они не помещаются в карточку — горизонтальная прокрутка. Таблицу
+    не уменьшаем (zoom), чтобы шрифт оставался тем же, что во всех таблицах приложения. */
+/* Ширина самого длинного слова (px) — чтобы колонку нельзя было сжать уже него и слова
+   переносились только целиком. Меряем на canvas тем же шрифтом, что в таблице. */
+let measureCanvas: CanvasRenderingContext2D | null = null;
+function longestWordPx(texts: string[], font: string): number {
+  measureCanvas ??= document.createElement('canvas').getContext('2d');
+  if (!measureCanvas) return 0;
+  measureCanvas.font = font;
+  let max = 0;
+  for (const t of texts) for (const w of t.split(/\s+/)) if (w) max = Math.max(max, measureCanvas.measureText(w).width);
+  return Math.ceil(max);
+}
+/** Текст ячейки для замера: строка/число как есть, у чипа статуса — его подпись. */
+function cellText(node: React.ReactNode): { text: string; chip: boolean } {
+  if (typeof node === 'string' || typeof node === 'number') return { text: String(node), chip: false };
+  if (node && typeof node === 'object' && 'props' in node) {
+    const props = (node as React.ReactElement<{ status?: string; children?: unknown }>).props;
+    if (typeof props.status === 'string') return { text: props.status, chip: true };
+    if (typeof props.children === 'string') return { text: props.children, chip: false };
+  }
+  return { text: '', chip: false };
+}
+const LEGAL_FONT = 'Inter, -apple-system, system-ui, sans-serif';
+
+function LegalFitTable<T extends { id: string }>({ columns: allColumns, rows }: { columns: LegalCol<T>[]; rows: T[] }) {
+  // Сворачиваемые группы колонок: детализирующие колонки (group) по умолчанию
+  // скрыты — таблица уже, заголовки и значения не рвутся; кнопка в заголовке
+  // колонки-родителя (groupToggle) раскрывает и сворачивает группу.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (g: string) => setOpenGroups((prev) => { const next = new Set(prev); if (next.has(g)) next.delete(g); else next.add(g); return next; });
+  const columns = allColumns.filter((col) => !col.group || openGroups.has(col.group));
+  const groupSize = (g: string) => allColumns.filter((col) => col.group === g).length;
+  // денежные колонки (align: right) — не уже 100px и без переноса: сумма вроде
+  // «320 000 000» не должна рваться по пробелам между разрядами
+  const baseMin = (col: LegalCol<T>) => (col.align === 'right' ? Math.max(100, legalColMin(col.width, col.min)) : legalColMin(col.width, col.min));
+  // адаптивный минимум: колонка не уже самого длинного слова в заголовке
+  // (12px/600) и в ячейках (13px; у чипа статуса — 12px/600 плюс точка и поля)
+  const wordMin = useMemo(() => new Map(allColumns.map((col) => {
+    const head = longestWordPx([col.label], `600 12px ${LEGAL_FONT}`) + 10;
+    const cells = rows.map((r) => cellText(col.render(r)));
+    const plain = longestWordPx(cells.filter((c) => !c.chip).map((c) => c.text), `400 13px ${LEGAL_FONT}`) + 10;
+    const chip = longestWordPx(cells.filter((c) => c.chip).map((c) => c.text), `600 12px ${LEGAL_FONT}`) + 30;
+    // у колонки-родителя группы рядом с подписью ещё кнопка-стрелка (20px + отступ)
+    return [col, Math.max(head + (col.groupToggle ? 24 : 0), plain, chip)] as const;
+  })), [allColumns, rows]);
+  const colMin = (col: LegalCol<T>) => Math.max(baseMin(col), wordMin.get(col) ?? 0);
+  const need = columns.reduce((sum, col) => sum + colMin(col), 0);
+  const flexOf = (col: LegalCol<T>) => `${col.width} 1 ${colMin(col)}px`;
   return (
     // таблица выходит за внутренние поля карточки (почти от края до края)
-    <div ref={wrapRef} style={{ overflowX: 'auto', margin: '0 -18px', padding: '0 10px' }}>
-      <div className="pmrk-table pmrk-legal" style={{ minWidth: need, width: scale < 1 ? need : undefined, zoom: scale }}>
+    <div style={{ overflowX: 'auto', margin: '0 -18px', padding: '0 10px' }}>
+      <div className="pmrk-table pmrk-legal" style={{ minWidth: need }}>
         <div className="pmrk-table__head">
           {columns.map((col, i) => (
-            <div key={i} className="pmrk-th" style={{ flex: flexOf(col) }}>{col.label}</div>
+            <div key={i} className="pmrk-th" style={{ flex: flexOf(col), gap: 4, background: col.group ? 'var(--color-bg-secondary)' : undefined }}>
+              <span>{col.label}</span>
+              {/* стрелка сбоку от подписи: «вправо» — раскрыть колонки справа,
+                  «влево» — свернуть их обратно */}
+              {col.groupToggle && (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(col.groupToggle!)}
+                  title={openGroups.has(col.groupToggle) ? 'Свернуть детализацию' : `Показать детализацию суммы (${groupSize(col.groupToggle)} колонки)`}
+                  aria-label={openGroups.has(col.groupToggle) ? 'Свернуть детализацию' : 'Показать детализацию суммы'}
+                  style={{ flex: 'none', width: 20, height: 20, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--color-bg-border)', borderRadius: 6, background: 'var(--color-bg-default)', color: 'var(--color-typo-brand)', cursor: 'pointer' }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden style={{ transform: openGroups.has(col.groupToggle) ? 'rotate(180deg)' : undefined }}>
+                    <path d="M3.5 1.5 L7 5 L3.5 8.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
           ))}
         </div>
         {rows.map((r) => (
           <div key={r.id} className="pmrk-tr" style={{ cursor: 'default' }}>
             {columns.map((col, i) => (
-              <div key={i} className="pmrk-td" style={{ flex: flexOf(col) }}>{col.render(r)}</div>
+              <div key={i} className="pmrk-td" style={{ flex: flexOf(col), whiteSpace: col.align === 'right' ? 'nowrap' : undefined, background: col.group ? 'color-mix(in srgb, var(--color-bg-secondary) 60%, transparent)' : undefined }}>{col.render(r)}</div>
             ))}
           </div>
         ))}
@@ -2248,7 +2359,7 @@ function LegalTab({ c }: { c: Counterparty }) {
   // уведомление об этом — как и было в детальной карточке раньше.
   const curacaoCol = <T,>(): LegalCol<T> => ({
     label: 'Данные КЮРАСАО 2.0', width: 120,
-    render: () => <a href="#" onClick={(e) => { e.preventDefault(); setCuracao(true); }} style={{ color: 'var(--color-typo-brand)', fontSize: 12 }}>Перейти</a>,
+    render: () => <a href="#" onClick={(e) => { e.preventDefault(); setCuracao(true); }} style={{ color: 'var(--color-typo-brand)' }}>Перейти</a>,
   });
 
   const claimCols: LegalCol<typeof legal.claims[0]>[] = [
@@ -2258,10 +2369,10 @@ function LegalTab({ c }: { c: Counterparty }) {
     { label: 'Номер исходящей претензии', width: 130, min: 76, render: (x) => x.claimNo },
     { label: 'Дата направления претензии', width: 110, render: (x) => dateRu(x.sentDate) },
     { label: 'Предмет и основание претензии', width: 260, render: (x) => x.subject },
-    { label: 'Сумма претензии (общая), руб.', width: 130, align: 'right', render: (x) => m(x.total) },
-    { label: 'Основной долг, руб.', width: 110, align: 'right', render: (x) => m(x.principal) },
-    { label: 'Неустойка, руб.', width: 100, align: 'right', render: (x) => m(x.penalty) },
-    { label: 'Иное, руб.', width: 90, align: 'right', render: (x) => m(x.other) },
+    { label: 'Сумма претензии (общая), руб.', width: 130, align: 'right', groupToggle: 'claimSum', render: (x) => m(x.total) },
+    { label: 'Основной долг, руб.', width: 110, align: 'right', group: 'claimSum', render: (x) => m(x.principal) },
+    { label: 'Неустойка, руб.', width: 100, align: 'right', group: 'claimSum', render: (x) => m(x.penalty) },
+    { label: 'Иное, руб.', width: 90, align: 'right', group: 'claimSum', render: (x) => m(x.other) },
     { label: 'Удовлетворено, руб.', width: 110, align: 'right', render: (x) => m(x.satisfied) },
     { label: 'Событие по претензии', width: 180, render: (x) => x.event },
     { label: 'Дата события', width: 100, render: (x) => dateRu(x.eventDate) },

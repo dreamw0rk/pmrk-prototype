@@ -107,6 +107,8 @@ export const HEROES: Counterparty[] = [
     assessments: [
       { id: 'as-gpn1', date: '2026-05-28', reportPeriod: '2025-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 92, limit: 5_000_000_000, author: 'Петрова И.А.' },
       { id: 'as-gpn2', date: '2026-02-20', reportPeriod: '2024-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 90, limit: 5_000_000_000, author: 'Петрова И.А.' },
+      { id: 'as-gpn3', date: '2025-08-19', reportPeriod: '2024-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 89, limit: 4_500_000_000, author: 'Смирнов К.В.' },
+      { id: 'as-gpn4', date: '2025-03-12', reportPeriod: '2023-12-31', direction: 'OIL', directionLabel: 'Покупатели нефти и НП', group: 1, score: 87, limit: 4_000_000_000, author: 'Смирнов К.В.' },
     ],
     news: [
       { id: 'n-gpn1', date: '2026-06-16', title: '«Эксперт РА» подтвердил рейтинг на уровне ruAAA', source: 'Яндекс.Новости', sentiment: 'positive', summary: 'Максимальный уровень по национальной шкале, прогноз «стабильный».' },
@@ -119,6 +121,8 @@ export const HEROES: Counterparty[] = [
     courtCases: [
       { id: 'c-gpn1', kind: 'lawsuit', role: 'истец', amount: 1_240_000_000, date: '2026-02-18', status: 'Рассмотрение по существу', subject: 'Взыскание задолженности с подрядчика' },
       { id: 'c-gpn2', kind: 'claim', role: 'ответчик', amount: 320_000_000, date: '2025-12-09', status: 'Претензия получена', subject: 'Спор по договору транспортировки' },
+      { id: 'c-gpn4', kind: 'claim', role: 'ответчик', amount: 46_800_000, date: '2026-03-24', status: 'Урегулировано', subject: 'Неустойка за просрочку оплаты по договору хранения' },
+      { id: 'c-gpn5', kind: 'claim', role: 'истец', amount: 12_500_000, date: '2026-04-30', status: 'Претензия направлена', subject: 'Возмещение убытков за недопоставку нефтепродуктов' },
       { id: 'c-gpn3', kind: 'enforcement', role: 'должник', amount: 7_000, date: '2026-05-27', status: 'Исполнительное производство', subject: 'Госпошлина, присужденная судом' },
     ],
     sanctions: [
